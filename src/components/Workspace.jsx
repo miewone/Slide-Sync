@@ -1,3 +1,4 @@
+import {AnalyticsSettingsButton} from './AnalyticsConsentBanner.jsx';
 import {t} from '../i18n/I18n.js';
 import {useLanguage} from '../hooks/useLanguage.js';
 import {useState} from 'react';
@@ -39,6 +40,11 @@ function StatusBar() {
   const backgroundSaving=useEditorValue('backgroundSaving');
   return <footer className="statusbar"><span id="status" role="status">{status}</span>
     <span id="background-save-status" role="status" hidden={!backgroundSaving}>{backgroundSaving?t('storage.saving'):''}</span>
+    <nav className="policy-links" aria-label={t('legal.links')}>
+      <AnalyticsSettingsButton/>
+      <a id="privacy-link" href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer">{t('legal.privacy')}</a>
+      <a id="terms-link" href={`${import.meta.env.BASE_URL}terms.html`} target="_blank" rel="noopener noreferrer">{t('legal.terms')}</a>
+    </nav>
     <span id="size-info">{size}</span></footer>;
 }
 

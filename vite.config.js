@@ -1,4 +1,4 @@
-import {defineConfig, loadEnv} from 'vite';
+import {defineConfig} from 'vite';
 import react from '@vitejs/plugin-react';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
@@ -18,17 +18,13 @@ function previewCacheVersion() {
   return hash.digest('hex');
 }
 
-/** Add optional production analytics and hash final inline scripts for the CSP. */
+/** Expose optional GA4 configuration without loading tags before consent; hash inline scripts for CSP. */
 function productionCsp() {
   let measurementId = '';
   return {
     name:'slide-sync-production-csp', apply:'build',
     configResolved(config) {
-      const configuredId = loadEnv(config.mode, config.envDir, 'VITE_GA4_').VITE_GA4_MEASUREMENT_ID?.trim() || '';
-      measurementId = config.isProduction ? configuredId : '';
-      if (measurementId && !/^G-[A-Z0-9]+$/.test(measurementId)) {
-        throw new Error('VITE_GA4_MEASUREMENT_ID must be a GA4 measurement ID (G-XXXXXXXXXX).');
-      }
+      measurementId = config.isProduction ? 'G-E1J2X2B0FL' : '';
     },
     generateBundle: {
       order:'post',
@@ -36,15 +32,7 @@ function productionCsp() {
         for (const asset of Object.values(bundle)) {
           if (asset.type !== 'asset' || !asset.fileName.endsWith('.html')) continue;
           let html = String(asset.source);
-          if (measurementId) {
-            html = html.replace('</head>', `<script async src="https://www.googletagmanager.com/gtag/js?id=${measurementId}"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', '${measurementId}');
-</script></head>`);
-          }
+          if (measurementId)html=html.replace('</head>',`<meta name="slide-sync-ga4" content="${measurementId}"></head>`);
           const hashes = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
             .filter(match => match[1].trim()).map(match => `'sha256-${createHash('sha256').update(match[1]).digest('base64')}'`);
           const analyticsScript = measurementId ? ' https://www.googletagmanager.com' : '';

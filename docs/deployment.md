@@ -2,13 +2,17 @@
 
 ## 방문 통계 (GA4)
 
-Cloudflare의 빌드 환경 변수에 `VITE_GA4_MEASUREMENT_ID`를 추가하고, 값으로 GA4 웹 데이터 스트림의 측정 ID(`G-XXXXXXXXXX`)를 입력한 뒤 다시 빌드·배포합니다. Worker 런타임 변수만 설정하면 정적 파일 빌드에 반영되지 않습니다. 개인 측정 ID는 저장소에 넣지 않습니다.
+GA4 측정 ID는 `vite.config.js`에서 `G-E1J2X2B0FL`로 고정합니다. 별도의 서버 연결이나 `VITE_GA4_MEASUREMENT_ID` 환경 변수 설정 없이 브라우저에서 Google로 직접 전송합니다.
 
-`npm run build`의 운영 빌드에서 ID가 설정된 경우에만 Google 태그가 HTML에 삽입됩니다. ID가 없거나 `npm run dev`로 실행하면 태그를 로드하지 않습니다. ID를 넣어 만든 운영 빌드는 로컬 `npm run preview`에서도 추적하므로, 일반적인 로컬 검증에서는 변수를 설정하지 마세요. 설정 변경은 다시 빌드해야 반영되며, 측정 ID는 브라우저에서 확인 가능한 공개 식별자입니다.
+`npm run build`의 운영 빌드에는 GA4 설정과 통계 동의 배너를 제공합니다. Google 태그는 페이지 시작 시 삽입하지 않으며 **통계 수집 동의**를 선택한 뒤 로드합니다. 동의 전·거부 상태에서는 GA4 태그 요청을 보내지 않습니다. 개발 서버에서는 통계 수집을 시작하지 않습니다.
 
-`vite.config.js`는 GA4가 활성화된 빌드에만 Google 태그 및 Analytics 수집 출처를 CSP에 허용하고, 인라인 초기화 코드는 빌드 시 SHA-256 해시로 허용합니다. 광고 기능용 출처는 추가하지 않았습니다. 허용 출처는 [Google의 CSP 안내](https://developers.google.com/tag-platform/security/guides/csp)를 기준으로 합니다.
+동의와 거부를 같은 수준의 버튼으로 제공하며, 거부해도 편집·Drive 기능은 사용할 수 있습니다. 하단 **쿠키 설정**에서 선택을 변경할 수 있습니다. 선택은 localStorage에 180일 동안 기억하며 만료·측정 ID 변경 시 다시 묻습니다. 철회하면 Google 수집 중지 플래그를 설정하고 접근 가능한 해당 사이트의 GA 쿠키를 삭제합니다. 이미 전송된 데이터까지 회수하는 기능은 아닙니다. 문서·Google 설정 저장소는 삭제하거나 새로고침하지 않습니다.
 
-배포 후 사이트를 열고 GA4 실시간 보고서에서 방문을 확인하세요. 개발자 도구에서 Google 태그와 수집 요청의 CSP 차단 여부도 확인합니다. 편집·다운로드용 사용자 정의 이벤트는 추가하지 않았으며, 자동 이벤트는 GA4 향상된 측정 설정에 따릅니다.
+GA4는 광고 관련 동의를 항상 거부 상태로 두고 Google signals·광고 개인화 기능을 끕니다. 통계 쿠키에는 `slide_sync` 접두사를 사용하며 호스트 단위로 설정합니다. 운영 빌드에서 Analytics 출처를 CSP에 허용합니다. [Google 동의 모드](https://developers.google.com/tag-platform/security/guides/consent), [수집 중지 설정](https://developers.google.com/tag-platform/security/guides/privacy).
+
+Cloudflare의 보안·접속 처리와 GA4의 선택적 통계 수집은 별도입니다. Cloudflare 대시보드에서 자동 삽입하는 Web Analytics·Zaraz·추가 추적 태그는 앱 소스에서 확인하거나 이 배너로 제어하지 않습니다. 그런 기능을 사용하는 경우 제공자 동작과 적용 지역의 요구사항을 별도로 확인해야 합니다. 이 변경은 Cloudflare 설정을 변경하지 않습니다.
+
+배포 후 동의 전·거부 상태에서 Google 태그 요청이 없는지 Network에서 확인하고, 동의 후 GA4 실시간 보고서에서 방문을 확인하세요. `npm run test:browser -- --check-analytics-consent`는 테스트 ID와 모의 태그로 동의 전 요청 차단, 거부 유지, 철회, 편집 상태 보존을 검증합니다. 기본 테스트 포트 외 4191도 비어 있어야 합니다.
 
 ## Workers Git 연동 (현재 배포 설정)
 
@@ -101,3 +105,20 @@ Slides는 네이티브 객체 수정 요청만 전송하고 새 문서 저장은
 ### API 사용 비용 (2026-09-15 확인)
 
 Google Slides API의 표준 사용과 Drive API 일일 기준 사용량 이하는 추가 비용이 없습니다. Google은 2026년 중 기준 초과 사용량 과금을 예고하고 있으므로 각 사용자의 Cloud 프로젝트 할당량과 공지를 확인하세요. [Slides 가격](https://developers.google.com/workspace/slides/api/limits#pricing), [Drive 일일 기준](https://developers.google.com/workspace/drive/api/guides/limits#daily_billing_threshold), [Workspace API 안내](https://developers.google.com/workspace/tools-safety).
+
+
+## 공개 개인정보처리방침·서비스 이용약관
+
+로그인 없이 읽을 수 있는 한국어·영어 정적 페이지를 제공합니다. 앱 하단에서도 새 탭으로 열 수 있습니다.
+
+| Google Auth Platform 입력 항목 | 배포 후 공개 URL |
+| --- | --- |
+| 애플리케이션 홈페이지 | `https://slide-sync.dlsrk489.workers.dev/` |
+| 개인정보처리방침 | `https://slide-sync.dlsrk489.workers.dev/privacy.html` |
+| 서비스 약관 | `https://slide-sync.dlsrk489.workers.dev/terms.html` |
+
+`public/privacy.html`, `public/terms.html`, `public/legal.css`는 빌드 시 그대로 정적 파일에 포함됩니다. 이 페이지에는 로그인이나 JavaScript가 필요하지 않으며 GA4도 삽입하지 않습니다. `/slides/` 같은 하위 경로 배포도 상대 링크로 지원합니다. 새로운 배포가 완료되기 전에는 운영 URL에서 새 문서를 볼 수 없습니다.
+
+배포 후 실제 공개 URL에서 문서가 보이는지 확인한 뒤 **Google Auth Platform → 브랜딩**의 링크 항목에 입력하세요. Google이 요구하면 연결된 도메인의 소유권과 브랜딩도 확인해야 합니다. 문서 링크 추가만으로 OAuth 검증 통과나 테스트 사용자 제한 해제가 보장되지는 않습니다. [Google 브랜드 검증 및 공개 정책 요구사항](https://developers.google.com/identity/protocols/oauth2/production-readiness/brand-verification).
+
+문서는 현재 구현의 로컬 PPTX 처리, 사용자별 Google 설정, 브라우저 토큰 보관, Google API 데이터 이용, 삭제 방법, 운영 빌드의 GA4 및 Cloudflare 제공을 설명합니다. 운영자 연락처는 앱에 사용 중인 `dlsrk489@gmail.com`이며, 데이터 처리 방식이나 운영 정보가 달라지면 문서와 수정일을 함께 갱신하세요.

@@ -1,5 +1,13 @@
 /** All application-owned UI text. Keep Korean/English placeholders identical. */
 export const messages = {
+  'consent.title': {ko:'방문 통계 수집 선택',en:'Choose whether to allow analytics'},
+  'consent.description': {ko:'서비스 이용 통계를 위해 Google Analytics 쿠키를 사용할 수 있습니다. 동의하기 전에는 통계 태그를 로드하지 않습니다. 거부해도 편집과 Google Drive 기능을 사용할 수 있으며, 하단 쿠키 설정에서 언제든 변경할 수 있습니다.',en:'We can use Google Analytics cookies to measure service usage. Analytics tags are not loaded before you consent. Refusing does not affect editing or Google Drive. Change your choice anytime using Cookie settings below.'},
+  'consent.accept': {ko:'통계 수집 동의',en:'Allow analytics'},
+  'consent.reject': {ko:'통계 수집 거부',en:'Reject analytics'},
+  'consent.settings': {ko:'쿠키 설정',en:'Cookie settings'},
+  'legal.links': {ko:'정책 안내',en:'Policies'},
+  'legal.privacy': {ko:'개인정보처리방침',en:'Privacy Policy'},
+  'legal.terms': {ko:'이용약관',en:'Terms of Service'},
   'drive.gcloudTitle': {ko:'gcloud로 설정하기',en:'Set up with gcloud'},
   'drive.gcloudHelp': {ko:'Google Cloud CLI가 설치된 Bash 또는 Cloud Shell에서 실행하세요. your-project-id를 본인의 기존 프로젝트 ID로 바꿉니다. API 활성화·제한된 API 키 생성·프로젝트 번호 조회를 수행합니다.',en:'Run in Bash with Google Cloud CLI installed, or in Cloud Shell. Replace your-project-id with your existing project ID. These commands enable APIs, create a restricted key and read the project number.'},
   'drive.gcloudExisting': {ko:'프로젝트의 API 활성화·API 키 생성 권한이 필요합니다. 같은 키 ID가 이미 있으면 새 키 ID를 사용하거나 기존 키의 제한을 확인한 뒤 생성 단계를 건너뛰세요.',en:'You need permission to enable APIs and create keys. If the key ID already exists, choose a new ID or verify the existing restrictions and skip creation.'},

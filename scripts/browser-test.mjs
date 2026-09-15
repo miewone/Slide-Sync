@@ -1,3 +1,5 @@
+import {checkAnalyticsConsent} from './analytics-consent-checks.mjs';
+import {checkPolicyPages} from './policy-pages-checks.mjs';
 import {checkGoogleSettings} from './google-settings-checks.mjs';
 import {checkFileOpen} from './file-open-checks.mjs';
 import {checkGoogleDrive} from './google-drive-checks.mjs';
@@ -119,7 +121,11 @@ try {
   await browser.send('Emulation.setDeviceMetricsOverride', {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await browser.send('Network.setUserAgentOverride',{userAgent:(await browser.send('Browser.getVersion')).userAgent,acceptLanguage:'ko-KR,ko;q=0.9,en;q=0.8'});
 
-  if(process.argv.includes('--check-file-open')) {
+  if(process.argv.includes('--check-analytics-consent')) {
+    await checkAnalyticsConsent(browser);
+  } else if(process.argv.includes('--check-policy-pages')) {
+    for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkPolicyPages(browser,origin);
+  } else if(process.argv.includes('--check-file-open')) {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkFileOpen(browser,origin);
     await checkGoogleSettings(browser,'http://127.0.0.1:5179');
     await checkGoogleDrive(browser,'http://127.0.0.1:5179');
@@ -236,6 +242,8 @@ try {
   assert.equal(await browser.evaluate('document.querySelectorAll("#stage iframe").length'), 8, 'single runtime after remount');
   assert.deepEqual(browser.errors, [], 'lifecycle has no async unmount exceptions');
   console.log('PASS lifecycle: StrictMode, unmount during async loading, remount and reopen');
+  await checkAnalyticsConsent(browser);
+  await checkPolicyPages(browser,'http://127.0.0.1:4179');
   await checkPreviewHover(browser,'http://127.0.0.1:5179');
   await checkPreviewHover(browser,'http://127.0.0.1:4179');
   await checkPreviewHover(browser,'http://127.0.0.1:4189/slides/');

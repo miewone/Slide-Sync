@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; font-src 'self'; img-src data:; base-uri 'none'; form-action 'none'">
+  <meta name="description" content="Slide Sync의 파일 처리, Google Drive 접근, 브라우저 저장 및 삭제에 관한 개인정보처리방침">
+  <title>개인정보처리방침 · Slide Sync</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="legal.css">
+</head>
+<body>
+<div class="legal-shell">
+  <nav class="legal-nav" aria-label="사이트"><a class="legal-brand" href="./">Slide Sync</a><a href="privacy.html" aria-current="page">개인정보처리방침</a><a href="terms.html">서비스 이용약관</a></nav>
+  <main class="legal-card">
+    <h1>개인정보처리방침</h1>
+    <p class="legal-meta">시행일·최종 수정일: 2026년 9월 15일 · 운영 및 문의: Slide Sync 운영자, <a href="mailto:dlsrk489@gmail.com">dlsrk489@gmail.com</a></p>
+    <nav aria-label="Language"><a href="#korean">한국어</a> · <a href="#english" lang="en">English</a></nav>
+    <section id="korean" lang="ko" aria-label="한국어 개인정보처리방침">
+      <p class="legal-summary">Slide Sync는 PPTX와 Google Slides의 요소를 선택·편집하는 브라우저 도구입니다. 로컬 문서는 브라우저에서 처리합니다. Google Drive 연동을 선택하면 사용자가 승인한 파일을 Google에서 읽고, 사용자가 저장할 때 Google에 변경사항을 전송합니다.</p>
+      <h2>1. 처리하는 정보와 목적</h2>
+      <div class="legal-table"><table><thead><tr><th>정보</th><th>처리 목적 및 위치</th></tr></thead><tbody>
+        <tr><td>선택한 PPTX의 이름·내용, 슬라이드·요소·서식, 미리보기</td><td>브라우저 안에서 파일 열기, 검색, 편집, 실행 취소, 내보내기에 사용합니다. 최근 파일과 미리보기 캐시는 해당 브라우저에 보관될 수 있습니다.</td></tr>
+        <tr><td>Google 파일 ID·이름·유형·버전·권한, 사용자가 선택한 폴더, Slides 객체·미리보기</td><td>파일 선택, 표시, 편집, 충돌 확인, 원본 또는 새 파일 저장에 사용합니다. 브라우저가 Google API와 직접 통신합니다.</td></tr>
+        <tr><td>사용자가 입력한 Google API 키·OAuth 클라이언트 ID·프로젝트 번호</td><td>사용자 자신의 Google 프로젝트로 연동하기 위해 IndexedDB에 보관합니다. API 키와 식별자는 필요한 Google 요청에 포함됩니다. 클라이언트 Secret은 입력받지 않습니다.</td></tr>
+        <tr><td>Google 접근 토큰·만료 시간·권한 범위</td><td>승인된 파일 접근과 새로고침 후 연결 복원을 위해 메모리 및 localStorage에 보관합니다. 갱신 토큰은 발급받아 보관하지 않습니다.</td></tr>
+        <tr><td>언어·패널 배치, 선택적으로 제공한 글꼴, 작업 로그</td><td>화면 설정과 미리보기에 사용합니다. 설정은 브라우저에 저장될 수 있고 작업 로그는 현재 탭의 메모리에 보관됩니다.</td></tr>
+      </tbody></table></div>
+      <h2>2. Google 사용자 데이터의 이용</h2>
+      <p>Google 연동은 선택 사항이며 <code>https://www.googleapis.com/auth/drive.file</code> 권한을 요청합니다. 사용자가 앱으로 열거나 선택한 파일 및 앱에서 만든 파일에 대한 접근에 사용합니다. Google 로그인 정보와 비밀번호는 Google이 처리하며 Slide Sync가 비밀번호를 수집하지 않습니다.</p>
+      <p>Google에서 받은 데이터는 사용자가 요청한 파일 표시·편집·저장 기능에만 사용합니다. 이를 판매하거나 광고 타기팅, 범용 AI·기계학습 모델 훈련에 사용하지 않습니다. Google 사용자 데이터의 이용과 전송에는 <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a> 및 Limited Use 요구사항을 준수합니다.</p>
+      <h2>3. 외부 전송과 서비스 제공자</h2>
+      <p>현재 정적 서비스는 운영자 서버에 문서 내용, API 설정 또는 Google 토큰을 저장하는 기능을 제공하지 않습니다. Google 연동 시 파일과 인증 요청은 Google로 직접 전송됩니다. 문의 이메일로 사용자가 보내는 정보는 문의 답변을 위해 운영자가 처리할 수 있습니다.</p>
+      <p>사이트는 Cloudflare를 통해 제공됩니다. Cloudflare와 Google은 페이지·라이브러리·인증·API 요청 처리 과정에서 IP 주소, 브라우저 정보, 접속 시각 등의 기술 정보를 각 서비스 정책에 따라 처리할 수 있습니다. <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare 개인정보처리방침</a>, <a href="https://policies.google.com/privacy">Google 개인정보처리방침</a>을 참고하세요.</p>
+      <h2>4. 방문 통계와 쿠키</h2>
+      <p>통계 수집 동의 전이나 거부 상태에서는 앱의 GA4 태그를 로드하지 않습니다. 동의·거부 선택은 localStorage에 180일간 보관합니다. 앱 하단의 쿠키 설정에서 언제든 변경할 수 있으며, 철회 시 수집을 중지하고 접근 가능한 GA 쿠키를 삭제합니다. 이미 전송된 데이터가 자동 삭제되지는 않습니다. 광고 관련 동의는 허용하지 않습니다.</p>
+      <p>운영 빌드에서는 Google Analytics 4(GA4) 측정 ID G-E1J2X2B0FL로 사용자의 분석 동의 후 방문 통계를 수집합니다. 이 경우 페이지 방문, 브라우저·기기 정보 및 GA4 설정에 따른 자동 이벤트·쿠키가 사용될 수 있습니다. 파일 내용, API 키, Google 접근 토큰을 분석용 사용자 정의 이벤트로 전송하는 기능은 구현하지 않았습니다. 개발 서버에서는 Google Analytics 태그를 로드하지 않습니다.</p>
+      <p>Google 로그인과 Picker는 Google의 쿠키를 사용할 수 있습니다. 브라우저의 서드 파티 쿠키 제한에 따라 파일 선택이 제한될 수 있습니다. 이 정책 페이지 자체는 분석 스크립트를 로드하지 않습니다. 분석 데이터와 인프라 로그의 보관은 해당 제공자의 정책 및 운영 설정에 따르며, 앱 코드에서 공통 보관 기간을 지정하지 않습니다.</p>
+      <h2>5. 보관 기간과 삭제 방법</h2>
+      <ul>
+        <li><strong>최근 PPTX·미리보기:</strong> 최근 파일 메뉴에서 개별 삭제 또는 전체 삭제를 사용하거나 브라우저의 이 사이트 데이터를 삭제할 수 있습니다.</li>
+        <li><strong>Google API 설정:</strong> 내 Google API 설정 → 저장한 설정 삭제에서 삭제합니다. 관련 접근 토큰도 함께 지웁니다.</li>
+        <li><strong>접근 토큰:</strong> 연결 해제 시 삭제합니다. 만료된 토큰은 다음 복원·유효성 확인 시 삭제합니다. 브라우저 저장이 Google의 토큰 유효기간을 연장하지 않습니다.</li>
+        <li><strong>미저장 편집과 작업 로그:</strong> 현재 탭의 메모리에 있으며 탭 종료·새로고침 시 사라집니다. 작업 로그는 별도로 비울 수 있습니다.</li>
+        <li><strong>전체 브라우저 데이터:</strong> 사이트 데이터 삭제로 IndexedDB·localStorage의 설정·캐시·토큰을 삭제할 수 있습니다.</li>
+      </ul>
+      <p>앱의 연결 해제나 로컬 데이터 삭제는 Google Drive 원본 파일을 삭제하거나 Google 계정에 부여한 앱 권한을 취소하지 않습니다. <a href="https://myaccount.google.com/connections">Google 계정 연결 관리</a>에서 앱 접근 권한을 취소할 수 있습니다. Drive에 저장한 파일은 사용자가 Google Drive에서 관리·삭제합니다.</p>
+      <h2>6. 이용자의 선택과 보호</h2>
+      <p>Google 연결 없이 로컬 PPTX 기능을 사용할 수 있습니다. 브라우저 저장소는 해당 사이트의 JavaScript가 읽을 수 있으므로 공용 기기에서는 사용 후 연결 해제·설정 삭제를 권장합니다. 공개 배포본의 전송에는 HTTPS를 사용하며 미리보기에서는 스크립트 실행을 차단합니다.</p>
+      <p>개인정보 관련 문의, 운영자에게 직접 보낸 정보의 확인·삭제 요청은 <a href="mailto:dlsrk489@gmail.com">dlsrk489@gmail.com</a>으로 보내주세요. 브라우저 안에만 저장된 정보에는 운영자가 원격으로 접근해 삭제할 수 없으므로 위 삭제 기능을 이용해 주세요.</p>
+      <h2>7. 방침 변경</h2>
+      <p>정보 처리 방식이 변경되면 이 페이지와 최종 수정일을 갱신합니다. 새로운 처리 목적이나 추가 동의가 필요한 변경은 적용 전에 안내합니다.</p>
+    </section>
+    <section id="english" lang="en" aria-label="Privacy policy in English">
+      <h2>Privacy Policy</h2>
+      <p class="legal-meta">Effective and last updated: September 15, 2026. Operator/contact: Slide Sync operator, <a href="mailto:dlsrk489@gmail.com">dlsrk489@gmail.com</a>.</p>
+      <h3>Data and purposes</h3>
+      <p>Slide Sync edits PPTX and native Google Slides objects. Local document names, contents and previews are processed in your browser. Recent PPTX files and preview caches may be stored locally. Google integration is optional: the browser reads selected files, metadata, permissions, versions, slide objects and previews directly from Google and sends changes when you choose to save.</p>
+      <p>Your API key, OAuth client ID and project number are stored in this site's IndexedDB and used in Google requests. No client secret is requested. Access tokens, scopes and expiration times are kept in memory and localStorage to restore an unexpired connection. No refresh token is stored. Language and layout preferences may persist locally; uploaded or permitted local fonts are used for previews, and activity logs remain in the current tab.</p>
+      <h3>Google data and third parties</h3>
+      <p>The app requests the <code>drive.file</code> scope for files you open or select with the app, or create through it. Google handles sign-in and passwords. Google user data is used only for the file viewing, editing and saving features you request. It is not sold, used for advertising targeting or used to train general-purpose AI or machine-learning models. Use and transfer of Google user data comply with the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including its Limited Use requirements.</p>
+      <p>The current static service has no operator-side storage for document contents, Google configuration or tokens. Google API requests go directly to Google. The operator may process information you voluntarily email for support. Cloudflare hosts the site; Cloudflare and Google may process IP addresses, browser details and request times while serving their services under their respective privacy policies.</p>
+      <h3>Analytics and cookies</h3>
+      <p>No app-managed GA4 tag is loaded before consent or following rejection. Consent choices are stored in localStorage for 180 days. Use Cookie settings in the app footer to change your choice. Withdrawal stops collection and deletes accessible GA cookies, but does not automatically delete previously transmitted data. Advertising consent remains denied.</p>
+      <p>Production builds use Google Analytics 4 measurement ID G-E1J2X2B0FL, after analytics consent, to collect page visits, browser/device details and automatic events and use cookies according to their GA4 settings. The app does not implement custom analytics events that transmit file contents, API keys or access tokens. The development server does not load Analytics. Google authentication and Picker may use Google cookies. These policy pages load no analytics scripts. Provider logs and analytics retention depend on provider policies and deployment settings; the app does not set a common retention period.</p>
+      <h3>Retention, deletion and choices</h3>
+      <p>Remove recent files using the recent-files menu. Delete API configuration through My Google API settings; this also removes its associated access token. Disconnect deletes the saved token. Expired tokens are deleted when next restored or checked. Clearing this site's browser data removes IndexedDB and localStorage data. Unsaved edits and in-memory logs disappear on reload or tab closure; logs can also be cleared in the app.</p>
+      <p>Disconnecting or clearing local data does not delete Google Drive files or revoke account permissions. Revoke permissions through <a href="https://myaccount.google.com/connections">Google account connections</a>, and manage saved files in Google Drive. Local PPTX features do not require Google authorization. Site JavaScript can read browser storage; on shared devices, disconnect and delete settings when finished.</p>
+      <p>For privacy questions or deletion of information emailed to the operator, contact the address above. The operator cannot remotely delete data stored only in your browser. Changes to this policy will be published here with an updated date; changes requiring additional notice or consent will be presented before taking effect.</p>
+    </section>
+  </main>
+  <footer class="legal-footer"><a href="./">Slide Sync로 돌아가기</a> · <a href="terms.html">서비스 이용약관 / Terms of Service</a></footer>
+</div>
+</body>
+</html>

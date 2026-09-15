@@ -5,6 +5,7 @@ import {EditorStore} from './editor/EditorStore.js';
 import {ActivityLog} from './services/ActivityLog.js';
 import {previewResources} from './services/PreviewResources.js';
 import {EditorContext} from './hooks/useEditor.js';
+import {AnalyticsConsentBanner} from './components/AnalyticsConsentBanner.jsx';
 import {Header} from './components/Header.jsx';
 import {Sidebar} from './components/Sidebar.jsx';
 import {Workspace} from './components/Workspace.jsx';
@@ -47,6 +48,6 @@ export default function App() {
   }, [services]);
 
   return <EditorContext.Provider value={services}>
-    <div id="app" ref={root}><Header/><ResizableLayout left={<Sidebar/>} center={<Workspace/>} right={<Inspector/>}/></div>
+    <div id="app" ref={root}><AnalyticsConsentBanner/><Header/><ResizableLayout left={<Sidebar/>} center={<Workspace/>} right={<Inspector/>}/></div>
   </EditorContext.Provider>;
 }
