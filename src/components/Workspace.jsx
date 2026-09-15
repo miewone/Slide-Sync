@@ -1,12 +1,10 @@
 import {t} from '../i18n/I18n.js';
 import {useLanguage} from '../hooks/useLanguage.js';
-import {memo} from 'react';
+import {useState} from 'react';
+import {PreviewStage} from './PreviewStage.jsx';
+import {PreviewGridControl} from './PreviewGridControl.jsx';
 import {Button, Checkbox} from './ui.jsx';
 import {useEditor, useEditorValue} from '../hooks/useEditor.js';
-
-/** Stable DOM island: only the preview engine owns descendants of this node. */
-const PreviewStage = memo(function PreviewStage() {
-  useLanguage(); return <div id="stage" className="stage"/>; });
 
 /** Empty-state file actions; hidden without being removed during a file load. */
 function EmptyState() {
@@ -41,9 +39,11 @@ function StatusBar() {
 /** Presentation metadata and isolated preview host. */
 export function Workspace() {
   useLanguage();
+  const [grid,setGrid]=useState({columns:null,rows:null});
+  const busy=useEditorValue('busy');
   const name = useEditorValue('name'), summary = useEditorValue('summary'), notice = useEditorValue('notice');
   return <section className="workspace">
-    <div className="workspace-bar"><div><h1 id="filename">{name}</h1><p id="workspace-summary">{summary}</p></div>
+    <div className="workspace-bar"><div className="workspace-heading"><div className="workspace-title-row"><h1 id="filename">{name}</h1><PreviewGridControl grid={grid} disabled={busy} onChange={setGrid}/></div><p id="workspace-summary">{summary}</p></div>
       <div className="view-option workspace-options">
         <Checkbox variant="chip" id="match-appearance" label={t('Help.5')} helpKey="match-appearance"/>
         <Checkbox variant="chip" id="box-select-mode" label={t('Help.3')} helpKey="box-select-mode"/>
@@ -52,6 +52,6 @@ export function Workspace() {
       </div>
     </div>
     <div id="notice" className="notice" role="alert" hidden={!notice}>{notice}</div>
-    <EmptyState/><PreviewStage/><StatusBar/>
+    <EmptyState/><PreviewStage columns={grid.columns} rows={grid.rows}/><StatusBar/>
   </section>;
 }

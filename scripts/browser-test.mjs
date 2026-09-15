@@ -1,3 +1,4 @@
+import {checkPreviewGrid} from './preview-grid-checks.mjs';
 import {checkSelectionVisibility} from './selection-visibility-checks.mjs';
 import {checkLocalization} from './localization-checks.mjs';
 import {measureWorkflows,workflowMarkdown} from './workflow-performance.mjs';
@@ -109,6 +110,8 @@ try {
     await writeFile(join(artifacts,'workflow-performance.json'),JSON.stringify(report,null,2)+'\n');
     await writeFile(join(artifacts,'workflow-performance.md'),workflowMarkdown(report));
     console.log('PASS workflow benchmark: 10/100 slides, three repeats, edited PPTX validation');
+  } else if(process.argv.includes('--check-preview-grid')) {
+    for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkPreviewGrid(browser,origin);
   } else {
   for (const [mode, origin] of [['development','http://127.0.0.1:5179'], ['production','http://127.0.0.1:4179'], ['subpath','http://127.0.0.1:4189/slides/']]) {
     browser.errors = [];
@@ -192,6 +195,9 @@ try {
   await checkDeletion(browser,'http://127.0.0.1:5179');
   await checkDeletion(browser,'http://127.0.0.1:4179');
   await checkDeletion(browser,'http://127.0.0.1:4189/slides/');
+  await checkPreviewGrid(browser,'http://127.0.0.1:5179');
+  await checkPreviewGrid(browser,'http://127.0.0.1:4179');
+  await checkPreviewGrid(browser,'http://127.0.0.1:4189/slides/');
   await checkLocalization(browser,'http://127.0.0.1:5179');
   await checkLocalization(browser,'http://127.0.0.1:4179');
   await checkLocalization(browser,'http://127.0.0.1:4189/slides/');

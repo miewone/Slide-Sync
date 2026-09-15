@@ -1121,3 +1121,10 @@ Object.assign(messages, {
   'view.selectedElementsHelp': {ko:'현재 선택된 요소가 있는 슬라이드만 미리보기에 표시합니다. 요소 선택·해제·삭제·실행 취소에 따라 자동으로 갱신됩니다. 다른 보기 필터도 켜져 있으면 두 조건을 모두 적용합니다. 슬라이드 적용 대상이나 요소 선택 자체는 바꾸지 않습니다.',en:'Shows only slides that currently contain selected elements. Updates when elements are selected, deselected, deleted or restored with Undo. If another view filter is enabled, both conditions apply. Target slides and element selections are unchanged.'},
   'view.noSelectedElements': {ko:'선택한 요소가 있는 슬라이드가 없습니다. 보기 필터를 끄고 요소를 선택하세요.',en:'No slides contain selected elements. Turn off this view filter to select elements.'}
 });
+
+Object.assign(messages, {
+  'previewGrid.label': {ko:'페이지 갯수 보기',en:'Slide grid'},
+  'previewGrid.default': {ko:'기본',en:'Default'},
+  'previewGrid.columns': {ko:'가로 칸 수 (1–8)',en:'Columns (1–8)'},
+  'previewGrid.rows': {ko:'세로 칸 수 (1–8)',en:'Rows (1–8)'}
+});

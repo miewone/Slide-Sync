@@ -251,6 +251,7 @@ function renderCards() {
   const entries=[];
   for(const slide of state.deck.slides) {
     const index=slide.index,card=make('article','slide-card');card.id=`slide-${index}`;
+    card.style.setProperty('--slide-aspect',String(state.deck.width/state.deck.height));
     bindPreviewHover(card,index);
     const head=make('div','card-head'),label=make('label'),check=make('input');
     check.type='checkbox';check.checked=state.checked.has(index);check.disabled=state.busy;

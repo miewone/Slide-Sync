@@ -128,3 +128,28 @@
 .option-chip input[type=checkbox]:focus-visible{outline:none}
 .option-chip .option-help{background:transparent}
 @media(prefers-reduced-motion:reduce){.option-chip{transition:none}}
+
+.workspace-heading{min-width:0}
+.workspace-title-row{display:block}
+.workspace-title-row h1{min-width:0}
+.workspace-bar:has(.preview-grid-control){position:relative}
+.preview-grid-control{position:absolute;top:0;right:26px;display:flex;align-items:center;gap:5px;color:#748095;font-size:11px;white-space:nowrap}
+.preview-grid-label{margin-right:4px}
+.preview-grid-control button{border:0;border-radius:3px;background:transparent;color:#748095;padding:2px 3px;min-height:20px;font-size:12px;line-height:1.2}
+.preview-grid-control button:hover:not(:disabled){color:#3259c9}
+.preview-grid-control button[aria-pressed=true]{color:#3259c9;font-weight:650;text-decoration:underline;text-underline-offset:4px}
+.preview-grid-divider{color:#bdc5d1}
+.preview-grid-inputs{display:flex;align-items:center;gap:4px}
+.preview-grid-times{font-size:9px;line-height:1;font-weight:400;color:#9aa5b5}
+.preview-grid-inputs input{width:30px;min-height:20px;height:20px;padding:2px 3px;text-align:center;border:1px solid #d5dce6;border-radius:4px;background:#ffffffa6;font-size:11px;appearance:textfield;-moz-appearance:textfield}
+.preview-grid-inputs input::-webkit-inner-spin-button,.preview-grid-inputs input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.stage.preview-grid{min-height:0;grid-template-columns:repeat(var(--preview-columns,2),minmax(0,1fr));grid-auto-rows:var(--preview-row-height,240px);gap:16px}
+.preview-grid .slide-card{display:flex;flex-direction:column;align-items:center;contain-intrinsic-size:auto var(--preview-row-height,240px)}
+.preview-grid .slide-surface,.preview-grid .card-head{width:min(100%,calc((var(--preview-row-height,240px) - 36px)*var(--slide-aspect,1.777778)))}
+.preview-grid .slide-surface{flex-shrink:0}
+.preview-grid .card-head{height:28px;flex-shrink:0;margin-bottom:8px;gap:4px}
+.preview-grid .card-head label{min-width:0;overflow:hidden;white-space:nowrap;gap:4px;font-size:11px}
+.preview-grid .card-badge{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}
+@media(max-width:850px){.stage.preview-grid{flex:none;height:70dvh;min-height:320px}}
+@media(max-width:850px){.preview-grid-control{right:18px}}
+@media(max-width:540px){.stage.preview-grid{gap:10px}}
