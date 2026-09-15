@@ -4,6 +4,7 @@ import {useRef} from 'react';
 import {Button} from './ui.jsx';
 import {ActivityLogPanel} from './ActivityLogPanel.jsx';
 import {GoogleDriveControls} from './GoogleDriveControls.jsx';
+import {FileOpenChooser} from './FileOpenChooser.jsx';
 import {RecentFiles} from './RecentFiles.jsx';
 import {useEditor, useEditorValue} from '../hooks/useEditor.js';
 
@@ -35,9 +36,10 @@ export function Header() {
         <button type="button" id="language-en" lang="en" aria-pressed={i18n.getLanguage()==='en'} disabled={!ready||busy}
           onClick={()=>i18n.setLanguage('en')}>{t('language.english')}</button>
       </div>
-      <Button id="open" disabled={!ready || busy} onClick={() => input.current.click()}>{t('Header.5')}</Button>
-      <RecentFiles/>
-      <GoogleDriveControls/>
+      <GoogleDriveControls renderTrigger={({openDrive,disabled:driveDisabled})=><>
+        <FileOpenChooser disabled={!ready||busy||driveDisabled} driveDisabled={driveDisabled} onLocalOpen={()=>input.current.click()} onDriveOpen={openDrive}/>
+        <RecentFiles/>
+      </>}/>
       <Button id="download" variant="primary" disabled={!hasDeck || busy} onClick={commands.download}>{t('Header.6')}<span>↓</span></Button>
     </div>
     <input ref={input} id="file" type="file" accept=".pptx" hidden onChange={event => {

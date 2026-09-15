@@ -62,42 +62,42 @@ Wrangler나 추가 라이브러리 없이 연결할 수 있습니다. PPTX 처�
 
 ## Google Drive · Google Slides 연동
 
-Picker의 API 키에서 애플리케이션 제한을 **웹사이트**로 설정한 경우, 허용 목록에 `http://localhost:5173/*`, `https://slide-sync.dlsrk489.workers.dev/*`, **`https://docs.google.com/*`**를 등록합니다. Picker는 docs.google.com의 iframe에서 실행되므로 이 주소를 빠뜨리면 “API 개발자 키가 잘못되었습니다” 오류가 발생할 수 있습니다. API 제한에는 Google Picker API를 포함합니다. 이는 OAuth의 승인된 JavaScript 원본과 별도 설정입니다. [Google 공식 안내](https://developers.google.com/workspace/drive/picker/guides/web-picker#create_an_api_key)
+Google 설정은 사용자가 **PPTX 열기 → Google Drive → 내 Google API 설정**에서 직접 입력합니다. 사이트 운영자의 `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY`, `VITE_GOOGLE_APP_ID`는 더 이상 읽거나 번들에 넣지 않습니다. 기존 Cloudflare 빌드 변수와 `.env.local`의 세 값은 삭제해도 됩니다.
 
-
-Drive 버튼은 PPTX와 Google Slides를 열고 저장합니다. 실제 연동에는 같은 Google Cloud 프로젝트의 다음 빌드 환경 변수가 필요합니다.
-
-| 변수 | 값 |
+| 사용자 입력 | Google Cloud에서 가져오는 값 |
 | --- | --- |
-| `VITE_GOOGLE_CLIENT_ID` | 웹 애플리케이션 OAuth 클라이언트 ID (`…apps.googleusercontent.com`) |
-| `VITE_GOOGLE_API_KEY` | Google Picker용 브라우저 API 키 |
-| `VITE_GOOGLE_APP_ID` | Google Cloud **프로젝트 번호** (프로젝트 이름/문자열 ID가 아님) |
+| OAuth 클라이언트 ID | 웹 애플리케이션 클라이언트 ID (`…apps.googleusercontent.com`) |
+| API Key | Google Picker용 브라우저 API 키 |
+| 프로젝트 번호 | 같은 Google Cloud 프로젝트의 숫자 번호 |
 
-1. Google Cloud에서 **Google Drive API, Google Slides API, Google Picker API**를 활성화합니다.
-2. Google Auth Platform의 동의 화면을 설정합니다. 개발 중에는 테스트 사용자를 등록합니다. 앱은 사용자가 선택하거나 앱에서 만든 파일에 접근하는 `https://www.googleapis.com/auth/drive.file` 권한을 요청합니다.
-3. 웹 OAuth 클라이언트의 승인된 JavaScript 원본에 실제 사이트 원본을 등록합니다. 개발용으로는 `http://localhost:5173`처럼 Google이 허용하는 localhost 원본을 등록하고 해당 주소로 접속합니다. 포트도 일치해야 합니다.
-4. API 키에는 HTTP 리퍼러 제한(운영 도메인 및 개발 주소)과 필요한 API 제한을 적용합니다. **OAuth 클라이언트 비밀키는 프런트엔드에 넣지 않습니다.** 위 세 값은 브라우저에 노출되는 공개 식별자입니다.
-5. 로컬에서는 `.env.local`, Cloudflare에서는 빌드 환경 변수에 값을 설정하고 다시 빌드합니다. Worker 런타임 변수만 변경하면 반영되지 않습니다.
-6. 앱의 **Google Drive → Google 연결 → Drive에서 열기**로 파일을 선택합니다. 저장 시 원본/새 파일을 선택하며, 새 파일은 이름과 폴더를 지정합니다. 폴더를 지정하지 않으면 내 드라이브 최상위에 저장합니다.
+각 사용자는 자신의 Google Cloud 프로젝트에서 Drive API, Slides API, Picker API를 활성화하고 웹 OAuth 클라이언트를 만들어야 합니다. 일반 Google 계정 로그인만으로 준비가 끝나는 방식은 아닙니다. API 사용량은 입력한 인증 정보의 프로젝트에 집계됩니다.
 
-변수가 모두 설정된 빌드에만 Google 인증·Picker·API·Slides 이미지 출처를 CSP에 추가합니다. 실제 라이브러리는 사용자가 Drive 창을 열 때 로드합니다. 토큰은 메모리에만 보관하고 만료 시 사용자가 다시 연결합니다. 연결 해제는 현재 탭의 토큰을 삭제하며 Google 계정의 앱 권한을 취소하지는 않습니다. 서버 저장소나 클라이언트 비밀키는 사용하지 않습니다. 기존 PPTX 미리보기의 스크립트 차단 CSP는 유지합니다.
+### 사용자 Google Cloud 설정
 
-Slides는 `presentations.get`으로 읽고 객체 이동/삭제 요청만 `batchUpdate`로 저장합니다. PPTX로 변환하거나 문서 전체를 교체하지 않습니다. 새 Slides 문서는 Drive `files.copy`로 원본 구조를 복사한 뒤 수정합니다. 편집 권한이 있으면 원본 저장, 복사 권한이 있으면 새 문서 저장을 사용할 수 있습니다. 원본 버전이 바뀌었거나 복사본 구조가 예상과 다르면 변경 적용을 중단합니다. 복사 후 적용 실패 시 생성된 문서 링크를 표시하며, 자동 삭제·재시도는 하지 않습니다.
+CLI 사용자는 [gcloud 설정 가이드](google-drive-gcloud.md)의 명령으로 API 활성화·API 키 생성·프로젝트 번호 조회를 진행할 수 있습니다. 앱 설정 창에도 현재 사이트 주소를 반영한 복사 가능한 명령이 있습니다.
 
-PPTX 원본 저장은 파일 버전 확인과 ETag 조건부 업로드를 사용합니다. 응답에서 ETag를 읽을 수 없는 환경에서는 원본 저장을 거부하고 새 파일 저장을 안내합니다. 네트워크 오류로 저장 결과를 확인할 수 없다면 Google Drive에서 결과를 확인한 뒤 재시도합니다.
+1. 같은 프로젝트에서 **Google Drive API, Google Slides API, Google Picker API**를 활성화합니다.
+2. OAuth 동의 화면을 설정하고, 테스트 상태이면 사용할 Google 계정을 테스트 사용자로 등록합니다.
+3. 웹 OAuth 클라이언트의 승인된 JavaScript 원본에 `https://slide-sync.dlsrk489.workers.dev`를 등록합니다. 로컬에서는 `http://localhost`와 `http://localhost:5173`을 등록합니다. 앱 설정 화면에도 현재 등록할 원본이 표시됩니다.
+4. API 키의 웹사이트 제한에 배포 주소(`https://slide-sync.dlsrk489.workers.dev/*`), 로컬 사용 시 `http://localhost:5173/*`, 그리고 **`https://docs.google.com/*`**를 등록합니다. Picker iframe의 출처가 빠지면 “API 개발자 키가 잘못되었습니다” 오류가 발생할 수 있습니다. API 제한에는 Google Picker API를 포함합니다.
+5. 앱에서 세 값을 입력하고 **이 브라우저에 저장**을 누른 뒤 **Google 연결**을 진행합니다. **클라이언트 Secret은 입력하거나 배포하지 않습니다.**
 
-### 검증 범위
+설정은 해당 사이트의 IndexedDB에 저장됩니다. 다른 브라우저·기기·사이트 주소로는 공유되지 않습니다. 사이트 데이터를 삭제하면 다시 입력해야 합니다. **내 Google API 설정 → 저장한 설정 삭제**로 설정과 관련 연결 토큰을 지울 수 있습니다. 다른 설정으로 교체해도 이전 연결 토큰을 삭제합니다. 사용자가 입력한 API 키는 Google 요청에 사용되며 해당 사용자의 개발자 도구에서 확인할 수 있습니다. 브라우저 저장소는 같은 사이트의 JavaScript가 읽을 수 있으며 HttpOnly 저장소가 아닙니다.
 
-`npm test`에는 네이티브 구조·그룹·서식 보존, 범위·실행 취소, 원본/복사본 요청, 충돌, 업로드 제한 검증이 포함됩니다. `npm run test:browser -- --check-google-drive`는 Google 응답을 모의한 UI/REST 통합 검증이며 Google 계정에 접근하지 않습니다. 배포 후 실제 계정에서 OAuth 팝업, Picker 파일/폴더 선택, 토큰 만료 후 재연결, Slides 원본/복사본 저장, PPTX 원본/새 파일 저장과 CSP를 확인해야 합니다. Google Cloud 설정이 없는 로컬 테스트는 실제 계정 연동 성공을 보장하지 않습니다.
+### 정적 배포와 연결 유지
 
-공식 문서: [Picker](https://developers.google.com/workspace/drive/picker/guides/web-picker-sample), [Google 인증](https://developers.google.com/identity/oauth2/web/guides/use-token-model), [Slides 객체 수정](https://developers.google.com/workspace/slides/api/guides/transform), [Slides 버전 제어](https://developers.google.com/workspace/slides/api/reference/rest/v1/presentations/batchUpdate).
+인증 서버나 클라이언트 Secret 없이 정적 파일로 배포합니다. CSP에는 사용자가 입력한 설정으로 연동할 수 있도록 Google 인증·Picker·API·Slides 이미지 출처를 허용하지만, 라이브러리는 유효한 설정으로 Drive를 열 때만 로드합니다. 기존 PPTX 미리보기의 스크립트 차단 CSP는 유지합니다.
+
+접근 토큰과 만료 시간은 localStorage에 보관해 새로고침 후 복원합니다. Google의 토큰 유효기간을 연장하지 않으며 만료 시 다시 연결해야 합니다. 연결 해제는 토큰만 삭제하고 사용자 API 설정은 남깁니다. 저장소가 차단되면 설정 저장 오류를 표시하며 기존 로컬 PPTX 편집은 계속 사용할 수 있습니다.
+
+Slides는 네이티브 객체 수정 요청만 전송하고 새 문서 저장은 원본을 복사한 뒤 수정합니다. 버전 충돌 시 변경 적용을 중단합니다. PPTX 원본 저장은 버전 검사와 ETag 조건부 요청을 사용하며, ETag를 확인할 수 없으면 새 파일 저장을 안내합니다.
+
+### 검증
+
+`npm test`와 `npm run test:browser -- --check-file-open`은 사용자 설정 검증, IndexedDB 저장·재열기·삭제, 연결 복원, 실제 브라우저 fetch, PPTX·Slides 원본/복사본 저장을 검사합니다. Google 응답은 모의하므로 실제 계정에서 OAuth, Picker, 쿠키 허용과 저장 권한을 별도로 확인해야 합니다.
+
+공식 문서: [Picker 설정](https://developers.google.com/workspace/drive/picker/guides/web-picker), [Google 인증](https://developers.google.com/identity/oauth2/web/guides/use-token-model), [Slides 버전 제어](https://developers.google.com/workspace/slides/api/reference/rest/v1/presentations/batchUpdate).
 
 ### API 사용 비용 (2026-09-15 확인)
 
-Google Slides API의 표준 사용은 추가 비용이 없으며, Drive API도 일일 기준 사용량 이하는 무료입니다. Google은 2026년 중 기준 초과 사용량에 대한 과금을 예고하고 있으며, 시행 전 최소 90일 안내를 예정하고 있습니다. 운영 시 Cloud 프로젝트의 할당량과 과금 공지를 확인하세요. 이 앱은 편집 중 변경을 메모리에 모으고 저장 시 일괄 요청하며, API 쓰기를 자동 재시도하지 않습니다.
-
-출처: [Slides 가격](https://developers.google.com/workspace/slides/api/limits#pricing), [Drive 일일 기준](https://developers.google.com/workspace/drive/api/guides/limits#daily_billing_threshold), [Workspace API 과금 변경 안내](https://developers.google.com/workspace/tools-safety).
-
-### 파일 선택 후 연결 실패
-
-Picker에서 파일을 선택한 뒤 “Google에 연결하지 못했습니다”가 나타나고 API 요청이 Network에 없다면, 오래된 빌드의 `fetch` 호출 오류일 수 있습니다. `GoogleFiles`의 브라우저 전송은 함수 호출 형태로 실행해야 합니다. 객체 메서드로 호출하면 Chrome에서 `Illegal invocation`이 발생합니다. 수정 소스로 개발 서버를 재시작하거나 다시 빌드·배포하세요. Drive 브라우저 테스트는 모의 Google 응답 적용 전에 실제 `Window.fetch`로 로컬 파일을 요청해 이 오류를 검증합니다.
+Google Slides API의 표준 사용과 Drive API 일일 기준 사용량 이하는 추가 비용이 없습니다. Google은 2026년 중 기준 초과 사용량 과금을 예고하고 있으므로 각 사용자의 Cloud 프로젝트 할당량과 공지를 확인하세요. [Slides 가격](https://developers.google.com/workspace/slides/api/limits#pricing), [Drive 일일 기준](https://developers.google.com/workspace/drive/api/guides/limits#daily_billing_threshold), [Workspace API 안내](https://developers.google.com/workspace/tools-safety).

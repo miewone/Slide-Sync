@@ -8,7 +8,7 @@ export async function checkGoogleDrive(browser,origin){
   // Run the native browser transport before installing Google mocks. Mock functions
   // do not enforce Window.fetch's receiver rules and previously hid Illegal invocation.
   await browser.navigate(origin);
-  await browser.until('!!document.querySelector("#drive-open")&&!document.querySelector("#drive-open").disabled','native fetch check ready');
+  await browser.until('!!document.querySelector("#open")&&!document.querySelector("#open").disabled','native fetch check ready');
   assert.equal(await browser.evaluate(`(async()=>{
     const {GoogleFiles}=await import('/src/services/google/GoogleFiles.js');
     const client=new GoogleFiles({token:()=> 'browser-test-token'});
@@ -54,11 +54,11 @@ export async function checkGoogleDrive(browser,origin){
     };
   `});
   const click=selector=>browser.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
-  const ready=()=>browser.until('!!document.querySelector("#drive-open")&&!document.querySelector("#drive-open").disabled','Drive ready');
-  try{
-    await browser.navigate(origin);await ready();
-    // External library protocol is mocked, while consent lifetime, routing and REST requests run normally.
-    await browser.evaluate(`(async()=>{
+  const openDrive=async()=>{await click('#open');await click('#file-open-drive');};
+  const ready=()=>browser.until('!!document.querySelector("#open")&&!document.querySelector("#open").disabled','Drive ready');
+  const prepareMocks=()=>browser.evaluate(`(async()=>{
+      const {GoogleSettingsRepository}=await import('/src/services/google/GoogleSettingsRepository.js');
+      await new GoogleSettingsRepository().save({clientId:'123-test.apps.googleusercontent.com',apiKey:'AIza'+'x'.repeat(30),appId:'123'});
       const {GoogleSession}=await import('/src/services/google/GoogleSession.js');
       Object.defineProperty(GoogleSession.prototype,'configured',{get(){return true;}});
       GoogleSession.prototype.prepare=async function(){
@@ -68,8 +68,14 @@ export async function checkGoogleDrive(browser,origin){
       GoogleSession.prototype.pick=async()=>window.drivePick;
       window.drivePptxBytes=await (await fetch('/sample.pptx')).arrayBuffer();
     })()`);
-    await click('#drive-open');await browser.until('!document.querySelector("#drive-connect").disabled','consent ready');
+  try{
+    await browser.navigate(origin);await ready();
+    // External library protocol is mocked, while consent lifetime, routing and REST requests run normally.
+    await prepareMocks();
+    await openDrive();await browser.until('!document.querySelector("#drive-connect").disabled','consent ready');
     await click('#drive-connect');await browser.until('!document.querySelector("#drive-select").disabled','connected');
+    await browser.navigate(origin);await ready();await prepareMocks();await openDrive();
+    await browser.until('!document.querySelector("#drive-select").disabled','reload restores Google connection without another authorization');
     await click('#drive-select');await browser.until('!!document.querySelector("#native-slides-title")','native document opens');
     assert.equal(await browser.evaluate('document.querySelector("#app").inert'),true,'underlying PPTX UI is inert');
     await click('#native-select-matches');
@@ -105,16 +111,20 @@ export async function checkGoogleDrive(browser,origin){
     await click('#drive-save-cancel');await click('#native-undo');await click('#native-close');
     assert.equal(await browser.evaluate('document.querySelector("#app").inert'),false);
     // Drive PPTX goes through the established local parser and original-preserving exporter.
-    await browser.evaluate('drivePick={id:"pptx_1"}');await click('#drive-open');await browser.until('!document.querySelector("#drive-select").disabled','Drive menu');await click('#drive-select');
+    await browser.evaluate('drivePick={id:"pptx_1"}');await openDrive();await browser.until('!document.querySelector("#drive-select").disabled','Drive menu');await click('#drive-select');
     await browser.until('!document.querySelector("#download").disabled&&document.querySelector("#filename").textContent==="Drive sample.pptx"','Drive PPTX opens');
-    await click('#drive-open');await browser.until('!document.querySelector("#drive-save-local").disabled','PPTX save ready');await click('#drive-save-local');await click('input[value=original]');await click('#drive-save-confirm');
+    await openDrive();await browser.until('!document.querySelector("#drive-save-local").disabled','PPTX save ready');await click('#drive-save-local');await click('input[value=original]');await click('#drive-save-confirm');
     await browser.until('!!window.driveSavedBytes&&!document.querySelector("#drive-save-dialog")','PPTX saved');
     assert.equal(await browser.evaluate(`(async()=>{const {previewResources}=await import('/src/services/PreviewResources.js');const zip=await previewResources.loadZip(),original=await zip.loadAsync(drivePptxBytes),saved=await zip.loadAsync(driveSavedBytes);return await original.file('ppt/slides/slide1.xml').async('string')===await saved.file('ppt/slides/slide1.xml').async('string');})()`),true,'unchanged slide XML survives Drive export');
     await browser.evaluate('document.querySelector("#drive-dialog").close()');
     await click('#demo');await browser.until('!document.querySelector("#download").disabled&&document.querySelector("#filename").textContent!=="Drive sample.pptx"','local sample replaces Drive source');
-    await click('#drive-open');await browser.until('!document.querySelector("#drive-save-local").disabled','local save menu');await click('#drive-save-local');
+    await openDrive();await browser.until('!document.querySelector("#drive-save-local").disabled','local save menu');await click('#drive-save-local');
     assert.equal(await browser.evaluate('document.querySelector("input[value=original]").disabled'),true,'local open clears Drive original association');
     await click('#drive-save-cancel');
+    await click('#drive-disconnect');
+    await browser.navigate(origin);await ready();await prepareMocks();await openDrive();
+    await browser.until('!document.querySelector("#drive-connect").disabled','disconnected session ready');
+    assert.equal(await browser.evaluate('document.querySelector("#drive-select").disabled'),true,'disconnect remains effective after reload');
     assert.deepEqual(browser.errors,[],'Drive workflows do not throw browser errors');
     console.log('PASS Google Drive: native original/copy, checked scope, move/delete/undo, conflict retention, PPTX roundtrip and source reset');
   }finally{await browser.send('Page.removeScriptToEvaluateOnNewDocument',{identifier:injection.identifier});}

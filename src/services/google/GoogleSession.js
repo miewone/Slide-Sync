@@ -16,12 +16,29 @@ function loadScript(src) {
   return scripts.get(src);
 }
 
-/** Google consent and file selection. Credentials remain in memory for this app instance. */
+/** Google consent and file selection. Access tokens persist in browser storage only until their Google-issued expiry. */
 export class GoogleSession {
-  /** @param {object} config Public OAuth clientId, Picker apiKey and Cloud project appId. */
-  constructor({clientId='',apiKey='',appId=''}={}) {
+  /** @param {object} config Public OAuth clientId, Picker apiKey, Cloud project appId and optional storage adapter. */
+  constructor({clientId='',apiKey='',appId='',storage}={}) {
     Object.assign(this,{clientId:clientId.trim(),apiKey:apiKey.trim(),appId:appId.trim()});this.generation=0;this.accessToken='';this.expiresAt=0;this.loading=null;
+    try{this.storage=storage===undefined?globalThis.localStorage:storage;}catch{this.storage=null;}
+    this.storageKey=`slide-sync-google-token:${this.clientId}:${this.appId}`;
+    this.restoreStored();
   }
+  /** Read a saved token without loading Google libraries; ignore invalid or expired records. */
+  restoreStored(){
+    try{
+      const value=JSON.parse(this.storage?.getItem(this.storageKey)||'null');
+      if(value&&typeof value.accessToken==='string'&&value.accessToken&&Number.isFinite(value.expiresAt)&&value.expiresAt>Date.now()&&value.scope===DRIVE_SCOPE){
+        this.accessToken=value.accessToken;this.expiresAt=value.expiresAt;return;
+      }
+      this.storage?.removeItem(this.storageKey);
+    }catch{try{this.storage?.removeItem(this.storageKey);}catch{}}
+  }
+  /** Persist only the access token and its expiry; unavailable storage falls back to this page's memory. */
+  saveStored(){try{this.storage?.setItem(this.storageKey,JSON.stringify({accessToken:this.accessToken,expiresAt:this.expiresAt,scope:DRIVE_SCOPE}));}catch{}}
+  /** Forget this page's copy without disconnecting a saved browser session. */
+  clearMemory(){this.generation++;this.accessToken='';this.expiresAt=0;}
   /** Whether deployment supplied all public Google identifiers. */
   get configured(){return !!(this.clientId&&this.apiKey&&this.appId);}
   /** Whether consent libraries have loaded. */
@@ -43,23 +60,23 @@ export class GoogleSession {
     const generation=this.generation;
     this.pending=new Promise((resolve,reject)=>{
       this.client.callback=response=>{
-        if(generation!==this.generation||response.error||!response.access_token||!globalThis.google.accounts.oauth2.hasGrantedAllScopes(response,DRIVE_SCOPE)){
+        if(generation!==this.generation||response.error||!response.access_token||!Number.isFinite(Number(response.expires_in))||Number(response.expires_in)<=60||!globalThis.google.accounts.oauth2.hasGrantedAllScopes(response,DRIVE_SCOPE)){
           reject(localizedError('drive.authError'));return;
         }
-        this.accessToken=response.access_token;this.expiresAt=Date.now()+Number(response.expires_in)*1000-60000;resolve();
+        this.accessToken=response.access_token;this.expiresAt=Date.now()+Number(response.expires_in)*1000-60000;this.saveStored();resolve();
       };
       this.client.error_callback=()=>reject(localizedError('drive.authError'));
       this.client.requestAccessToken({prompt:''});
     }).finally(()=>{this.pending=null;});
     return this.pending;
   }
-  /** Read a valid access token; never silently open a popup or persist credentials. */
+  /** Read a valid access token; discard expired credentials instead of extending their lifetime. */
   token() {
-    if(!this.accessToken||Date.now()>=this.expiresAt)throw localizedError('drive.expired');
+    if(!this.accessToken||!Number.isFinite(this.expiresAt)||Date.now()>=this.expiresAt){this.disconnect();throw localizedError('drive.expired');}
     return this.accessToken;
   }
-  /** Forget this tab's credentials; Google account permissions are unchanged. */
-  disconnect(){this.generation++;this.accessToken='';this.expiresAt=0;}
+  /** Remove saved browser credentials; Google account permissions are unchanged. */
+  disconnect(){this.clearMemory();try{this.storage?.removeItem(this.storageKey);}catch{}}
   /** @param {boolean} folder Choose a destination folder instead of a presentation. Returns null on cancellation. */
   pick(folder=false) {
     const token=this.token(),p=globalThis.google.picker;
