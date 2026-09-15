@@ -59,6 +59,12 @@ export async function checkRangeSelection(browser,origin,count=12) {
   }});
   assert.deepEqual(await ids(),['101','102']);assert.equal(await number(),2*count,'same range across all checked slides');
   assert.equal(await browser.evaluate('document.querySelector("#undo").disabled'),true,'selection adds no undo history');
+  assert.equal(await browser.evaluate('document.querySelector("#match-appearance").checked'),false,'appearance filter defaults off');
+  await browser.evaluate('document.querySelector("#match-appearance").click();document.querySelector("#clear-selection").click()');
+  await rectangle([20,60],[360,210]);
+  assert.equal(await number(),2*count,'strict appearance matches identical shapes across slides');
+  await browser.evaluate('document.querySelector("#match-appearance").click()');
+
   // Additive modifiers are independent of Shift-constrained item movement.
   for(const modifiers of [2,8,4]) {
     await rectangle([20,60],[360,210]);
@@ -101,6 +107,30 @@ export async function checkRangeSelection(browser,origin,count=12) {
   assert.equal(await browser.evaluate('document.querySelector("#slide-0 iframe").contentDocument.querySelector("[data-pptx-mover=\'103\']").style.transform'),'','item movement undo');
   assert.deepEqual(await ids(),['103']);
   await checkAlignment(browser,rectangle);
+  // Load a copy where the same-coordinate shape differs only in color on slide 2.
+  await browser.evaluate(`(async()=>{
+    const sample=await (await fetch('${origin}/sample.pptx')).arrayBuffer();
+    const zip=await JSZip.loadAsync(await makeSelectionDeck(JSZip,sample,3));
+    const path='ppt/slides/slide2.xml';
+    zip.file(path,(await zip.file(path).async('string')).replaceAll('7799DD','FF0000'));
+    const dt=new DataTransfer();dt.items.add(new File([await zip.generateAsync({type:'blob'})],'appearance.pptx'));
+    const input=document.querySelector('#file');input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));
+  })()`);
+  await browser.until('document.querySelector("#filename").textContent==="appearance.pptx" && !document.querySelector("#clear-selection").disabled','appearance fixture loaded');
+  await browser.evaluate('document.querySelector("#match-appearance").click();document.querySelector("#clear-selection").click()');
+  await rectangle([20,60],[360,210]);
+  assert.equal(await number(),4,'strict range excludes different colors');
+  assert.deepEqual(await ids(1),[]);
+  await browser.evaluate('document.querySelector("#clear-selection").click();if(document.querySelector("#box-select-mode").checked)document.querySelector("#box-select-mode").click()');
+  const point=await position(0,150,135);
+  await browser.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
+  await browser.send('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',clickCount:1});
+  assert.equal(await number(),2,'strict click excludes different colors');
+  await browser.evaluate('document.querySelector("#match-appearance").click();document.querySelector("#clear-selection").click()');
+  await browser.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
+  await browser.send('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',clickCount:1});
+  assert.equal(await number(),3,'disabled option restores coordinate selection');
+
   assert.deepEqual(browser.errors,[],'range selection has no browser errors');
   console.log(`PASS range selection (${count} slides): rectangle, scope, modifiers, cancellation, containment, background mode, offscreen state, frame/ZIP reuse and item movement`);
 }

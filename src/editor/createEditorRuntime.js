@@ -1,3 +1,4 @@
+import {AppearanceMatcher} from './AppearanceMatcher.js';
 import {ElementSearchIndex} from './ElementSearchIndex.js';
 import {SlideSearchIndex} from './SlideSearchIndex.js';
 import {layoutActionLabel} from './layout-options.js';
@@ -36,7 +37,7 @@ const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.class
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
 function status(text){if(!disposed)store.update({status:text});}
 function notice(text){if(!disposed)store.update({notice:text||''});}
-function busy(value){if(disposed)return;state.busy=value;store.update({busy:value});for(const id of ['box-select-mode','move','undo','apply-range','clear-selection','fit-text','fit-scope','layout-target','guide-horizontal','guide-vertical','guide-select','guide-position','guide-apply','guide-delete','guides-visible','guides-edit','guides-snap']){const el=$(id);if(el)el.disabled=value;}for(const el of root.querySelectorAll('.card-head input,[data-layout]'))el.disabled=value;$('only-checked').disabled=value;if(!value)updateInspector();}
+function busy(value){if(disposed)return;state.busy=value;store.update({busy:value});for(const id of ['match-appearance','box-select-mode','move','undo','apply-range','clear-selection','fit-text','fit-scope','layout-target','guide-horizontal','guide-vertical','guide-select','guide-position','guide-apply','guide-delete','guides-visible','guides-edit','guides-snap']){const el=$(id);if(el)el.disabled=value;}for(const el of root.querySelectorAll('.card-head input,[data-layout]'))el.disabled=value;$('only-checked').disabled=value;if(!value)updateInspector();}
 function error(err){notice(err?.message||String(err));status('작업을 완료하지 못했습니다.');}
 function syncSelection(){state.selected=new Map([...state.allSelected].filter(([i,ids])=>state.checked.has(i)&&ids.size));}
 function selectedElements(){if(!state.deck)return [];return [...state.selected].flatMap(([i,ids])=>selectedInSlide(state.deck.slides[i],ids).map(element=>({slide:state.deck.slides[i],element})));}
@@ -45,12 +46,16 @@ function updatePositionFields(){const bounds=selectionBounds(referenceElements()
 function resetSelection(){cancelActiveDrag?.();nudgeHistory=null;state.allSelected.clear();syncSelection();state.point=null;updateInspector();updateOverlays();}
 function selectAt(x,y,reference=null,mode='replace'){
   if(!state.deck||state.busy)return;
+  const strict=$('match-appearance').checked;
+  reference=reference??state.reference??[...state.checked][0]??0;
+  const sourceSlide=state.deck.slides[reference],source=sourceSlide&&hitTest(sourceSlide,x,y);
+  const matcher=strict?new AppearanceMatcher(state.deck):null;
   nudgeHistory=null;state.point={x,y};state.reference=reference;
   if(mode==='replace')state.allSelected.clear();
   // Remember corresponding IDs on unchecked slides so changing scope preserves
   // a multi-selection even after its checked-slide objects have moved.
   for(const slide of state.deck.slides){
-    const hit=hitTest(slide,x,y);if(!hit)continue;
+    const hit=hitTest(slide,x,y);if(!hit || (matcher && !matcher.matches(source,hit,sourceSlide,slide)))continue;
     const ids=new Set(state.allSelected.get(slide.index)||[]);
     mode==='remove'?ids.delete(hit.id):ids.add(hit.id);
     ids.size?state.allSelected.set(slide.index,ids):state.allSelected.delete(slide.index);
@@ -60,7 +65,11 @@ function selectAt(x,y,reference=null,mode='replace'){
 }
 function selectRange(rectangle, additive, reference) {
   if(state.busy || !state.deck)return;
-  state.allSelected=RangeSelection.apply(state.deck,state.checked,state.allSelected,rectangle,additive);
+  const sourceSlide=state.deck.slides[reference];
+  const sources=sourceSlide?.elements.filter(element=>RangeSelection.contains(element,rectangle))||[];
+  const matcher=$('match-appearance').checked?new AppearanceMatcher(state.deck):null;
+  const accept=matcher?(element,slide)=>sources.some(source=>matcher.matches(source,element,sourceSlide,slide)):null;
+  state.allSelected=RangeSelection.apply(state.deck,state.checked,state.allSelected,rectangle,additive,accept);
   state.reference=reference;state.point=null;syncSelection();
   updatePositionFields();updateInspector();updateOverlays();
   status(`${state.selected.size}개 슬라이드에서 ${selectedElements().length}개 요소를 영역으로 선택했습니다.`);
@@ -521,6 +530,7 @@ async function applyMove(x,y,mode,axis=null,nudge=false){
 }
 async function undo(){if(!state.undo.length||state.busy)return;cancelActiveDrag?.();nudgeHistory=null;busy(true);try{const snapshots=state.undo.pop();if(snapshots[0]?.type==='guides'){restoreGuides(state.deck,snapshots[0]);guideUI.updateControls();guideUI.render();}else{restore(state.deck,snapshots);updateMovedPreviews(snapshots.map(s=>s.index));}updateSummary();updatePositionFields();status('마지막 변경을 취소했습니다.');}catch(err){error(err);}finally{busy(false);}}
 async function download(){if(!state.deck||state.busy)return;busy(true);try{prepareGuideExport(state.deck);const blob=await exportDeck(state.deck,'blob');ensureActive();const link=make('a');const url=URL.createObjectURL(blob);link.href=url;link.download=state.name.replace(/\.pptx$/i,'')+'-edited.pptx';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);status('수정한 PPTX를 다운로드했습니다.');}catch(err){error(err);}finally{busy(false);}}
+$('match-appearance').onchange=()=>{cancelActiveDrag?.();status($('match-appearance').checked?'다음 클릭·영역 선택부터 기준 페이지와 크기·색상·레이아웃이 같은 요소만 선택합니다.':'같은 좌표·영역의 요소를 선택합니다.');};
 $('box-select-mode').onchange=()=>{cancelActiveDrag?.();root.classList.toggle('box-select-mode',$('box-select-mode').checked);};
 $('apply-range').onclick=()=>{if(!state.deck||state.busy)return;try{setChecked(parseRange($('range').value,state.deck.slides.length));notice('');}catch(err){error(err);}};$('range').onkeydown=event=>{if(event.key==='Enter')$('apply-range').click();};$('only-checked').onchange=updateScope;$('clear-selection').onclick=resetSelection;$('move-mode').onchange=()=>{cancelActiveDrag?.();nudgeHistory=null;const relative=$('move-mode').value==='relative';$('position-help').textContent=relative?'오른쪽·아래는 +, 왼쪽·위는 −':'선택 영역의 왼쪽 위 · 여러 요소는 간격 유지';$('x-label').textContent=relative?'가로 이동 (cm)':'X (cm)';$('y-label').textContent=relative?'세로 이동 (cm)':'Y (cm)';if(relative){$('x').value='0';$('y').value='0';}else updatePositionFields();};$('move').onclick=()=>{if(!$('x').value.trim()||!$('y').value.trim()){error(Error('X와 Y를 모두 입력하세요.'));return;}applyMove(Number($('x').value)*EMU_PER_CM,Number($('y').value)*EMU_PER_CM,$('move-mode').value);};$('undo').onclick=undo;async function openDemo(){if(state.busy||disposed)return;try{const response=await fetch(`${resources.base}sample.pptx`,{signal:events.abortController.signal});if(!response.ok)throw Error('예제 파일을 열지 못했습니다.');ensureActive();await openBuffer(await response.arrayBuffer(),'예제-슬라이드.pptx');}catch(err){if(!disposed)error(err);}}
 

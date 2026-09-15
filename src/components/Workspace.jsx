@@ -29,7 +29,7 @@ export function Workspace() {
   const name = useEditorValue('name'), summary = useEditorValue('summary'), notice = useEditorValue('notice');
   return <section className="workspace">
     <div className="workspace-bar"><div><h1 id="filename">{name}</h1><p id="workspace-summary">{summary}</p></div>
-      <div className="view-option workspace-options"><Checkbox id="box-select-mode" label="영역 선택"/><Checkbox id="only-checked" label="선택한 슬라이드만 보기"/></div>
+      <div className="view-option workspace-options"><Checkbox id="match-appearance" label="크기·색상·레이아웃 일치"/><Checkbox id="box-select-mode" label="영역 선택"/><Checkbox id="only-checked" label="선택한 슬라이드만 보기"/></div>
     </div>
     <div id="notice" className="notice" role="alert" hidden={!notice}>{notice}</div>
     <EmptyState/><PreviewStage/><StatusBar/>

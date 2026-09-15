@@ -27,14 +27,15 @@ export class RangeSelection {
    * @param {Map<number, Set<string>>} previous Remembered selections across scopes.
    * @param {object} rectangle Normalized EMU selection bounds.
    * @param {boolean} additive Retain previously selected elements on target slides.
+   * @param {Function|null} accept Optional (element, slide) appearance filter.
    * @returns {Map<number, Set<string>>} New remembered selection, without changing XML/history.
    */
-  static apply(deck, checked, previous, rectangle, additive=false) {
+  static apply(deck, checked, previous, rectangle, additive=false, accept=null) {
     const selection=new Map(previous);
     for(const index of checked) {
       const slide=deck.slides[index];if(!slide)continue;
       const ids=new Set(additive ? previous.get(index) : []);
-      for(const element of slide.elements)if(this.contains(element,rectangle))ids.add(element.id);
+      for(const element of slide.elements)if(this.contains(element,rectangle) && (!accept || accept(element,slide)))ids.add(element.id);
       if(ids.size)selection.set(index,ids);else selection.delete(index);
     }
     return selection;
