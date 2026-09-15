@@ -1,3 +1,6 @@
+import {useId} from 'react';
+import {Help} from './Help.jsx';
+
 /** Shared native button. @param {object} props Native attributes, children and optional variant/full style. */
 export function Button({variant, full = false, className = '', children, ...props}) {
   return <button type="button" className={['button', variant, full && 'full', className].filter(Boolean).join(' ')} {...props}>{children}</button>;
@@ -10,9 +13,15 @@ export function SelectField({id, label, options, ...props}) {
   </select></>;
 }
 
-/** Uncontrolled checkbox for native editor preferences. @param {object} props Label and input attributes. */
-export function Checkbox({label, ...props}) {
-  return <label><input type="checkbox" {...props}/> {label}</label>;
+/** Uncontrolled checkbox for native editor preferences. @param {object} props Label, optional helpKey from the shared help catalog, and input attributes. */
+export function Checkbox({label, helpKey, ...props}) {
+  const generatedId=useId(),id=props.id??generatedId;
+  if(!helpKey)return <label><input type="checkbox" {...props}/> {label}</label>;
+  return <span className="option-with-help">
+    <input type="checkbox" {...props} id={id}/>
+    <Help helpKey={helpKey}/>
+    <label htmlFor={id}>{label}</label>
+  </span>;
 }
 
 /** Numeric coordinate field. @param {object} props id, label, optional labelId and input attributes. */
