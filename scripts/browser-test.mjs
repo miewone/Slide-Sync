@@ -7,6 +7,7 @@ import {checkDeletion} from './deletion-checks.mjs';
 import {checkCorePerformance} from './core-performance-checks.mjs';
 import {checkPreviewFit} from './preview-fit-checks.mjs';
 import {checkStaticMedia} from './media-checks.mjs';
+import {checkMissingDefaultTextStyle} from './default-text-style-checks.mjs';
 import {checkRepeatedEdits} from './repeated-edit-checks.mjs';
 import {checkRecentFiles} from './recent-files-checks.mjs';
 import {checkPreviewHover} from './preview-hover-checks.mjs';
@@ -226,6 +227,7 @@ try {
   await checkRepeatedEdits(browser,'http://127.0.0.1:4179');
   await checkRepeatedEdits(browser,'http://127.0.0.1:4189/slides/');
   await checkStaticMedia(browser,'http://127.0.0.1:4179');
+  await checkMissingDefaultTextStyle(browser,'http://127.0.0.1:4179');
   await checkStaticMedia(browser,'http://127.0.0.1:4189/slides/');
   await checkChartLoading(browser,'http://127.0.0.1:4179');
   const measurements=[];
