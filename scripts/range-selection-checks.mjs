@@ -60,7 +60,7 @@ export async function checkRangeSelection(browser,origin,count=12) {
   assert.deepEqual(await ids(),['101','102']);assert.equal(await number(),2*count,'same range across all checked slides');
   assert.equal(await browser.evaluate('document.querySelector("#undo").disabled'),true,'selection adds no undo history');
   assert.equal(await browser.evaluate('document.querySelector("#match-appearance").checked'),false,'appearance filter defaults off');
-  await browser.evaluate('document.querySelector("#match-appearance").click();document.querySelector("#clear-selection").click()');
+  await browser.evaluate('document.querySelector("#match-appearance").click();document.querySelector("#appearance-panel").hidePopover();document.querySelector("#clear-selection").click()');
   await rectangle([20,60],[360,210]);
   assert.equal(await number(),2*count,'strict appearance matches identical shapes across slides');
   await browser.evaluate('document.querySelector("#match-appearance").click()');
@@ -117,7 +117,7 @@ export async function checkRangeSelection(browser,origin,count=12) {
     const input=document.querySelector('#file');input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));
   })()`);
   await browser.until('document.querySelector("#filename").textContent==="appearance.pptx" && !document.querySelector("#clear-selection").disabled','appearance fixture loaded');
-  await browser.evaluate('document.querySelector("#match-appearance").click();document.querySelector("#clear-selection").click()');
+  await browser.evaluate('document.querySelector("#match-appearance").click();document.querySelector("#appearance-panel").hidePopover();document.querySelector("#clear-selection").click()');
   await rectangle([20,60],[360,210]);
   assert.equal(await number(),4,'strict range excludes different colors');
   assert.deepEqual(await ids(1),[]);
@@ -126,7 +126,29 @@ export async function checkRangeSelection(browser,origin,count=12) {
   await browser.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
   await browser.send('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',clickCount:1});
   assert.equal(await number(),2,'strict click excludes different colors');
-  await browser.evaluate('document.querySelector("#match-appearance").click();document.querySelector("#clear-selection").click()');
+  await browser.evaluate('document.querySelector("#appearance-settings").click()');
+  await browser.until('document.querySelector("#appearance-panel").matches(":popover-open")','criteria panel opens');
+  await browser.until('document.querySelector("#appearance-panel").contains(document.activeElement)','criteria panel receives keyboard focus');
+  await browser.evaluate('document.querySelector("#appearance-colors").focus();document.querySelector("#appearance-colors").click()');
+  assert.equal(await number(),2,'changing criteria preserves existing selection');
+  await browser.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await browser.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await browser.until('!document.querySelector("#appearance-panel").matches(":popover-open")','Escape closes criteria panel');
+  assert.equal(await number(),2,'closing panel preserves selection');
+  await browser.evaluate('document.querySelector("#clear-selection").click()');
+  await browser.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
+  await browser.send('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',clickCount:1});
+  assert.equal(await number(),3,'click ignores unchecked color criterion');
+  await rectangle([20,60],[360,210]);
+  assert.equal(await number(),6,'range ignores unchecked color criterion');
+  await browser.evaluate('document.querySelector("#appearance-settings").click()');
+  await browser.until('document.querySelector("#appearance-panel").matches(":popover-open")','criteria panel reopens');
+  assert.equal(await browser.evaluate('document.querySelector("#appearance-colors").checked'),false,'criteria persist when reopening');
+  await browser.evaluate('document.querySelector("#appearance-size").click();document.querySelector("#appearance-layout").click();document.querySelector("#appearance-panel").hidePopover()');
+  await rectangle([20,60],[360,210]);
+  assert.equal(await number(),6,'no criteria restores unfiltered range selection');
+
+  await browser.evaluate('document.querySelector("#match-appearance").click();document.querySelector("#appearance-panel").hidePopover();document.querySelector("#clear-selection").click()');
   await browser.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
   await browser.send('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',clickCount:1});
   assert.equal(await number(),3,'disabled option restores coordinate selection');

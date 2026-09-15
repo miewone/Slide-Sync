@@ -22,7 +22,7 @@ export default function App() {
     return {store, commands:{openFile:invoke('openFile'), openDemo:invoke('openDemo'),
       refreshRecentFiles:invoke('refreshRecentFiles'), openRecentFile:invoke('openRecentFile'),
       removeRecentFile:invoke('removeRecentFile'), clearRecentFiles:invoke('clearRecentFiles'),
-      selectElementName:invoke('selectElementName'),
+      selectElementName:invoke('selectElementName'), setAppearanceCriterion:invoke('setAppearanceCriterion'),
       download:invoke('download'), setElementSearchQuery:invoke('setElementSearchQuery'), applyElementSearch:invoke('applyElementSearch'), setSlideSearchQuery:invoke('setSlideSearchQuery'), applySlideSearch:invoke('applySlideSearch'), setSlideChecked:invoke('setSlideChecked'), selectSlides:invoke('selectSlides'),
       chooseFile:() => root.current?.querySelector('#file').click()}};
   }, []);

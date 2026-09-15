@@ -9,6 +9,7 @@ export class EditorStore {
       name:t('EditorStore.1'), status:t('EditorStore.2'), notice:'',
       summary:t('EditorStore.3'), size:'', slides:[], hoveredSlide:null,
       recentFiles:{files:[],busy:false,error:'',loaded:false},
+      appearanceCriteria:{size:true,colors:true,layout:true},
       slideSearch:{query:'',matches:[]},
       elementSearch:{query:'',matches:[],selected:0,slides:0,names:[]},
       selection:{count:0, slides:0, size:'', rows:[]}, ...initial});

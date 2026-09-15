@@ -74,10 +74,10 @@ function updatePositionFields(){const bounds=selectionBounds(referenceElements()
 function resetSelection(){cancelActiveDrag?.();nudgeHistory=null;state.allSelected.clear();syncSelection();state.point=null;updateInspector();updateOverlays();}
 function selectAt(x,y,reference=null,mode='replace'){
   if(!state.deck||state.busy)return;
-  const strict=$('match-appearance').checked;
+  const strict=$('match-appearance').checked&&Object.values(store.getSnapshot().appearanceCriteria).some(Boolean);
   reference=reference??state.reference??[...state.checked][0]??0;
   const sourceSlide=state.deck.slides[reference],source=sourceSlide&&hitTest(sourceSlide,x,y);
-  const matcher=strict?new AppearanceMatcher(state.deck):null;
+  const matcher=strict?new AppearanceMatcher(state.deck,store.getSnapshot().appearanceCriteria):null;
   nudgeHistory=null;state.point={x,y};state.reference=reference;
   if(mode==='replace')state.allSelected.clear();
   // Remember corresponding IDs on unchecked slides so changing scope preserves
@@ -95,7 +95,7 @@ function selectRange(rectangle, additive, reference) {
   if(state.busy || !state.deck)return;
   const sourceSlide=state.deck.slides[reference];
   const sources=sourceSlide?.elements.filter(element=>RangeSelection.contains(element,rectangle))||[];
-  const matcher=$('match-appearance').checked?new AppearanceMatcher(state.deck):null;
+  const matcher=$('match-appearance').checked&&Object.values(store.getSnapshot().appearanceCriteria).some(Boolean)?new AppearanceMatcher(state.deck,store.getSnapshot().appearanceCriteria):null;
   const accept=matcher?(element,slide)=>sources.some(source=>matcher.matches(source,element,sourceSlide,slide)):null;
   state.allSelected=RangeSelection.apply(state.deck,state.checked,state.allSelected,rectangle,additive,accept);
   state.reference=reference;state.point=null;syncSelection();
@@ -787,6 +787,12 @@ const unsubscribeLanguage=i18n.subscribe(()=>queueMicrotask(()=>{
 }));
 
 return {
+  setAppearanceCriterion(key,value){
+    if(state.busy||disposed||!['size','colors','layout'].includes(key))return;
+    cancelActiveDrag?.();
+    store.update({appearanceCriteria:{...store.getSnapshot().appearanceCriteria,[key]:!!value}});
+    status(()=>t('appearance.changed'));
+  },
   openFile, openDemo, download, applySlideSearch, applyElementSearch,
   refreshRecentFiles, openRecentFile, removeRecentFile, clearRecentFiles,
   setElementSearchQuery(query){if(!state.busy && state.deck && !disposed)updateElementSearch(String(query));},

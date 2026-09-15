@@ -113,7 +113,14 @@ try {
   await browser.send('Emulation.setDeviceMetricsOverride', {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await browser.send('Network.setUserAgentOverride',{userAgent:(await browser.send('Browser.getVersion')).userAgent,acceptLanguage:'ko-KR,ko;q=0.9,en;q=0.8'});
 
-  if(process.argv.includes('--benchmark-workflows')) {
+  if(process.argv.includes('--check-appearance')) {
+    for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkRangeSelection(browser,origin,3);
+    await browser.evaluate('document.querySelector("#appearance-settings").click()');
+    await browser.until('document.querySelector("#appearance-panel").matches(":popover-open")','appearance screenshot');
+    const screenshot=await browser.send('Page.captureScreenshot',{format:'png'});
+    await writeFile(join(artifacts,'appearance-panel.png'),Buffer.from(screenshot.data,'base64'));
+
+  } else if(process.argv.includes('--benchmark-workflows')) {
     const report=await measureWorkflows(browser,'http://127.0.0.1:4179');
     await writeFile(join(artifacts,'workflow-performance.json'),JSON.stringify(report,null,2)+'\n');
     await writeFile(join(artifacts,'workflow-performance.md'),workflowMarkdown(report));

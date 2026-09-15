@@ -218,3 +218,11 @@
 @media(max-width:540px){.text-format-label{display:none}}
 .history-controls{display:flex;align-items:center;gap:6px;margin-top:8px}
 .history-controls .button{width:32px;height:30px;min-height:30px;padding:0;font-size:20px;font-weight:500;line-height:1}
+
+.appearance-control{display:inline-flex;align-items:center;gap:3px}
+.appearance-settings{border:1px solid #d6deea;border-radius:5px;background:#fff;color:#43546b;padding:4px 7px;font:inherit;cursor:pointer}
+.appearance-panel{white-space:normal;overflow-wrap:anywhere;position:fixed;inset:auto;margin:0;width:290px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;padding:14px;border:1px solid #cdd8ee;border-radius:10px;background:#fff;color:#263346;box-shadow:0 8px 30px #26334626;font-size:13px}
+.appearance-panel header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.appearance-panel header button{border:0;background:none;font-size:22px;color:#68778a;cursor:pointer}
+.appearance-panel p,.appearance-panel small{display:block;font-size:12px;line-height:1.5;color:#596b80;margin:8px 0}
+.appearance-panel>label{display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer}

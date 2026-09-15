@@ -1,5 +1,13 @@
 /** All application-owned UI text. Keep Korean/English placeholders identical. */
 export const messages = {
+  "appearance.settings": {"ko": "일치 조건 선택", "en": "Choose matching criteria"},
+  "appearance.close": {"ko": "닫기", "en": "Close"},
+  "appearance.description": {"ko": "체크한 조건을 모두 만족하는 요소만 다음 클릭·영역 선택에서 선택합니다.", "en": "Subsequent clicks and box selections require all checked criteria to match."},
+  "appearance.size": {"ko": "크기 · 너비와 높이", "en": "Size · width and height"},
+  "appearance.colors": {"ko": "색상 · 채우기, 테두리, 글자색", "en": "Colors · fill, outline and text"},
+  "appearance.layout": {"ko": "레이아웃 · 위치, 회전, 그룹 내부 배치", "en": "Layout · position, rotation and group arrangement"},
+  "appearance.empty": {"ko": "모두 해제하면 일치 조건 없이 선택합니다. 기존 선택은 유지됩니다.", "en": "Uncheck all to select without matching criteria. Existing selections are preserved."},
+  "appearance.changed": {"ko": "일치 조건을 변경했습니다. 다음 클릭·영역 선택부터 적용됩니다.", "en": "Matching criteria updated for subsequent clicks and box selections."},
   'history.title': {ko:'삭제·실행 취소·다시 실행',en:'Delete, undo and redo'},
   'history.redo': {ko:'↷ 다시 실행',en:'↷ Redo'},
   'history.redone': {ko:'변경을 다시 실행했습니다.',en:'Change redone.'},
@@ -168,8 +176,8 @@ export const messages = {
     "en": "Match size, colors and layout"
   },
   "Help.6": {
-    "ko": "다음 클릭·영역 선택부터 기준 페이지와 크기, 채우기·테두리·글자색, 위치·회전·그룹 내부 배치가 같은 요소만 선택합니다. 기존 선택과 문자열 검색에는 적용되지 않습니다. 원본 서식이 다르면 화면상 같아 보여도 제외될 수 있습니다.",
-    "en": "For subsequent clicks and box selections, only select elements matching the reference slide's size, fill, outline, text color, position, rotation and group layout. Existing selections and text searches are unchanged. Different source formatting may be excluded even when it looks identical."
+    "ko": "플로팅 박스에서 크기·색상·레이아웃을 각각 체크합니다. 다음 클릭·영역 선택부터 체크한 조건이 기준 페이지와 같은 요소만 선택합니다. 기존 선택과 문자열 검색에는 적용되지 않습니다. 원본 서식이 다르면 화면상 같아 보여도 제외될 수 있습니다.",
+    "en": "Choose size, colors and layout separately in the floating panel. Subsequent clicks and box selections only select elements matching the checked criteria. Existing selections and text searches are unchanged. Different source formatting may be excluded even when it looks identical."
   },
   "Help.7": {
     "ko": "선택한 슬라이드만 보기",
@@ -916,8 +924,8 @@ export const messages = {
     "en": "Downloaded the edited PPTX."
   },
   "createEditorRuntime.63": {
-    "ko": "다음 클릭·영역 선택부터 기준 페이지와 크기·색상·레이아웃이 같은 요소만 선택합니다.",
-    "en": "Subsequent clicks and box selections will only select elements matching the reference slide's size, colors and layout."
+    "ko": "다음 클릭·영역 선택부터 체크한 일치 조건을 만족하는 요소만 선택합니다.",
+    "en": "Subsequent clicks and box selections will only select elements matching the checked criteria."
   },
   "createEditorRuntime.64": {
     "ko": "같은 좌표·영역의 요소를 선택합니다.",

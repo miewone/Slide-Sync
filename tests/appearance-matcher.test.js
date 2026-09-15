@@ -13,8 +13,11 @@ test('appearance matches independent IDs; rejects each geometry dimension and co
   const source=shape('a'),same=shape('b'),s=slide([source]),t=slide([same]);
   const matcher=new AppearanceMatcher({slides:[s,t]});
   assert.equal(matcher.matches(source,same,s,t),true);
-  for(const key of ['x','y','w','h','rot','flipH','flipV','chX','chY','chW','chH']) {
+  for(const key of ['x','y','w','h','rot','flipH','flipV']) {
     assert.equal(matcher.matches(source,shape('b','FFFFFF',{[key]:99}),s,t),false,key);
+  }
+  for(const key of ['chX','chY','chW','chH']) {
+    assert.equal(matcher.matches({...source,kind:'grpSp'},{...same,kind:'grpSp',g:{...same.g,[key]:99}},s,t),false,key);
   }
   assert.equal(matcher.matches(source,shape('b','FF0000'),s,t),false);
   assert.equal(matcher.matches(source,{...same,hidden:true},s,t),false);
@@ -48,4 +51,22 @@ test('strict ranges filter other slides and preserve additive and unchecked sele
   assert.deepEqual([...RangeSelection.apply(deck,new Set([1]),previous,bounds,true,accept).get(1)],['c','b']);
   assert.deepEqual([...RangeSelection.apply(deck,new Set([1]),previous,bounds).get(1)],['b','c']);
   assert.equal(RangeSelection.apply(deck,new Set([1]),previous,bounds,false,()=>false).has(1),false);
+});
+
+test('each matching criterion ignores disabled dimensions including XML and inherited colors',()=>{
+  const transform=(x,w)=>xml('spPr',{},[xml('xfrm',{rot:'0'},[xml('off',{x:String(x),y:'10'}),xml('ext',{cx:String(w),cy:'20'})])]);
+  const a=shape('a','FFFFFF',{},[transform(10,20)]),s=slide([a]);
+  const check=(options,b)=>new AppearanceMatcher({},options).matches(a,b,s,s);
+  const colorsOnly={size:false,colors:true,layout:false};
+  assert.equal(check(colorsOnly,shape('b','FFFFFF',{x:30,w:40},[transform(30,40)])),true);
+  assert.equal(check(colorsOnly,shape('b','FF0000',{},[transform(10,20)])),false);
+  const sizeOnly={size:true,colors:false,layout:false};
+  const b=shape('b','FF0000',{x:30},[transform(30,20)]);
+  b.inherited=[xml('sp',{},[xml('spPr',{},[xml('solidFill',{},[xml('srgbClr',{val:'000000'})])])])];
+  assert.equal(check(sizeOnly,b),true);
+  assert.equal(check(sizeOnly,shape('b','FFFFFF',{w:40},[transform(10,40)])),false);
+  const layoutOnly={size:false,colors:false,layout:true};
+  assert.equal(check(layoutOnly,shape('b','FF0000',{w:40,chW:40},[transform(10,40)])),true);
+  assert.equal(check(layoutOnly,shape('b','FFFFFF',{x:30},[transform(30,20)])),false);
+  assert.equal(check({size:true,colors:false,layout:true},shape('b','FF0000',{},[transform(10,20)])),true);
 });

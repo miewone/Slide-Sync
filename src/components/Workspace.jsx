@@ -1,6 +1,7 @@
 import {t} from '../i18n/I18n.js';
 import {useLanguage} from '../hooks/useLanguage.js';
 import {useState} from 'react';
+import {AppearanceControl} from './AppearanceControl.jsx';
 import {PreviewStage} from './PreviewStage.jsx';
 import {TextFormatToolbar} from './TextFormatToolbar.jsx';
 import {PreviewGridControl} from './PreviewGridControl.jsx';
@@ -47,7 +48,7 @@ export function Workspace() {
     <div className="workspace-bar"><div className="workspace-heading"><div className="workspace-title-row"><h1 id="filename">{name}</h1><PreviewGridControl grid={grid} disabled={busy} onChange={setGrid}/></div><p id="workspace-summary">{summary}</p></div>
       <TextFormatToolbar/>
       <div className="view-option workspace-options">
-        <Checkbox variant="chip" id="match-appearance" label={t('Help.5')} helpKey="match-appearance"/>
+        <AppearanceControl/>
         <Checkbox variant="chip" id="box-select-mode" label={t('Help.3')} helpKey="box-select-mode"/>
         <Checkbox variant="chip" id="only-checked" label={t('Help.7')} helpKey="only-checked"/>
         <Checkbox variant="chip" id="only-with-selection" label={t('view.selectedElementsOnly')} helpKey="only-with-selection"/>
