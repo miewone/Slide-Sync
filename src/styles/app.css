@@ -91,8 +91,13 @@
 .empty-state.welcome-state{border:1px solid #b8c9f6;background:linear-gradient(150deg,#fff 0%,#eef3ff 100%);box-shadow:0 12px 36px #466ce012}
 .welcome-state .upload-symbol{width:68px;height:68px;background:#466ce0;color:#fff;border:0;font-size:42px;margin-bottom:18px}
 .welcome-eyebrow{color:#466ce0;font-size:12px;font-weight:650;letter-spacing:.3px;margin-bottom:10px}
+.workspace>.empty-state{padding:0}
+.empty-state-content{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:54px 25px}
+.privacy-highlight{flex-shrink:0;width:fit-content;max-width:calc(100% - 32px);margin:20px 16px 0;padding:10px 16px;border:1px solid #e5e9f0;border-radius:12px;background:#ffffffed;color:#526179;font-size:12px;line-height:1.65;box-shadow:0 4px 16px #2633460a,0 1px 3px #26334605;word-break:keep-all;overflow-wrap:anywhere}
+.privacy-highlight strong,.privacy-highlight span{display:block}
+.privacy-highlight strong{color:#3e506b;font-weight:600}
 .welcome-state .welcome-demo{min-height:52px;font-size:16px;box-shadow:0 5px 14px #466ce02b}
-@media(max-width:540px){.workspace>.empty-state{width:calc(100% - 28px);margin:14px;padding:30px 16px}.welcome-state h2{font-size:19px}}
+@media(max-width:540px){.workspace>.empty-state{width:calc(100% - 28px);margin:14px;padding:0}.empty-state-content{padding:30px 16px}.welcome-state h2{font-size:19px}}
 .element-name-more{flex-shrink:0;margin-top:8px;padding:7px;border:1px solid #cdd8ee;background:#fff;color:#416ae5;font-size:12px}
 
 @keyframes welcome-demo-pulse{
