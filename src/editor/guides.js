@@ -1,3 +1,4 @@
+import {t,localizedError} from '../i18n/I18n.js';
 import {NS,child,children,descendants,parseXml,serialize,rels,resolvePath} from './core.js';
 
 export const P15='http://schemas.microsoft.com/office/powerpoint/2012/main';
@@ -53,19 +54,19 @@ export function guideSnapshot(deck){return {type:'guides',global:deck.guides.glo
 export function restoreGuides(deck,snapshot){deck.guides.global=snapshot.global.map(g=>({...g}));deck.guides.dirty=snapshot.dirty;}
 function finishEdit(deck,before){deck.guides.dirty=signature(deck.guides.global)!==deck.guides.originalSignature;return [before];}
 export function addGuide(deck,axis,pos){
-  if(!deck?.guides||!['x','y'].includes(axis)||!validPosition(pos))throw Error('안내선 위치는 -1000cm부터 1000cm 사이로 입력하세요.');
+  if(!deck?.guides||!['x','y'].includes(axis)||!validPosition(pos))throw localizedError('guides.1');
   pos=quantize(pos);if(deck.guides.global.some(g=>g.axis===axis&&g.pos===pos))return [];
   const before=guideSnapshot(deck);deck.guides.global.push({id:`new:${deck.guides.nextId++}`,axis,pos,scope:'global',color:'#c36c32',nativeXml:null,nativeId:null,name:''});
   return finishEdit(deck,before);
 }
 export function changeGuide(deck,id,pos){
-  if(!validPosition(pos))throw Error('안내선 위치는 -1000cm부터 1000cm 사이로 입력하세요.');
-  const guide=deck.guides.global.find(g=>g.id===id);if(!guide)throw Error('마스터·레이아웃 안내선은 여기서 이동할 수 없습니다.');
+  if(!validPosition(pos))throw localizedError('guides.1');
+  const guide=deck.guides.global.find(g=>g.id===id);if(!guide)throw localizedError('guides.2');
   pos=quantize(pos);if(guide.pos===pos)return [];
   const before=guideSnapshot(deck);guide.pos=pos;return finishEdit(deck,before);
 }
 export function removeGuide(deck,id){
-  if(!deck.guides.global.some(g=>g.id===id))throw Error('마스터·레이아웃 안내선은 여기서 삭제할 수 없습니다.');
+  if(!deck.guides.global.some(g=>g.id===id))throw localizedError('guides.3');
   const before=guideSnapshot(deck);deck.guides.global=deck.guides.global.filter(g=>g.id!==id);return finishEdit(deck,before);
 }
 

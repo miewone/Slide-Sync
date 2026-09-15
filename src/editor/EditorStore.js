@@ -1,3 +1,4 @@
+import {t} from '../i18n/I18n.js';
 import {shareRows} from './row-sharing.js';
 
 /** Small immutable UI store; PPTX XML and preview DOM stay outside React state. */
@@ -5,8 +6,8 @@ export class EditorStore {
   /** @param {object} initial Optional initial presentation state for embedding/tests. */
   constructor(initial = {}) {
     this.snapshot = Object.freeze({ready:false, busy:false, hasDeck:false,
-      name:'슬라이드 일괄 이동', status:'PPTX 파일을 열어 시작하세요.', notice:'',
-      summary:'같은 위치의 요소를 한 번에 선택하세요.', size:'', slides:[], hoveredSlide:null,
+      name:t('EditorStore.1'), status:t('EditorStore.2'), notice:'',
+      summary:t('EditorStore.3'), size:'', slides:[], hoveredSlide:null,
       recentFiles:{files:[],busy:false,error:'',loaded:false},
       slideSearch:{query:'',matches:[]},
       elementSearch:{query:'',matches:[],selected:0,slides:0,names:[]},

@@ -1,41 +1,44 @@
+import {t} from '../i18n/I18n.js';
+import {useLanguage} from '../hooks/useLanguage.js';
 import {Button, SelectField, NumberField, InspectorSection} from "./ui.jsx";
 
 /** MovePanel controls; native form values are owned by the editor runtime. */
 export function MovePanel() {
-  return <InspectorSection id="editor-section-move" title="요소 이동">
-      <p className="help">빈 곳을 드래그하면 사각형 안에 완전히 포함된 요소를 적용 대상 슬라이드마다 선택합니다. 요소를 드래그하면 선택한 요소가 함께 이동합니다. 배경이 꽉 찬 슬라이드에서는 ‘영역 선택’을 켜세요.</p>
+  useLanguage();
+  return <InspectorSection id="editor-section-move" title={t('MovePanel.1')}>
+      <p className="help">{t('MovePanel.2')}</p>
       <div className="separator">
       </div>
-      <SelectField id="move-mode" label="이동 방식" options={[{"value": "absolute", "label": "모두 같은 위치로 맞추기"}, {"value": "relative", "label": "같은 거리만큼 이동하기"}]}/>
-      <p id="position-help" className="field-help">선택 영역의 왼쪽 위 · 여러 요소는 간격 유지</p>
+      <SelectField id="move-mode" label={t('MovePanel.3')} options={[{"value": "absolute", "label": t('MovePanel.4')}, {"value": "relative", "label": t('MovePanel.5')}]}/>
+      <p id="position-help" className="field-help">{t('MovePanel.6')}</p>
       <div className="coordinates">
-      <NumberField id="x" labelId="x-label" label="X (cm)" defaultValue="0"/>
-      <NumberField id="y" labelId="y-label" label="Y (cm)" defaultValue="0"/>
+      <NumberField id="x" labelId="x-label" label={t('coordinate.x')} defaultValue="0"/>
+      <NumberField id="y" labelId="y-label" label={t('coordinate.y')} defaultValue="0"/>
       </div>
-      <Button id="move" variant="primary" full disabled>선택한 요소 이동</Button>
+      <Button id="move" variant="primary" full disabled>{t('MovePanel.7')}</Button>
       <details className="shortcuts">
-      <summary>선택·이동 단축키</summary>
+      <summary>{t('MovePanel.8')}</summary>
       <dl>
-      <dt>빈 곳에서 드래그</dt>
-      <dd>사각형 범위로 선택</dd>
-      <dt>Ctrl / Shift / ⌘ + 영역 드래그</dt>
-      <dd>기존 선택에 추가</dd>
-      <dt>Ctrl / Shift + 클릭</dt>
-      <dd>선택 추가·해제</dd>
-      <dt>Shift + 요소 드래그</dt>
-      <dd>가로·세로 방향 고정</dd>
-      <dt>방향키</dt>
-      <dd>0.1 cm 이동</dd>
-      <dt>Shift + 방향키</dt>
-      <dd>1 cm 이동</dd>
-      <dt>Ctrl + 방향키</dt>
-      <dd>0.01 cm 이동</dd>
-      <dt>Ctrl + A / Ctrl + Z</dt>
-      <dd>전체 요소 선택 / 실행 취소</dd>
-      <dt>Esc</dt>
-      <dd>드래그 취소·선택 해제</dd>
+      <dt>{t('MovePanel.9')}</dt>
+      <dd>{t('MovePanel.10')}</dd>
+      <dt>{t('MovePanel.11')}</dt>
+      <dd>{t('MovePanel.12')}</dd>
+      <dt>{t('MovePanel.13')}</dt>
+      <dd>{t('MovePanel.14')}</dd>
+      <dt>{t('MovePanel.15')}</dt>
+      <dd>{t('MovePanel.16')}</dd>
+      <dt>{t('MovePanel.17')}</dt>
+      <dd>{t('MovePanel.18')}</dd>
+      <dt>{t('MovePanel.19')}</dt>
+      <dd>{t('MovePanel.20')}</dd>
+      <dt>{t('MovePanel.21')}</dt>
+      <dd>{t('MovePanel.22')}</dd>
+      <dt>{t('MovePanel.23')}</dt>
+      <dd>{t('MovePanel.24')}</dd>
+      <dt>{t('MovePanel.25')}</dt>
+      <dd>{t('MovePanel.26')}</dd>
       </dl>
-      <p>방향키·전체 선택은 미리보기를 클릭한 상태에서 사용합니다. Mac에서는 Ctrl 대신 ⌘도 사용할 수 있습니다.</p>
+      <p>{t('MovePanel.27')}</p>
       </details>
   </InspectorSection>;
 }

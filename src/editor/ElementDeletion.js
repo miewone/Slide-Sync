@@ -1,3 +1,4 @@
+import {t,localizedError} from '../i18n/I18n.js';
 import {selectedInSlide,serialize,refreshSlide,restore} from './core.js';
 
 /** Delete selected slide-level objects while preserving full XML for one-step undo. */
@@ -14,7 +15,7 @@ export class ElementDeletion {
       const slide=deck.slides[index];
       const elements=selectedInSlide(slide,ids);
       if(!elements.length)continue;
-      if(elements.some(element=>!element.node?.parentNode))throw Error('삭제할 요소의 원본을 찾지 못했습니다.');
+      if(elements.some(element=>!element.node?.parentNode))throw localizedError('ElementDeletion.1');
       plans.push({slide,elements,snapshot:{type:'delete',index,xml:serialize(slide.doc),dirty:slide.dirty,ids:elements.map(element=>element.id)}});
     }
     const snapshots=plans.map(plan=>plan.snapshot);

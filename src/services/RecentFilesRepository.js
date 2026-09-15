@@ -1,3 +1,4 @@
+import {t,localizedError} from '../i18n/I18n.js';
 /** Browser-local original PPTX storage; metadata reads never load file contents. */
 export class RecentFilesRepository {
   /** @param {object} options Optional database name and browser APIs for isolated tests. */
@@ -8,18 +9,18 @@ export class RecentFilesRepository {
   /** Open one short-lived connection; blocked/private storage must not stall the editor. */
   open() {
     return new Promise((resolve,reject)=>{
-      if(!this.indexedDB){reject(Error('이 브라우저에서는 최근 파일 보관을 사용할 수 없습니다.'));return;}
+      if(!this.indexedDB){reject(localizedError('RecentFilesRepository.1'));return;}
       const request=this.indexedDB.open(this.name,1);
       let settled=false;
       const fail=error=>{if(settled)return;settled=true;clearTimeout(timer);reject(error);};
-      const timer=setTimeout(()=>fail(Error('최근 파일 저장소에 연결하지 못했습니다. 다른 탭을 닫고 다시 시도하세요.')),5000);
+      const timer=setTimeout(()=>fail(localizedError('RecentFilesRepository.2')),5000);
       request.onupgradeneeded=()=>{
         const db=request.result;
         db.createObjectStore('metadata',{keyPath:'id'});
         db.createObjectStore('contents');
       };
       request.onerror=()=>fail(request.error);
-      request.onblocked=()=>fail(Error('다른 탭이 최근 파일 저장소를 사용 중입니다. 탭을 닫고 다시 시도하세요.'));
+      request.onblocked=()=>fail(localizedError('RecentFilesRepository.3'));
       request.onsuccess=()=>{
         const db=request.result;
         if(settled){db.close();return;}
@@ -40,7 +41,7 @@ export class RecentFilesRepository {
         const tx=db.transaction(stores,mode);
         let result;
         tx.oncomplete=()=>{try{resolve(result?.());}catch(error){reject(error);}};
-        tx.onabort=()=>reject(tx.error||Error('최근 파일 저장 작업이 취소되었습니다.'));
+        tx.onabort=()=>reject(tx.error||localizedError('RecentFilesRepository.4'));
         tx.onerror=()=>{};
         try{result=run(tx);}catch(error){tx.abort();reject(error);}
       });
@@ -57,7 +58,7 @@ export class RecentFilesRepository {
 
   /** @param {string} name Original filename. @param {ArrayBuffer} buffer Successfully opened original bytes. */
   async save(name,buffer) {
-    if(!/\.pptx$/i.test(name)||!(buffer instanceof ArrayBuffer)||!buffer.byteLength||buffer.byteLength>50*1024*1024)throw Error('보관할 PPTX 파일이 유효하지 않습니다.');
+    if(!/\.pptx$/i.test(name)||!(buffer instanceof ArrayBuffer)||!buffer.byteLength||buffer.byteLength>50*1024*1024)throw localizedError('RecentFilesRepository.5');
     const hash=await this.crypto.subtle.digest('SHA-256',buffer);
     const id=JSON.stringify([name,Array.from(new Uint8Array(hash),n=>n.toString(16).padStart(2,'0')).join('')]);
     const metadata={id,name,size:buffer.byteLength,lastOpened:Date.now()};

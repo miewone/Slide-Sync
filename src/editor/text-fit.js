@@ -1,3 +1,4 @@
+import {t,localizedError} from '../i18n/I18n.js';
 import {NS, child, children, descendants, serialize, setPosition,selectedIds} from './core.js';
 const candidateCache=new WeakMap();
 
@@ -100,7 +101,7 @@ export function fitTextBoxes(deck,changes) {
     const slide=deck.slides[change.index];
     if(slide&&!elementIndexes.has(slide))elementIndexes.set(slide,new Map(slide.elements.map(element=>[element.id,element])));
     const element=elementIndexes.get(slide)?.get(change.id),info=element&&textBoxInfo(element);
-    if(!info||info.unsupported||!Number.isFinite(change.height)||change.height<=0||change.height>360000000)throw Error('텍스트 상자 높이를 계산할 수 없습니다.');
+    if(!info||info.unsupported||!Number.isFinite(change.height)||change.height<=0||change.height>360000000)throw localizedError('text-fit.1');
     return {...change,height:Math.round(change.height),slide,element,info};
   });
   const snapshots=new Map();

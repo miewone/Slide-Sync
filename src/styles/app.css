@@ -107,3 +107,9 @@
 .welcome-state .welcome-demo:not(:disabled){animation:welcome-demo-pulse 2.2s ease-in-out 3}
 .welcome-state .welcome-demo:hover,.welcome-state .welcome-demo:focus-visible{animation:none}
 @media(prefers-reduced-motion:reduce){.welcome-state .welcome-demo:not(:disabled){animation:none}}
+
+.language-control{display:flex;align-items:center;gap:6px;font-size:12px;color:#647188}
+.language-control button{border:0;background:transparent;color:#647188;font-size:13px;min-height:34px;padding:5px 8px}
+.language-control button[aria-pressed=true]{background:#eaf0ff;color:#3259c9;font-weight:700}
+.language-control button:hover:not(:disabled){color:#3259c9;background:#f0f3f8}
+@media(max-width:850px){.topbar{height:auto;min-height:68px;flex-wrap:wrap;padding-top:12px;padding-bottom:12px}.language-control{flex-shrink:0}}

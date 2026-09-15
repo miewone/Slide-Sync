@@ -1,3 +1,4 @@
+import {t,localizedError,i18n} from '../i18n/I18n.js';
 import {ElementDeletion} from './ElementDeletion.js';
 import {SelectionLabel} from './SelectionLabel.js';
 import {RecentFilesRepository} from '../services/RecentFilesRepository.js';
@@ -16,7 +17,7 @@ import {EventScope} from './EventScope.js';
 import {fitCandidates,measureTextBoxes,fitTextBoxes} from './text-fit.js';
 import {tagRenderer,cachePreview,syncPreviewPositions,syncPreviewPresence} from './preview-cache.js';
 import {PreviewTheme} from './preview-theme.js';
-import {loadDeck,hitTest,corners,moveSelected,movePlans,selectedInSlide,selectionBounds,visualBounds,restore,exportDeck,parseRange,EMU_PER_CM} from './core.js';
+import {loadDeck,hitTest,corners,moveSelected,movePlans,selectedInSlide,selectionBounds,visualBounds,restore,exportDeck,parseRange,EMU_PER_CM,refreshSlide} from './core.js';
 
 /**
  * Mount the imperative preview engine inside a React-owned editor shell.
@@ -33,18 +34,18 @@ let disposed = false;
 const ensureActive = () => { if (disposed) throw new DOMException('Editor disposed', 'AbortError'); };
 const $=id=>root.querySelector(`#${CSS.escape(id)}`),state={deck:null,name:'',checked:new Set(),selected:new Map(),allSelected:new Map(),reference:null,point:null,undo:[],busy:false,previews:new Map(),failed:new Set(),drag:null,boxSelection:null};
 const recentFiles=new RecentFilesRepository();
-let recentQueue=Promise.resolve(),recentPending=0;
-function updateRecent(patch){if(!disposed)store.update({recentFiles:{...store.getSnapshot().recentFiles,...patch}});}
+let recentQueue=Promise.resolve(),recentPending=0,recentErrorMessage=null;
+function updateRecent(patch){if('error' in patch){const value=patch.error;recentErrorMessage=typeof value==='function'?value:()=>value;patch={...patch,error:recentErrorMessage()};}if(!disposed)store.update({recentFiles:{...store.getSnapshot().recentFiles,...patch}});}
 function recentError(error){return error?.name==='QuotaExceededError'
-  ?'브라우저 저장 공간이 부족합니다. 최근 파일을 삭제한 뒤 다시 시도하세요.'
-  :'최근 파일 보관을 사용할 수 없습니다. 브라우저 저장소 설정을 확인하거나 다시 시도하세요.';}
+  ?t('createEditorRuntime.1')
+  :t('createEditorRuntime.2');}
 function recentAction(action=()=>{}) {
   if(disposed)return Promise.resolve(false);
-  recentPending++;updateRecent({busy:true,error:''});
+  recentPending++;updateRecent({busy:true,error:()=>('')});
   const task=recentQueue.then(async()=>{
     ensureActive();await action();ensureActive();
-    const files=await recentFiles.list();ensureActive();updateRecent({files,error:'',loaded:true});return true;
-  }).catch(error=>{updateRecent({error:recentError(error)});return false;})
+    const files=await recentFiles.list();ensureActive();updateRecent({files,error:()=>(''),loaded:true});return true;
+  }).catch(error=>{updateRecent({error:()=>(recentError(error))});return false;})
     .finally(()=>{recentPending--;updateRecent({busy:recentPending>0});});
   recentQueue=task;return task;
 }
@@ -54,13 +55,14 @@ function clearRecentFiles(){if(state.busy||store.getSnapshot().recentFiles.busy)
 let guideUI=null;
 let searchIndex=new SlideSearchIndex();
 let elementSearchIndex=new ElementSearchIndex(),elementSearchCache=null;
-const kindLabel={sp:'도형 / 텍스트',pic:'이미지',graphicFrame:'표 / 차트',cxnSp:'연결선',grpSp:'그룹'};
+const kindLabel=()=>({sp:t('createEditorRuntime.3'),pic:t('createEditorRuntime.4'),graphicFrame:t('createEditorRuntime.5'),cxnSp:t('createEditorRuntime.6'),grpSp:t('createEditorRuntime.7')});
 const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
-function status(text){if(!disposed)store.update({status:text});}
-function notice(text){if(!disposed)store.update({notice:text||''});}
+let statusMessage=null,noticeMessage=null;
+function status(text){statusMessage=typeof text==='function'?text:()=>text;if(!disposed)store.update({status:statusMessage()});}
+function notice(text){noticeMessage=typeof text==='function'?text:()=>text;if(!disposed)store.update({notice:noticeMessage()||''});}
 function busy(value){if(disposed)return;state.busy=value;store.update({busy:value});for(const id of ['delete-selection','match-appearance','box-select-mode','move','undo','apply-range','clear-selection','fit-text','fit-scope','layout-target','guide-horizontal','guide-vertical','guide-select','guide-position','guide-apply','guide-delete','guides-visible','guides-edit','guides-snap']){const el=$(id);if(el)el.disabled=value;}for(const el of root.querySelectorAll('.card-head input,[data-layout]'))el.disabled=value;$('only-checked').disabled=value;if(!value)updateInspector();}
-function error(err){notice(err?.message||String(err));status('작업을 완료하지 못했습니다.');}
+function error(err){notice(()=>(err?.message||String(err)));status(()=>(t('createEditorRuntime.8')));}
 function syncSelection(){state.selected=new Map([...state.allSelected].filter(([i,ids])=>state.checked.has(i)&&ids.size));}
 function selectedElements(){if(!state.deck)return [];return [...state.selected].flatMap(([i,ids])=>selectedInSlide(state.deck.slides[i],ids).map(element=>({slide:state.deck.slides[i],element})));}
 function referenceElements(){const i=state.selected.has(state.reference)?state.reference:state.selected.keys().next().value;return i===undefined?[]:selectedInSlide(state.deck.slides[i],state.selected.get(i));}
@@ -83,7 +85,7 @@ function selectAt(x,y,reference=null,mode='replace'){
     ids.size?state.allSelected.set(slide.index,ids):state.allSelected.delete(slide.index);
   }
   syncSelection();updatePositionFields();updateInspector();updateOverlays();
-  status(`${state.selected.size}개 슬라이드에서 ${selectedElements().length}개 요소를 선택했습니다.`);
+  status(()=>(t('createEditorRuntime.9', {p0: state.selected.size, p1: selectedElements().length})));
 }
 function selectRange(rectangle, additive, reference) {
   if(state.busy || !state.deck)return;
@@ -94,7 +96,7 @@ function selectRange(rectangle, additive, reference) {
   state.allSelected=RangeSelection.apply(state.deck,state.checked,state.allSelected,rectangle,additive,accept);
   state.reference=reference;state.point=null;syncSelection();
   updatePositionFields();updateInspector();updateOverlays();
-  status(`${state.selected.size}개 슬라이드에서 ${selectedElements().length}개 요소를 영역으로 선택했습니다.`);
+  status(()=>(t('createEditorRuntime.10', {p0: state.selected.size, p1: selectedElements().length})));
 }
 
 // Draft rectangles affect only nearby previews; geometry is scanned once on release.
@@ -118,13 +120,13 @@ function updateInspector(){
   $('delete-selection').disabled=!n||state.busy;
   $('move').disabled=!n||state.busy;$('undo').disabled=!state.undo.length||state.busy;
   const ref=referenceElements(),bounds=selectionBounds(ref);
-  const size=bounds?`${ref.length>1?'선택 영역 · ':''}너비 ${(bounds.w/EMU_PER_CM).toFixed(2)} × 높이 ${(bounds.h/EMU_PER_CM).toFixed(2)} cm`:'';
+  const size=bounds?t('createEditorRuntime.11', {p0: ref.length>1?t('createEditorRuntime.12'):'', p1: (bounds.w/EMU_PER_CM).toFixed(2), p2: (bounds.h/EMU_PER_CM).toFixed(2)}):'';
   updateFitControls();updateLayoutControls();guideUI?.updateControls();
   const rows = !n&&!state.point ? [] : [...state.checked].sort((a,b)=>a-b).map(i=>{
     const elements=selectedInSlide(state.deck.slides[i],state.selected.get(i));
     return {index:i, matched:!!elements.length,
-      label:elements.length?`${elements.length>1?elements.length+'개 · ':''}${elements.map(e=>e.text||e.name).join(' / ')}`:'선택된 요소 없음',
-      title:elements.map(e=>`${kindLabel[e.kind]||e.kind} · ${e.name} · X ${(e.g.x/EMU_PER_CM).toFixed(2)} / Y ${(e.g.y/EMU_PER_CM).toFixed(2)} cm`).join('\n')};
+      label:elements.length?`${elements.length>1?elements.length+t('createEditorRuntime.13'):''}${elements.map(e=>e.text||e.name).join(' / ')}`:t('createEditorRuntime.14'),
+      title:elements.map(e=>`${kindLabel()[e.kind]||e.kind} · ${e.name} · X ${(e.g.x/EMU_PER_CM).toFixed(2)} / Y ${(e.g.y/EMU_PER_CM).toFixed(2)} cm`).join('\n')};
   });
   store.updateSelection({count:n,slides:state.selected.size,size,rows});
   updateElementSearch();
@@ -134,7 +136,7 @@ function updateLayoutControls(){
   const counts=[...state.selected.values()].map(ids=>ids.size),target=$('layout-target').value;
   for(const button of root.querySelectorAll('[data-layout]')){const distribute=['horizontal','vertical'].includes(button.dataset.layout);button.disabled=state.busy||!counts.some(n=>n>=(distribute?3:target==='slide'?1:2));}
   const minimum=target==='slide'?1:2,eligible=counts.filter(count=>count>=minimum).length;
-  $('layout-help').textContent=eligible?`${eligible}개 슬라이드의 선택 요소에 적용합니다. 가로는 X 위치, 세로는 Y 위치만 맞춥니다.`:target==='slide'?'슬라이드에 맞출 요소를 1개 이상 선택하세요.':'같은 슬라이드에서 요소를 2개 이상 선택하세요.';
+  $('layout-help').textContent=eligible?t('createEditorRuntime.15', {p0: eligible}):target==='slide'?t('createEditorRuntime.16'):t('LayoutPanel.5');
 }
 function setChecked(next){cancelActiveDrag?.();nudgeHistory=null;state.checked=next;syncSelection();updatePositionFields();updateInspector();updateScope();updateSummary();updateOverlays();}
 function updateElementSearch(query=store.getSnapshot().elementSearch.query) {
@@ -169,7 +171,7 @@ function applyElementSearch(action) {
     if(!state.selected.has(state.reference))state.reference=state.selected.keys().next().value??null;
     updatePositionFields();updateInspector();updateOverlays();
   }
-  status(`${matches.length}개 요소 일치 · ${changed}개 요소를 ${action==='select'?'선택에 추가':'선택에서 해제'}했습니다.`);
+  status(()=>(t('createEditorRuntime.17', {p0: matches.length, p1: changed, p2: action==='select'?t('createEditorRuntime.18'):t('createEditorRuntime.19')})));
 }
 
 function updateSlideSearch(query) {
@@ -188,14 +190,14 @@ function applySlideSearch(action) {
     if(action==='remove' && next.delete(index))changed++;
   }
   if(changed)setChecked(next);
-  status(`${matches.length}개 일치 · ${changed}개 슬라이드의 적용 대상을 ${action==='select'?'추가':'해제'}했습니다.`);
+  status(()=>(t('createEditorRuntime.20', {p0: matches.length, p1: changed, p2: action==='select'?t('createEditorRuntime.21'):t('createEditorRuntime.22')})));
 }
 
 function updateSummary(){
   if(!state.deck)return;
   const changed=state.deck.slides.filter(s=>s.dirty).length;
   store.update({name:state.name,hasDeck:true,
-    summary:`${state.deck.slides.length}개 슬라이드 · ${state.checked.size}개 적용 대상${changed?` · ${changed}개 수정됨`:''}${state.deck.guides?.dirty?' · 안내선 수정됨':''}`,
+    summary:t('createEditorRuntime.23', {p0: state.deck.slides.length, p1: state.checked.size, p2: changed?t('createEditorRuntime.24', {p0: changed}):'', p3: state.deck.guides?.dirty?t('createEditorRuntime.25'):''}),
     size:`${(state.deck.width/EMU_PER_CM).toFixed(2)} × ${(state.deck.height/EMU_PER_CM).toFixed(2)} cm`});
 }
 function renderList(){
@@ -212,7 +214,7 @@ function activatePreview(index) {
   if(disposed || state.busy || !state.deck?.slides[index] || state.checked.has(index))return false;
   cancelActiveDrag?.();state.reference=index;
   const checked=new Set(state.checked);checked.add(index);setChecked(checked);
-  status(`슬라이드 ${index+1}을 적용 대상에 추가했습니다.`);
+  status(()=>(t('createEditorRuntime.26', {p0: index+1})));
   return true;
 }
 
@@ -252,17 +254,17 @@ function renderCards() {
     bindPreviewHover(card,index);
     const head=make('div','card-head'),label=make('label'),check=make('input');
     check.type='checkbox';check.checked=state.checked.has(index);check.disabled=state.busy;
-    check.setAttribute('aria-label',`슬라이드 ${index+1} 적용 대상`);
+    check.setAttribute('aria-label',t('createEditorRuntime.27', {p0: index+1}));
     check.onchange=()=>{
       const next=new Set(state.checked);check.checked?next.add(index):next.delete(index);setChecked(next);
     };
     const badge=make('span','card-badge');
-    label.append(check,document.createTextNode(`슬라이드 ${String(index+1).padStart(2,'0')}`));
+    label.append(check,document.createTextNode(t('ElementNamePopover.5', {p0: String(index+1).padStart(2,'0')})));
     head.append(label,badge);
     const surface=make('div','slide-surface');surface.style.aspectRatio=`${state.deck.width}/${state.deck.height}`;
     surface.dataset.slide=String(index);surface.tabIndex=0;
-    surface.setAttribute('aria-label',`슬라이드 ${index+1} 미리보기. 클릭 또는 빈 곳에서 드래그하여 요소 선택`);
-    const content=make('div','slide-content');content.append(make('p','preview-pending','미리보기 준비 중…'));
+    surface.setAttribute('aria-label',t('createEditorRuntime.28', {p0: index+1}));
+    const content=make('div','slide-content');content.append(make('p','preview-pending',t('createEditorRuntime.29')));
     surface.append(content);
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.classList.add('hit-overlay');svg.setAttribute('viewBox',`0 0 ${state.deck.width} ${state.deck.height}`);
@@ -272,7 +274,7 @@ function renderCards() {
     card.append(head,surface);fragment.append(card);
     entries.push([index,{card,surface,content,check,badge,frame:null}]);
   }
-  const empty=make('p','muted','왼쪽에서 미리볼 슬라이드를 선택하세요.');empty.id='no-visible-slides';
+  const empty=make('p','muted',t('createEditorRuntime.30'));empty.id='no-visible-slides';
   fragment.append(empty);stage.append(fragment);
   for(const [index,entry] of entries){viewport.register(index,entry);resizeObserver.observe(entry.surface);}
   updateScope();
@@ -283,14 +285,14 @@ function mountPreview(index) {
   const entry=viewport.get(index),cached=state.previews.get(index),slide=state.deck?.slides[index];
   if(!entry || entry.frame || !cached || !slide || !viewport.isNearby(index) || entry.card.hidden)return;
   const frame=make('iframe');entry.frame=frame;
-  frame.title=`슬라이드 ${index+1} 내용`;frame.setAttribute('sandbox','allow-same-origin');frame.tabIndex=-1;
+  frame.title=t('createEditorRuntime.31', {p0: index+1});frame.setAttribute('sandbox','allow-same-origin');frame.tabIndex=-1;
   frame.style.cssText=`width:960px;height:${960*state.deck.height/state.deck.width}px;border:0;transform-origin:0 0;pointer-events:none;`;
   frame.style.transform=`scale(${entry.surface.getBoundingClientRect().width/960})`;
   frame.addEventListener('load',()=>{
     if(!disposed && state.deck?.slides[index]===slide)syncPreviewPositions(frame.contentDocument,slide);
   });
   frame.srcdoc=previewDoc(cached.outerHTML);entry.content.replaceChildren(frame);
-  if(state.failed.has(index))entry.card.append(make('div','foot-note','간이 미리보기 · 일부 서식 또는 요소가 생략될 수 있습니다.'));
+  if(state.failed.has(index))entry.card.append(make('div','foot-note',t('createEditorRuntime.32')));
 }
 
 function updateScope() {
@@ -302,10 +304,10 @@ function updateScope() {
     card.hidden=only&&!checked;
     card.classList.toggle('inactive',!checked);
     const surface=viewport.get(s.index).surface;
-    surface.title=checked?'':'클릭하여 이 슬라이드를 적용 대상에 추가합니다.';
-    surface.setAttribute('aria-label',checked?`슬라이드 ${s.index+1} 미리보기. 클릭 또는 빈 곳에서 드래그하여 요소 선택`:`슬라이드 ${s.index+1} 비활성 미리보기. 클릭 또는 Enter, Space로 적용 대상에 추가`);
+    surface.title=checked?'':t('createEditorRuntime.33');
+    surface.setAttribute('aria-label',checked?t('createEditorRuntime.28', {p0: s.index+1}):t('createEditorRuntime.34', {p0: s.index+1}));
     card.querySelector('.card-head input').checked=checked;
-    card.querySelector('.card-badge').textContent=s.dirty?'수정됨':checked?'적용 대상':'';
+    card.querySelector('.card-badge').textContent=s.dirty?t('createEditorRuntime.35'):checked?t('createEditorRuntime.36'):'';
     if(!card.hidden)mountPreview(s.index);
   }
   renderList();
@@ -320,7 +322,7 @@ function updateMovedPreviews(indices,{positionOnly=false,idsBySlide}={}) {
     const frame=viewport.get(i)?.frame;
     if(frame) syncPreviewPositions(frame.contentDocument,slide,options);
     const badge=viewport.get(i)?.badge;
-    if(badge) badge.textContent=slide.dirty?'수정됨':state.checked.has(i)?'적용 대상':'';
+    if(badge) badge.textContent=slide.dirty?t('createEditorRuntime.35'):state.checked.has(i)?t('createEditorRuntime.36'):'';
   }
   updateOverlays(indices);
 }
@@ -386,7 +388,7 @@ function bindPointer(surface,index){
     try{
       const draft=draftFor(latest),plans=movePlans(state.deck,state.selected,draft.x,draft.y,start.mode,draft.axis);
       state.drag={...draft,mode:start.mode,positions:new Map(plans.map(p=>[`${p.index}/${p.id}`,p]))};
-      tooltip.textContent=`X ${((start.x+draft.dx)/EMU_PER_CM).toFixed(2)} · Y ${((start.y+draft.dy)/EMU_PER_CM).toFixed(2)} cm | ${(start.w/EMU_PER_CM).toFixed(2)} × ${(start.h/EMU_PER_CM).toFixed(2)} cm${draft.axis?draft.axis==='x'?' · 가로 고정':' · 세로 고정':''}`;
+      tooltip.textContent=`X ${((start.x+draft.dx)/EMU_PER_CM).toFixed(2)} · Y ${((start.y+draft.dy)/EMU_PER_CM).toFixed(2)} cm | ${(start.w/EMU_PER_CM).toFixed(2)} × ${(start.h/EMU_PER_CM).toFixed(2)} cm${draft.axis?draft.axis==='x'?t('createEditorRuntime.37'):t('createEditorRuntime.38'):''}`;
       tooltip.style.left=`${Math.max(8,Math.min(start.rect.width-265,latest.clientX-start.rect.left+14))}px`;tooltip.style.top=`${Math.max(8,Math.min(start.rect.height-60,latest.clientY-start.rect.top+16))}px`;tooltip.hidden=false;
       $('x').value=(draft.x/EMU_PER_CM).toFixed(2);$('y').value=(draft.y/EMU_PER_CM).toFixed(2);updateOverlays(state.selected.keys(),[state.reference]);
     }catch(err){clearDraft(true);error(err);}
@@ -450,15 +452,15 @@ function recordEdit(snapshots,coalesce=false,{positionOnly=false}={}) {
 
 async function applyLayout(action){
   if(state.busy||!state.selected.size)return;
-  cancelActiveDrag?.();nudgeHistory=null;busy(true);notice('');
-  try{const snapshots=alignSelected(state.deck,state.selected,action,$('layout-target').value);recordEdit(snapshots,false,{positionOnly:true});updatePositionFields();status(snapshots.length?`${snapshots.length}개 슬라이드의 선택 요소를 정렬했습니다. (${layoutActionLabel(action)})`:'이미 해당 위치에 정렬되어 있습니다.');}
+  cancelActiveDrag?.();nudgeHistory=null;busy(true);notice(()=>(''));
+  try{const snapshots=alignSelected(state.deck,state.selected,action,$('layout-target').value);recordEdit(snapshots,false,{positionOnly:true});updatePositionFields();status(()=>(snapshots.length?t('createEditorRuntime.39', {p0: snapshots.length, p1: layoutActionLabel(action)}):t('createEditorRuntime.40')));}
   catch(err){error(err);}finally{busy(false);}
 }
 function updateFitControls() {
   const button=$('fit-text');if(!button)return;
   const candidates=fitCandidates(state.deck,state.checked,state.selected,$('fit-scope').value);
   button.disabled=state.busy||!candidates.length;
-  $('fit-count').textContent=candidates.length?`${candidates.length}개 텍스트 상자`:'대상 텍스트 상자 없음';
+  $('fit-count').textContent=candidates.length?t('createEditorRuntime.41', {p0: candidates.length}):t('TextFitPanel.6');
 }
 
 async function fitText() {
@@ -466,13 +468,13 @@ async function fitText() {
   cancelActiveDrag?.();nudgeHistory=null;
   const candidates=fitCandidates(state.deck,state.checked,state.selected,$('fit-scope').value);
   if(!candidates.length)return;
-  busy(true);notice('');status('텍스트 줄바꿈과 높이를 계산하고 있습니다…');
+  busy(true);notice(()=>(''));status(()=>(t('createEditorRuntime.42')));
   try {
     const result=await measureTextBoxes(candidates,state.previews,document);ensureActive();
     const snapshots=fitTextBoxes(state.deck,result.changes);
     recordEdit(snapshots);updatePositionFields();
-    status(`${result.changes.length}개 텍스트 상자의 높이를 내용에 맞췄습니다.${result.skipped?` ${result.skipped}개는 측정할 수 없어 건너뛰었습니다.`:''}`);
-    if(result.skipped)notice('일부 텍스트 상자는 현재 미리보기에서 높이를 측정할 수 없어 변경하지 않았습니다.');
+    status(()=>(t('createEditorRuntime.43', {p0: result.changes.length, p1: result.skipped?t('createEditorRuntime.44', {p0: result.skipped}):''})));
+    if(result.skipped)notice(()=>(t('createEditorRuntime.45')));
   } catch(err){error(err);} finally {busy(false);}
 }
 
@@ -483,7 +485,7 @@ let previewer=null,renderHost=null;
 async function renderDeck() {
   const d=state.deck;
   state.previews.clear();state.failed.clear();
-  status('슬라이드 미리보기를 만들고 있습니다…');
+  status(()=>(t('createEditorRuntime.46')));
   renderCards();
   if(!renderHost){renderHost=make('div');renderHost.style.cssText='position:absolute;left:-100000px;top:0;width:960px;pointer-events:none;';renderHost.setAttribute('aria-hidden','true');document.body.append(renderHost);}
   const fallbackFor=s=>{
@@ -509,27 +511,27 @@ async function renderDeck() {
       pending.delete(index);
       const s=d.slides[index],ri=rendererIndices.get(s.path);
       try {
-        if(ri===undefined)throw Error('미리보기에서 슬라이드를 찾지 못했습니다.');
+        if(ri===undefined)throw localizedError('createEditorRuntime.47');
         previewer.htmlRender.renderSlide(ri);await tick();ensureActive();
         const node=previewer.wrapper.querySelector(`.pptx-preview-slide-wrapper-${ri}`);
-        if(!node)throw Error('미리보기를 만들지 못했습니다.');
+        if(!node)throw localizedError('createEditorRuntime.48');
         node.style.margin='0';
         for(const canvas of node.querySelectorAll('canvas')){const image=make('img');image.src=canvas.toDataURL();image.style.cssText=canvas.style.cssText;canvas.replaceWith(image);}
         node.remove();
         state.previews.set(s.index,cachePreview(sanitizeRendered(node.cloneNode(true)),s));
         mountPreview(s.index);
       } catch(err) {ensureActive();fallbackFor(s);}
-      status(`미리보기 생성 중 · ${++completed} / ${d.slides.length}`);
+      status(()=>(t('createEditorRuntime.49', {p0: ++completed, p1: d.slides.length})));
     }
   } catch(err) {ensureActive();for(const s of d.slides)fallbackFor(s);}
   finally {previewer?.destroy();previewer=null;renderHost.replaceChildren();}
   updateOverlays();
-  if(state.failed.size)notice(`${state.failed.size}개 슬라이드는 간이 미리보기로 표시합니다. PowerPoint의 일부 도형·효과는 브라우저에서 재현되지 않을 수 있습니다.`);
-  else {const unresolved=d.slides.reduce((n,s)=>n+s.elements.filter(e=>!e.g).length,0);notice(unresolved?`위치를 읽을 수 없는 요소 ${unresolved}개는 선택 대상에서 제외했습니다.`:'');}
+  if(state.failed.size)notice(()=>(t('createEditorRuntime.50', {p0: state.failed.size})));
+  else {const unresolved=d.slides.reduce((n,s)=>n+s.elements.filter(e=>!e.g).length,0);notice(()=>(unresolved?t('createEditorRuntime.51', {p0: unresolved}):''));}
 }
 async function openBuffer(buffer, name, {keepBusy=false}={}) {
   if((state.busy&&!keepBusy) || disposed)return false;
-  cancelActiveDrag?.();busy(true);notice('');
+  cancelActiveDrag?.();busy(true);notice(()=>(''));
   const previousSearchIndex=searchIndex,previousSearch=store.getSnapshot().slideSearch;
   const previousElementIndex=elementSearchIndex,previousElementSearch=store.getSnapshot().elementSearch;
   const previous={...state,checked:new Set(state.checked),selected:new Map(state.selected),allSelected:new Map(state.allSelected)};
@@ -543,9 +545,9 @@ async function openBuffer(buffer, name, {keepBusy=false}={}) {
     searchIndex=nextSearchIndex;elementSearchIndex=nextElementIndex;updateSlideSearch('');updateElementSearch('');
     nudgeHistory=null;guideUI.onOpen();$('range').value='';
     renderList();updateSummary();
-    $('stage').replaceChildren(make('div','loading','슬라이드 미리보기를 만드는 중입니다…'));
+    $('stage').replaceChildren(make('div','loading',t('createEditorRuntime.52')));
     await renderDeck();
-    status(`${deck.slides.length}개 슬라이드를 열었습니다. 요소를 클릭해 선택하세요.`);
+    status(()=>(t('createEditorRuntime.53', {p0: deck.slides.length})));
     return true;
   } catch(err) {
     if(!disposed){Object.assign(state,previous);searchIndex=previousSearchIndex;elementSearchIndex=previousElementIndex;store.update({slideSearch:previousSearch,elementSearch:previousElementSearch});updateSummary();error(err);}
@@ -558,12 +560,12 @@ async function openFile(file) {
   if(!file || state.busy || disposed)return;
   cancelActiveDrag?.();busy(true);
   try {
-    if(!/\.pptx$/i.test(file.name))throw Error('.pptx 파일을 선택하세요.');
-    if(file.size>50*1024*1024)throw Error('50MB 이하의 PPTX 파일을 선택하세요.');
+    if(!/\.pptx$/i.test(file.name))throw localizedError('createEditorRuntime.54');
+    if(file.size>50*1024*1024)throw localizedError('createEditorRuntime.55');
     const buffer=await file.arrayBuffer();ensureActive();
     if(await openBuffer(buffer,file.name,{keepBusy:true})) {
       const saved=await recentAction(()=>recentFiles.save(file.name,buffer));
-      if(!saved&&!disposed)notice('파일은 열었지만 최근 파일로 보관하지 못했습니다. '+store.getSnapshot().recentFiles.error);
+      if(!saved&&!disposed)notice(()=>(t('createEditorRuntime.56')+store.getSnapshot().recentFiles.error));
     }
   } catch(err) {if(!disposed)error(err);}
   finally {if(!disposed)busy(false);}
@@ -571,32 +573,32 @@ async function openFile(file) {
 
 async function openRecentFile(id) {
   if(state.busy||disposed||store.getSnapshot().recentFiles.busy)return false;
-  cancelActiveDrag?.();busy(true);updateRecent({error:''});
+  cancelActiveDrag?.();busy(true);updateRecent({error:()=>('')});
   try {
     const file=await recentFiles.get(id);ensureActive();
     if(!file) {
-      updateRecent({files:store.getSnapshot().recentFiles.files.filter(row=>row.id!==id),error:'보관된 파일이 없습니다. 다른 탭이나 브라우저에서 삭제되었을 수 있습니다.'});
+      updateRecent({files:store.getSnapshot().recentFiles.files.filter(row=>row.id!==id),error:()=>(t('createEditorRuntime.57'))});
       return false;
     }
     if(!await openBuffer(file.buffer,file.name,{keepBusy:true})) {
-      updateRecent({error:'보관된 PPTX를 열지 못했습니다. 원본 파일을 다시 선택하세요.'});return false;
+      updateRecent({error:()=>(t('createEditorRuntime.58'))});return false;
     }
     await recentAction(()=>recentFiles.touch(id));
     return true;
-  } catch(err) {updateRecent({error:recentError(err)});return false;}
+  } catch(err) {updateRecent({error:()=>(recentError(err))});return false;}
   finally {if(!disposed)busy(false);}
 }
 
 async function applyMove(x,y,mode,axis=null,nudge=false){
   if(state.busy||!state.selected.size)return 0;
   if(!nudge)nudgeHistory=null;
-  busy(true);notice('');
+  busy(true);notice(()=>(''));
   try {
     const snapshotsCache=nudge && nudgeHistory && state.undo.at(-1)===nudgeHistory.history?nudgeHistory.snapshots:undefined;
     const snapshots=moveSelected(state.deck,state.selected,x,y,mode,axis,{snapshots:snapshotsCache});
     recordEdit(snapshots,nudge,{positionOnly:true});updatePositionFields();
     const n=snapshots.length?selectedElements().length:0;
-    if(n)status(`${state.selected.size}개 슬라이드의 ${n}개 요소를 간격을 유지하며 옮겼습니다.`);
+    if(n)status(()=>(t('createEditorRuntime.59', {p0: state.selected.size, p1: n})));
     return n;
   } catch(err){nudgeHistory=null;error(err);return 0;}
   finally{busy(false);}
@@ -615,7 +617,7 @@ function refreshDeletedElements(snapshots) {
 
 function deleteSelection() {
   if(disposed||state.busy||!state.deck||!state.selected.size)return;
-  cancelActiveDrag?.();nudgeHistory=null;busy(true);notice('');
+  cancelActiveDrag?.();nudgeHistory=null;busy(true);notice(()=>(''));
   try {
     const snapshots=ElementDeletion.apply(state.deck,state.selected);if(!snapshots.length)return;
     for(const snapshot of snapshots) {
@@ -625,7 +627,7 @@ function deleteSelection() {
     }
     state.undo.push(snapshots);if(state.undo.length>25)state.undo.shift();
     state.point=null;refreshDeletedElements(snapshots);updateSummary();updatePositionFields();
-    status(`${snapshots.length}개 슬라이드에서 ${snapshots.reduce((count,snapshot)=>count+snapshot.ids.length,0)}개 요소를 삭제했습니다. 마지막 변경 취소로 복원할 수 있습니다.`);
+    status(()=>(t('createEditorRuntime.60', {p0: snapshots.length, p1: snapshots.reduce((count,snapshot)=>count+snapshot.ids.length,0)})));
   } catch(err){error(err);}finally{busy(false);}
 }
 
@@ -646,13 +648,13 @@ async function undo() {
         state.point=null;refreshDeletedElements(snapshots);
       } else updateMovedPreviews(snapshots.map(s=>s.index));
     }
-    state.undo.pop();updateSummary();updatePositionFields();status('마지막 변경을 취소했습니다.');
+    state.undo.pop();updateSummary();updatePositionFields();status(()=>(t('createEditorRuntime.61')));
   } catch(err){error(err);}finally{busy(false);}
 }
-async function download(){if(!state.deck||state.busy)return;busy(true);try{prepareGuideExport(state.deck);const blob=await exportDeck(state.deck,'blob');ensureActive();const link=make('a');const url=URL.createObjectURL(blob);link.href=url;link.download=state.name.replace(/\.pptx$/i,'')+'-edited.pptx';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);status('수정한 PPTX를 다운로드했습니다.');}catch(err){error(err);}finally{busy(false);}}
-$('match-appearance').onchange=()=>{cancelActiveDrag?.();status($('match-appearance').checked?'다음 클릭·영역 선택부터 기준 페이지와 크기·색상·레이아웃이 같은 요소만 선택합니다.':'같은 좌표·영역의 요소를 선택합니다.');};
+async function download(){if(!state.deck||state.busy)return;busy(true);try{prepareGuideExport(state.deck);const blob=await exportDeck(state.deck,'blob');ensureActive();const link=make('a');const url=URL.createObjectURL(blob);link.href=url;link.download=state.name.replace(/\.pptx$/i,'')+'-edited.pptx';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);status(()=>(t('createEditorRuntime.62')));}catch(err){error(err);}finally{busy(false);}}
+$('match-appearance').onchange=()=>{cancelActiveDrag?.();status(()=>($('match-appearance').checked?t('createEditorRuntime.63'):t('createEditorRuntime.64')));};
 $('box-select-mode').onchange=()=>{cancelActiveDrag?.();root.classList.toggle('box-select-mode',$('box-select-mode').checked);};
-$('apply-range').onclick=()=>{if(!state.deck||state.busy)return;try{setChecked(parseRange($('range').value,state.deck.slides.length));notice('');}catch(err){error(err);}};$('range').onkeydown=event=>{if(event.key==='Enter')$('apply-range').click();};$('only-checked').onchange=updateScope;$('clear-selection').onclick=resetSelection;$('move-mode').onchange=()=>{cancelActiveDrag?.();nudgeHistory=null;const relative=$('move-mode').value==='relative';$('position-help').textContent=relative?'오른쪽·아래는 +, 왼쪽·위는 −':'선택 영역의 왼쪽 위 · 여러 요소는 간격 유지';$('x-label').textContent=relative?'가로 이동 (cm)':'X (cm)';$('y-label').textContent=relative?'세로 이동 (cm)':'Y (cm)';if(relative){$('x').value='0';$('y').value='0';}else updatePositionFields();};$('move').onclick=()=>{if(!$('x').value.trim()||!$('y').value.trim()){error(Error('X와 Y를 모두 입력하세요.'));return;}applyMove(Number($('x').value)*EMU_PER_CM,Number($('y').value)*EMU_PER_CM,$('move-mode').value);};$('undo').onclick=undo;async function openDemo(){if(state.busy||disposed)return;try{const response=await fetch(`${resources.base}sample.pptx`,{signal:events.abortController.signal});if(!response.ok)throw Error('예제 파일을 열지 못했습니다.');ensureActive();await openBuffer(await response.arrayBuffer(),'예제-슬라이드.pptx');}catch(err){if(!disposed)error(err);}}
+$('apply-range').onclick=()=>{if(!state.deck||state.busy)return;try{setChecked(parseRange($('range').value,state.deck.slides.length));notice(()=>(''));}catch(err){error(err);}};$('range').onkeydown=event=>{if(event.key==='Enter')$('apply-range').click();};$('only-checked').onchange=updateScope;$('clear-selection').onclick=resetSelection;$('move-mode').onchange=()=>{cancelActiveDrag?.();nudgeHistory=null;const relative=$('move-mode').value==='relative';$('position-help').textContent=relative?t('createEditorRuntime.65'):t('MovePanel.6');$('x-label').textContent=relative?t('createEditorRuntime.66'):'X (cm)';$('y-label').textContent=relative?t('createEditorRuntime.67'):'Y (cm)';if(relative){$('x').value='0';$('y').value='0';}else updatePositionFields();};$('move').onclick=()=>{if(!$('x').value.trim()||!$('y').value.trim()){error(localizedError('createEditorRuntime.68'));return;}applyMove(Number($('x').value)*EMU_PER_CM,Number($('y').value)*EMU_PER_CM,$('move-mode').value);};$('undo').onclick=undo;async function openDemo(){if(state.busy||disposed)return;try{const response=await fetch(`${resources.base}sample.pptx`,{signal:events.abortController.signal});if(!response.ok)throw localizedError('createEditorRuntime.69');ensureActive();await openBuffer(await response.arrayBuffer(),t('createEditorRuntime.70'));}catch(err){if(!disposed)error(err);}}
 
 events.on(root,'dragover',event=>{event.preventDefault();$('dropzone')?.classList.add('dragover');});events.on(root,'dragleave',event=>{if(!event.relatedTarget)$('dropzone')?.classList.remove('dragover');});events.on(root,'drop',event=>{event.preventDefault();$('dropzone')?.classList.remove('dragover');if(!state.busy)openFile(event.dataTransfer.files[0]);});events.on(root,'keydown',event=>{
   if(event.key==='Shift')refreshActiveDrag?.(true);if(event.key==='Alt')refreshActiveDrag?.(true,'altKey');
@@ -667,14 +669,14 @@ events.on(root,'dragover',event=>{event.preventDefault();$('dropzone')?.classLis
   if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='a'){
     event.preventDefault();nudgeHistory=null;state.reference=Number(surface.dataset.slide);
     state.allSelected=new Map(state.deck.slides.map(s=>[s.index,new Set(s.elements.filter(e=>e.g&&!e.hidden).map(e=>e.id))]));
-    syncSelection();updatePositionFields();updateInspector();updateOverlays();status(`${state.selected.size}개 슬라이드에서 ${selectedElements().length}개 요소를 선택했습니다.`);return;
+    syncSelection();updatePositionFields();updateInspector();updateOverlays();status(()=>(t('createEditorRuntime.9', {p0: state.selected.size, p1: selectedElements().length})));return;
   }
   const directions={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]},direction=directions[event.key];
   if(direction&&state.selected.size){event.preventDefault();const step=EMU_PER_CM*(event.shiftKey?1:event.ctrlKey||event.metaKey?0.01:0.1);applyMove(direction[0]*step,direction[1]*step,'relative',null,true);}
 });
 events.on(root,'keyup',event=>{if(event.key==='Shift')refreshActiveDrag?.(false);if(event.key==='Alt')refreshActiveDrag?.(false,'altKey');if(event.key.startsWith('Arrow'))nudgeHistory=null;});
 
-const context=document.modelContext;if(context?.registerTool){const lifecycle=toolLifecycle;events.on(window,'pagehide',()=>lifecycle.abort(),{once:true});const register=tool=>{try{Promise.resolve(context.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{}};register({name:'read_slide_selection',description:'열린 PPTX의 적용 대상과 선택 요소 좌표를 읽습니다.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:true},execute:()=>({file:state.name,slideCount:state.deck?.slides.length||0,checked:[...state.checked].map(i=>i+1),selected:selectedElements().map(({slide,element:e})=>({slide:slide.index+1,id:e.id,name:e.name,xCm:e.g.x/EMU_PER_CM,yCm:e.g.y/EMU_PER_CM}))})});register({name:'select_elements_at_position',description:'적용 대상 슬라이드의 지정 좌표에서 가장 앞에 있는 요소를 선택합니다. 좌표 단위는 cm입니다.',inputSchema:{type:'object',properties:{xCm:{type:'number'},yCm:{type:'number'},selectionMode:{enum:['replace','add','remove']}},required:['xCm','yCm'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute:input=>{if(!state.deck||state.busy)throw Error('먼저 PPTX를 열고 처리가 끝날 때까지 기다리세요.');if(!Number.isFinite(input.xCm)||!Number.isFinite(input.yCm))throw Error('좌표가 유효하지 않습니다.');if(input.selectionMode&&!['replace','add','remove'].includes(input.selectionMode))throw Error('선택 방식이 유효하지 않습니다.');cancelActiveDrag?.();selectAt(input.xCm*EMU_PER_CM,input.yCm*EMU_PER_CM,null,input.selectionMode||'replace');return {selected:selectedElements().length,slides:state.selected.size};}});register({name:'move_selected_elements',description:'선택된 요소를 지정한 절대 위치로 옮기거나 같은 거리만큼 이동합니다. 원본 PPTX 다운로드는 별도입니다.',inputSchema:{type:'object',properties:{xCm:{type:'number'},yCm:{type:'number'},mode:{enum:['absolute','relative']}},required:['xCm','yCm','mode'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},async execute(input){if(state.busy||!state.selected.size)throw Error('먼저 요소를 선택하세요.');if(!['absolute','relative'].includes(input.mode)||![input.xCm,input.yCm].every(Number.isFinite)||Math.abs(input.xCm)>1000||Math.abs(input.yCm)>1000)throw Error('이동 방식과 좌표가 유효하지 않습니다.');cancelActiveDrag?.();const moved=await applyMove(input.xCm*EMU_PER_CM,input.yCm*EMU_PER_CM,input.mode);return {moved};}});}
+const context=document.modelContext;if(context?.registerTool){const lifecycle=toolLifecycle;events.on(window,'pagehide',()=>lifecycle.abort(),{once:true});const register=tool=>{try{Promise.resolve(context.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{}};register({name:'read_slide_selection',description:t('createEditorRuntime.71'),inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:true},execute:()=>({file:state.name,slideCount:state.deck?.slides.length||0,checked:[...state.checked].map(i=>i+1),selected:selectedElements().map(({slide,element:e})=>({slide:slide.index+1,id:e.id,name:e.name,xCm:e.g.x/EMU_PER_CM,yCm:e.g.y/EMU_PER_CM}))})});register({name:'select_elements_at_position',description:t('createEditorRuntime.72'),inputSchema:{type:'object',properties:{xCm:{type:'number'},yCm:{type:'number'},selectionMode:{enum:['replace','add','remove']}},required:['xCm','yCm'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute:input=>{if(!state.deck||state.busy)throw localizedError('createEditorRuntime.73');if(!Number.isFinite(input.xCm)||!Number.isFinite(input.yCm))throw localizedError('createEditorRuntime.74');if(input.selectionMode&&!['replace','add','remove'].includes(input.selectionMode))throw localizedError('createEditorRuntime.75');cancelActiveDrag?.();selectAt(input.xCm*EMU_PER_CM,input.yCm*EMU_PER_CM,null,input.selectionMode||'replace');return {selected:selectedElements().length,slides:state.selected.size};}});register({name:'move_selected_elements',description:t('createEditorRuntime.76'),inputSchema:{type:'object',properties:{xCm:{type:'number'},yCm:{type:'number'},mode:{enum:['absolute','relative']}},required:['xCm','yCm','mode'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},async execute(input){if(state.busy||!state.selected.size)throw localizedError('createEditorRuntime.77');if(!['absolute','relative'].includes(input.mode)||![input.xCm,input.yCm].every(Number.isFinite)||Math.abs(input.xCm)>1000||Math.abs(input.yCm)>1000)throw localizedError('createEditorRuntime.78');cancelActiveDrag?.();const moved=await applyMove(input.xCm*EMU_PER_CM,input.yCm*EMU_PER_CM,input.mode);return {moved};}});}
 
 $('delete-selection').onclick=deleteSelection;
 $('fit-text').onclick=fitText;$('fit-scope').onchange=updateFitControls;events.on(window,'blur',()=>{cancelActiveDrag?.();nudgeHistory=null;});
@@ -683,6 +685,34 @@ $('layout-target').onchange=updateLayoutControls;for(const button of root.queryS
 guideUI=createGuideUI({root,getSurfaces:indices=>viewport.surfaces(indices),state,$,make,status,error,cancelDrag:()=>{cancelActiveDrag?.();nudgeHistory=null;},setDragHandlers:(cancel,refresh)=>{cancelActiveDrag=cancel;refreshActiveDrag=refresh;},recordEdit});
 busy(false);
 refreshRecentFiles();
+const unsubscribeLanguage=i18n.subscribe(()=>queueMicrotask(()=>{
+  if(disposed)return;
+  const drafts=['x','y','range','guide-position'].map(id=>[id,$(id)?.value]);
+  cancelActiveDrag?.();
+  if(state.deck){
+    for(const slide of state.deck.slides)refreshSlide(slide);
+    searchIndex=new SlideSearchIndex(state.deck);elementSearchIndex=new ElementSearchIndex(state.deck);elementSearchCache=null;
+    updateSlideSearch(store.getSnapshot().slideSearch.query);renderList();updateSummary();updateInspector();updateOverlays();
+    for(const slide of state.deck.slides){
+      const card=viewport.get(slide.index);
+      if(card?.badge)card.badge.textContent=slide.dirty?t('createEditorRuntime.35'):state.checked.has(slide.index)?t('createEditorRuntime.36'):'';
+      card?.check?.setAttribute('aria-label',t('createEditorRuntime.27',{p0:slide.index+1}));
+      card?.surface?.setAttribute('aria-label',t(state.checked.has(slide.index)?'createEditorRuntime.28':'createEditorRuntime.34',{p0:slide.index+1}));
+      card?.frame?.setAttribute('title',t('createEditorRuntime.31',{p0:slide.index+1}));
+    }
+  }else{
+    store.update({name:t('EditorStore.1'),summary:t('EditorStore.3')});
+    if(!statusMessage)store.update({status:t('EditorStore.2')});
+  }
+  guideUI?.updateControls();
+  const relative=$('move-mode').value==='relative';
+  $('position-help').textContent=t(relative?'createEditorRuntime.65':'MovePanel.6');
+  $('x-label').textContent=t(relative?'createEditorRuntime.66':'coordinate.x');
+  $('y-label').textContent=t(relative?'createEditorRuntime.67':'coordinate.y');
+  if(statusMessage)status(statusMessage);if(noticeMessage)notice(noticeMessage);
+  if(recentErrorMessage)updateRecent({error:recentErrorMessage});
+  for(const [id,value] of drafts)if($(id)&&value!==undefined)$(id).value=value;
+}));
 
 return {
   openFile, openDemo, download, applySlideSearch, applyElementSearch,
@@ -701,7 +731,7 @@ return {
   dispose() {
     if(disposed)return;
     cancelActiveDrag?.();disposed=true;
-    events.dispose();toolLifecycle.abort();resizeObserver.disconnect();viewport.reset();store.update({hoveredSlide:null});
+    unsubscribeLanguage();events.dispose();toolLifecycle.abort();resizeObserver.disconnect();viewport.reset();store.update({hoveredSlide:null});
     previewer?.destroy();renderHost?.remove();
     for(const element of root.querySelectorAll('*')) {
       for(const property of ['onclick','onchange','onkeydown']) element[property]=null;

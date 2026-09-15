@@ -1,30 +1,33 @@
+import {t} from '../i18n/I18n.js';
+import {useLanguage} from '../hooks/useLanguage.js';
 import {Button, Checkbox, InspectorSection} from "./ui.jsx";
 
 /** GuidePanel controls; native form values are owned by the editor runtime. */
 export function GuidePanel() {
+  useLanguage();
   return <>
-      <InspectorSection id="editor-section-guides" initiallyOpen={false} title="안내선">
+      <InspectorSection id="editor-section-guides" initiallyOpen={false} title={t('GuidePanel.1')}>
       <div className="guide-options">
-      <Checkbox id="guides-visible" label="안내선 표시" defaultChecked/>
-      <Checkbox id="guides-snap" label="이동할 때 안내선에 맞추기" defaultChecked/>
-      <Checkbox id="guides-edit" label="안내선을 드래그하여 편집"/>
+      <Checkbox id="guides-visible" label={t('GuidePanel.2')} defaultChecked/>
+      <Checkbox id="guides-snap" label={t('GuidePanel.3')} defaultChecked/>
+      <Checkbox id="guides-edit" label={t('GuidePanel.4')}/>
       </div>
       <div className="guide-add">
-      <Button id="guide-horizontal" disabled>+ 가로 안내선</Button>
-      <Button id="guide-vertical" disabled>+ 세로 안내선</Button>
+      <Button id="guide-horizontal" disabled>{t('GuidePanel.5')}</Button>
+      <Button id="guide-vertical" disabled>{t('GuidePanel.6')}</Button>
       </div>
-      <p id="guide-count" className="field-help">파일을 열면 기존 안내선을 불러옵니다.</p>
-      <label className="field-label" htmlFor="guide-select">안내선 선택</label>
+      <p id="guide-count" className="field-help">{t('GuidePanel.7')}</p>
+      <label className="field-label" htmlFor="guide-select">{t('GuidePanel.8')}</label>
       <select id="guide-select" disabled>
       </select>
-      <label className="field-label" id="guide-axis" htmlFor="guide-position">왼쪽에서 (cm)</label>
+      <label className="field-label" id="guide-axis" htmlFor="guide-position">{t('GuidePanel.9')}</label>
       <div className="guide-position-row">
       <input id="guide-position" type="number" step="0.1" disabled/>
-      <Button id="guide-apply" disabled>적용</Button>
-      <Button id="guide-delete" disabled>삭제</Button>
+      <Button id="guide-apply" disabled>{t('GuidePanel.10')}</Button>
+      <Button id="guide-delete" disabled>{t('GuidePanel.11')}</Button>
       </div>
-      <p id="guide-readonly" className="field-help" hidden>마스터·레이아웃 안내선은 표시와 맞추기만 지원합니다.</p>
-      <p className="field-help">공통 안내선은 모든 슬라이드에 적용되며 수정본 PPTX에도 저장됩니다. Alt를 누르고 드래그하면 안내선 맞추기를 잠시 해제합니다.</p>
+      <p id="guide-readonly" className="field-help" hidden>{t('GuidePanel.12')}</p>
+      <p className="field-help">{t('GuidePanel.13')}</p>
       </InspectorSection>
   </>;
 }

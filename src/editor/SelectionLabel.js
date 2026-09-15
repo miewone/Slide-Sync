@@ -1,3 +1,4 @@
+import {t} from '../i18n/I18n.js';
 /** Render a noninteractive element-name badge anchored to the selected objects' visual bounds. */
 export class SelectionLabel {
   /**
@@ -19,12 +20,12 @@ export class SelectionLabel {
       label.id=`slide-${surface.dataset.slide}-selection-name`;
       surface.append(label);
     }
-    const names=elements.map(element=>element.name || `요소 ${element.id}`);
-    const text=names.length===1?names[0]:`${names[0]} 외 ${names.length-1}개`;
+    const names=elements.map(element=>element.name || t('SelectionLabel.1', {p0: element.id}));
+    const text=names.length===1?names[0]:t('SelectionLabel.2', {p0: names[0], p1: names.length-1});
     if(label.textContent!==text)label.textContent=text;
     const description=names.join(', ');
     if(surface.title!==description)surface.title=description;
-    label.setAttribute('aria-label',`선택된 요소: ${description}`);
+    label.setAttribute('aria-label',t('SelectionLabel.3', {p0: description}));
     surface.setAttribute('aria-describedby',label.id);label.hidden=false;
     label.style.setProperty('--selection-label-x',`clamp(0px, ${bounds.x/width*100}%, calc(100% - 80px))`);
     label.style.top=`max(0px, calc(${bounds.y/height*100}% - 26px))`;

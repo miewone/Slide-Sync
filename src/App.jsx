@@ -1,3 +1,5 @@
+import {t} from './i18n/I18n.js';
+import {useLanguage} from './hooks/useLanguage.js';
 import {useEffect, useMemo, useRef} from 'react';
 import {EditorStore} from './editor/EditorStore.js';
 import {previewResources} from './services/PreviewResources.js';
@@ -9,6 +11,8 @@ import {Inspector} from './components/Inspector.jsx';
 
 /** A self-contained editor instance with a lazy engine and stable command facade. */
 export default function App() {
+  const language=useLanguage();
+  useEffect(()=>{document.documentElement.lang=language;document.title=t('app.title');document.querySelector('meta[name="description"]')?.setAttribute('content',t('app.description'));},[language]);
   const root = useRef(null);
   const runtime = useRef(null);
   const services = useMemo(() => {
@@ -30,7 +34,7 @@ export default function App() {
       runtime.current = createEditorRuntime(root.current, services.store, previewResources);
       services.store.update({ready:true});
     }).catch(error => {
-      if (!cancelled) services.store.update({notice:`편집기를 시작하지 못했습니다: ${error.message}`});
+      if (!cancelled) services.store.update({notice:t('App.1', {p0: error.message})});
     });
     return () => {
       cancelled = true;

@@ -1,3 +1,4 @@
+import {checkLocalization} from './localization-checks.mjs';
 import {measureWorkflows,workflowMarkdown} from './workflow-performance.mjs';
 import {checkDeletion} from './deletion-checks.mjs';
 import {checkCorePerformance} from './core-performance-checks.mjs';
@@ -100,6 +101,7 @@ try {
   browser = new Browser(socket);
   await browser.send('Page.enable');await browser.send('Page.setLifecycleEventsEnabled',{enabled:true});await browser.send('Runtime.enable');await browser.send('Log.enable');
   await browser.send('Emulation.setDeviceMetricsOverride', {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await browser.send('Network.setUserAgentOverride',{userAgent:(await browser.send('Browser.getVersion')).userAgent,acceptLanguage:'ko-KR,ko;q=0.9,en;q=0.8'});
 
   if(process.argv.includes('--benchmark-workflows')) {
     const report=await measureWorkflows(browser,'http://127.0.0.1:4179');
@@ -189,6 +191,9 @@ try {
   await checkDeletion(browser,'http://127.0.0.1:5179');
   await checkDeletion(browser,'http://127.0.0.1:4179');
   await checkDeletion(browser,'http://127.0.0.1:4189/slides/');
+  await checkLocalization(browser,'http://127.0.0.1:5179');
+  await checkLocalization(browser,'http://127.0.0.1:4179');
+  await checkLocalization(browser,'http://127.0.0.1:4189/slides/');
   await checkRecentFiles(browser,'http://127.0.0.1:5179');
   await checkRecentFiles(browser,'http://127.0.0.1:4179');
   await checkRecentFiles(browser,'http://127.0.0.1:4189/slides/');

@@ -1,3 +1,4 @@
+import {t,localizedError} from '../i18n/I18n.js';
 import {selectedInSlide,visualBounds,commitPositions} from './core.js';
 
 export function constrainDrag(dx,dy,shift){
@@ -6,7 +7,7 @@ export function constrainDrag(dx,dy,shift){
 }
 
 export function layoutPlans(deck,selection,action,target='selection'){
-  if(!['left','center','right','top','middle','bottom','horizontal','vertical'].includes(action)||!['selection','slide'].includes(target))throw Error('정렬 방식을 선택하세요.');
+  if(!['left','center','right','top','middle','bottom','horizontal','vertical'].includes(action)||!['selection','slide'].includes(target))throw localizedError('layout.1');
   const plans=[],distribute=['horizontal','vertical'].includes(action);
   for(const [index,ids]of selection){
     const elements=selectedInSlide(deck.slides[index],ids);

@@ -1,3 +1,5 @@
+import {t} from '../i18n/I18n.js';
+import {useLanguage} from '../hooks/useLanguage.js';
 import {useLayoutEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 
@@ -6,6 +8,7 @@ import {createPortal} from 'react-dom';
  * @param {object} props Input ref, stable id, catalogue rows, open state and pick/close callbacks.
  */
 export function ElementNamePopover({anchorRef,id,items,open,onPick,onClose}) {
+  useLanguage();
   const panelRef=useRef(null);
   const [position,setPosition]=useState(null);
   const [page,setPage]=useState({items:null,limit:100});
@@ -46,7 +49,7 @@ export function ElementNamePopover({anchorRef,id,items,open,onPick,onClose}) {
     };
   },[open,anchorRef,onClose]);
   if(!open)return null;
-  return createPortal(<aside id={id} ref={panelRef} role="dialog" aria-label="요소 이름 목록"
+  return createPortal(<aside id={id} ref={panelRef} role="dialog" aria-label={t('ElementNamePopover.1')}
     className="element-name-popover" style={position || {visibility:'hidden'}}
     onKeyDown={event=>{
       if(event.key==='Escape'){
@@ -60,20 +63,19 @@ export function ElementNamePopover({anchorRef,id,items,open,onPick,onClose}) {
         buttons[next]?.focus();
       }
     }}>
-    <div className="element-name-heading"><strong>요소 이름 · {items.length}</strong>
-      <button type="button" aria-label="요소 이름 목록 닫기" onClick={()=>{anchorRef.current?.focus();onClose();}}>×</button>
+    <div className="element-name-heading"><strong>{t('ElementNamePopover.2')}{items.length}</strong>
+      <button type="button" aria-label={t('ElementNamePopover.3')} onClick={()=>{anchorRef.current?.focus();onClose();}}>×</button>
     </div>
-    <p className="element-name-help">체크한 슬라이드의 요소입니다. 이름을 누르면 검색하고 일치 요소를 선택에 추가합니다.</p>
+    <p className="element-name-help">{t('ElementNamePopover.4')}</p>
     {items.length?<ul>{items.slice(0,limit).map(item=><li key={item.name}>
       <button type="button" className="element-name-item" onClick={()=>onPick(item.name)}>
         <span className="element-name-label">{item.name}</span>
-        <span className="element-name-meta" title={`슬라이드 ${item.slides.map(index=>index+1).join(', ')}`}>
-          {item.count}개 · 슬라이드 {item.slides.slice(0,8).map(index=>index+1).join(', ')}{item.slides.length>8?` 외 ${item.slides.length-8}장`:''}
+        <span className="element-name-meta" title={t('ElementNamePopover.5', {p0: item.slides.map(index=>index+1).join(', ')})}>
+          {item.count}{t('ElementNamePopover.6')}{item.slides.slice(0,8).map(index=>index+1).join(', ')}{item.slides.length>8?t('ElementNamePopover.7', {p0: item.slides.length-8}):''}
         </span>
       </button>
-    </li>)}</ul>:<p className="element-name-empty">표시할 요소가 없습니다. 적용할 슬라이드를 체크하세요.</p>}
-    {items.length>limit && <button type="button" className="element-name-more" onClick={()=>setPage({items,limit:limit+100})}>
-      더 보기 ({limit}/{items.length})
+    </li>)}</ul>:<p className="element-name-empty">{t('ElementNamePopover.8')}</p>}
+    {items.length>limit && <button type="button" className="element-name-more" onClick={()=>setPage({items,limit:limit+100})}>{t('ElementNamePopover.9')}{limit}/{items.length})
     </button>}
   </aside>,document.body);
 }

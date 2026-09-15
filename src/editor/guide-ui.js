@@ -1,27 +1,28 @@
+import {t,localizedError,i18n} from '../i18n/I18n.js';
 import {EMU_PER_CM} from './core.js';
 import {GUIDE_UNIT,slideGuides,addGuide,changeGuide,removeGuide,snapToGuides} from './guides.js';
 
 /** @param {object} options Editor root, state, DOM helpers and edit/drag callbacks. */
 export function createGuideUI({root,getSurfaces,state,$,make,status,error,cancelDrag,setDragHandlers,recordEdit}){
-  const scopeLabel={global:'공통',master:'마스터',layout:'레이아웃',slide:'슬라이드'};
+  const scopeLabel=()=>({global:t('guide-ui.1'),master:t('guide-ui.2'),layout:t('guide-ui.3'),slide:t('Sidebar.2')});
   let selectedId='',draft=null;
   const reference=()=>state.reference??state.selected.keys().next().value??state.checked.keys().next().value??0;
   const current=()=>slideGuides(state.deck,reference()).find(g=>g.id===selectedId);
   function updateControls(){
     const guides=slideGuides(state.deck,reference()),select=$('guide-select'),previous=selectedId;
-    const key=JSON.stringify([reference(),guides.map(g=>[g.id,g.axis,g.pos,g.scope])]);
+    const key=JSON.stringify([i18n.getLanguage(),reference(),guides.map(g=>[g.id,g.axis,g.pos,g.scope])]);
     if(select.dataset.optionsKey!==key){
       select.dataset.optionsKey=key;select.replaceChildren();
-      for(const g of guides){const option=make('option','',`${scopeLabel[g.scope]} · ${g.axis==='x'?'세로':'가로'} ${(g.pos/EMU_PER_CM).toFixed(2)} cm`);option.value=g.id;select.append(option);}
+      for(const g of guides){const option=make('option','',`${scopeLabel()[g.scope]} · ${g.axis==='x'?t('guide-ui.4'):t('guide-ui.5')} ${(g.pos/EMU_PER_CM).toFixed(2)} cm`);option.value=g.id;select.append(option);}
       selectedId=guides.some(g=>g.id===previous)?previous:guides[0]?.id||'';select.value=selectedId;
     }
     const guide=current(),editable=guide?.scope==='global';
-    $('guide-count').textContent=state.deck?`슬라이드 ${reference()+1} · 공통 ${state.deck.guides.global.length}개 / 마스터·레이아웃 ${(state.deck.guides.inherited.get(reference())||[]).length}개`:'파일을 열면 기존 안내선을 불러옵니다.';
+    $('guide-count').textContent=state.deck?t('guide-ui.6', {p0: reference()+1, p1: state.deck.guides.global.length, p2: (state.deck.guides.inherited.get(reference())||[]).length}):t('GuidePanel.7');
     select.disabled=state.busy||!guides.length;
     for(const id of ['guide-horizontal','guide-vertical'])$(id).disabled=state.busy||!state.deck;
     for(const id of ['guide-position','guide-apply','guide-delete'])$(id).disabled=state.busy||!editable;
     if(!$('guide-position').matches(':focus'))$('guide-position').value=guide?((draft?.id===guide.id?draft.pos:guide.pos)/EMU_PER_CM).toFixed(2):'';
-    $('guide-axis').textContent=guide?.axis==='y'?'위에서 (cm)':'왼쪽에서 (cm)';
+    $('guide-axis').textContent=guide?.axis==='y'?t('guide-ui.7'):t('GuidePanel.9');
     $('guide-readonly').hidden=!guide||editable;
   }
   function render(indices){
@@ -48,7 +49,7 @@ export function createGuideUI({root,getSurfaces,state,$,make,status,error,cancel
   function commit(action,message){
     if(!state.deck||state.busy)return;
     cancelDrag();
-    try{const snapshots=action();recordEdit(snapshots);updateControls();render();if(snapshots.length)status(message);return snapshots.length;}
+    try{const snapshots=action();recordEdit(snapshots);updateControls();render();if(snapshots.length)status(()=>(message));return snapshots.length;}
     catch(err){error(err);return 0;}
   }
   function add(axis){
@@ -56,10 +57,10 @@ export function createGuideUI({root,getSurfaces,state,$,make,status,error,cancel
       let pos=(axis==='x'?state.deck.width:state.deck.height)/2;
       while(state.deck.guides.global.some(g=>g.axis===axis&&Math.abs(g.pos-pos)<GUIDE_UNIT))pos+=0.5*EMU_PER_CM;
       const snapshots=addGuide(state.deck,axis,pos);selectedId=state.deck.guides.global.at(-1).id;$('guides-visible').checked=true;return snapshots;
-    },`${axis==='x'?'세로':'가로'} 안내선을 모든 슬라이드에 추가했습니다.`);
+    },t('guide-ui.8', {p0: axis==='x'?t('guide-ui.4'):t('guide-ui.5')}));
   }
   function mountSurface(surface,index){
-    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('guide-overlay');svg.setAttribute('viewBox',`0 0 ${state.deck.width} ${state.deck.height}`);svg.setAttribute('tabindex','-1');svg.setAttribute('aria-label','안내선');surface.insertBefore(svg,surface.querySelector('.hit-overlay'));
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('guide-overlay');svg.setAttribute('viewBox',`0 0 ${state.deck.width} ${state.deck.height}`);svg.setAttribute('tabindex','-1');svg.setAttribute('aria-label',t('GuidePanel.1'));surface.insertBefore(svg,surface.querySelector('.hit-overlay'));
     let start=null,latest=null,scheduled=0;
     const tooltip=surface.querySelector('.drag-tooltip');
     const position=event=>Math.round((start.pos+((start.axis==='x'?event.clientX:event.clientY)-start.client)*start.scale)/GUIDE_UNIT)*GUIDE_UNIT;
@@ -71,7 +72,7 @@ export function createGuideUI({root,getSurfaces,state,$,make,status,error,cancel
     function updateDraft(){
       scheduled=0;if(!start||!latest)return;
       const pos=position(latest);draft={id:start.id,pos};
-      tooltip.textContent=`${start.axis==='x'?'세로 · 왼쪽':'가로 · 위'}에서 ${(pos/EMU_PER_CM).toFixed(2)} cm`;
+      tooltip.textContent=t('guide-ui.9', {p0: start.axis==='x'?t('guide-ui.10'):t('guide-ui.11'), p1: (pos/EMU_PER_CM).toFixed(2)});
       tooltip.style.left=`${Math.max(8,Math.min(start.rect.width-220,latest.clientX-start.rect.left+14))}px`;tooltip.style.top=`${Math.max(8,Math.min(start.rect.height-45,latest.clientY-start.rect.top+14))}px`;tooltip.hidden=false;
       $('guide-position').value=(pos/EMU_PER_CM).toFixed(2);render();
     }
@@ -85,15 +86,15 @@ export function createGuideUI({root,getSurfaces,state,$,make,status,error,cancel
     });
     svg.addEventListener('pointermove',event=>{if(!start||event.pointerId!==start.pointerId)return;event.stopPropagation();latest={clientX:event.clientX,clientY:event.clientY};if(!scheduled)scheduled=requestAnimationFrame(updateDraft);});
     svg.addEventListener('pointerup',event=>{
-      if(!start||event.pointerId!==start.pointerId)return;event.stopPropagation();const id=start.id,pos=position(event);clear();commit(()=>changeGuide(state.deck,id,pos),'안내선 위치를 변경했습니다.');
+      if(!start||event.pointerId!==start.pointerId)return;event.stopPropagation();const id=start.id,pos=position(event);clear();commit(()=>changeGuide(state.deck,id,pos),t('guide-ui.12'));
     });
     for(const type of ['pointercancel','lostpointercapture'])svg.addEventListener(type,event=>{if(start&&event.pointerId===start.pointerId){event.stopPropagation();clear();}});
   }
   $('guide-horizontal').onclick=()=>add('y');$('guide-vertical').onclick=()=>add('x');
   $('guide-select').onchange=()=>{cancelDrag();selectedId=$('guide-select').value;updateControls();const g=current();$('guide-position').value=g?(g.pos/EMU_PER_CM).toFixed(2):'';render();};
-  $('guide-apply').onclick=()=>{if(!$('guide-position').value.trim()){error(Error('안내선 위치를 입력하세요.'));return;}const id=selectedId,pos=Number($('guide-position').value)*EMU_PER_CM;commit(()=>changeGuide(state.deck,id,pos),'안내선 위치를 변경했습니다.');};
+  $('guide-apply').onclick=()=>{if(!$('guide-position').value.trim()){error(localizedError('guide-ui.13'));return;}const id=selectedId,pos=Number($('guide-position').value)*EMU_PER_CM;commit(()=>changeGuide(state.deck,id,pos),t('guide-ui.12'));};
   $('guide-position').onkeydown=event=>{if(event.key==='Enter')$('guide-apply').click();};
-  $('guide-delete').onclick=()=>commit(()=>removeGuide(state.deck,selectedId),'선택한 공통 안내선을 삭제했습니다.');
+  $('guide-delete').onclick=()=>commit(()=>removeGuide(state.deck,selectedId),t('guide-ui.14'));
   for(const id of ['guides-visible','guides-edit','guides-snap'])$(id).onchange=()=>{cancelDrag();render();};
   return {mountSurface,render,updateControls,onOpen(){selectedId='';draft=null;$('guides-edit').checked=false;$('guides-visible').checked=true;$('guide-select').dataset.optionsKey='';updateControls();},
     snapDrag(bounds,delta,index,scale,alt){

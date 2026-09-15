@@ -1,3 +1,5 @@
+import {t} from '../i18n/I18n.js';
+import {useLanguage} from '../hooks/useLanguage.js';
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {Button} from './ui.jsx';
 import {ElementNamePopover} from './ElementNamePopover.jsx';
@@ -8,6 +10,7 @@ import {ElementNamePopover} from './ElementNamePopover.jsx';
  */
 export function SearchSelection({idPrefix,label,placeholder,query,matchCount,selectedCount,summary,
   busy,hasSource,onQueryChange,onApply,selectId,removeId,help,suggestions,onSuggestionPick}) {
+  useLanguage();
   const composing=useRef(false),blocked=busy || !hasSource || matchCount===0;
   const inputRef=useRef(null),[namesOpen,setNamesOpen]=useState(false);
   const closeNames=useCallback(()=>setNamesOpen(false),[]);
@@ -39,13 +42,12 @@ export function SearchSelection({idPrefix,label,placeholder,query,matchCount,sel
     {hasSuggestions && <ElementNamePopover anchorRef={inputRef} id={popoverId} items={suggestions}
       open={showNames} onClose={closeNames} onPick={name=>{onSuggestionPick(name);inputRef.current?.focus();}}/>}
     <p id={`${idPrefix}-count`} className="field-help" role="status" aria-live="polite">
-      {!hasSource?'파일을 열면 검색할 수 있습니다.':!query.trim()?'검색어를 입력하세요.':summary}
+      {!hasSource?t('SearchSelection.1'):!query.trim()?t('SearchSelection.2'):summary}
     </p>
     <div className="slide-search-actions">
-      <Button id={selectId} disabled={blocked || selectedCount===matchCount} onClick={()=>onApply('select')}>일치 선택</Button>
-      <Button id={removeId} disabled={blocked || selectedCount===0} onClick={()=>onApply('remove')}>일치 해제</Button>
+      <Button id={selectId} disabled={blocked || selectedCount===matchCount} onClick={()=>onApply('select')}>{t('SearchSelection.3')}</Button>
+      <Button id={removeId} disabled={blocked || selectedCount===0} onClick={()=>onApply('remove')}>{t('SearchSelection.4')}</Button>
     </div>
-    <p id={`${idPrefix}-help`} className="field-help">{help || '대소문자 구분 없이 검색합니다.'}<br/>Enter: 선택 · Shift+Enter: 해제
-      {hasSuggestions && <><br/>↓: 요소 이름 목록 · Esc: 목록 닫기</>}</p>
+    <p id={`${idPrefix}-help`} className="field-help">{help || t('SearchSelection.5')}<br/>{t('SearchSelection.6')}{hasSuggestions && <><br/>{t('SearchSelection.7')}</>}</p>
   </section>;
 }

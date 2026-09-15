@@ -93,3 +93,5 @@ Choose **최근 PPTX** in the header to view locally stored originals, then expl
 ## Delete selected elements
 
 Select elements, then use **선택 요소 삭제** in the inspector or press Delete/Backspace. Only selected elements on checked slides are removed; groups are deleted as a unit. Undo with **마지막 변경 취소** or Ctrl/Cmd+Z. Typing in a form field never deletes slide elements. Download the edited PPTX to keep the deletion.
+
+Use **한글 / Eng.** in the header to switch languages. On your first visit the app follows your browser language; an explicit selection is remembered for future visits.

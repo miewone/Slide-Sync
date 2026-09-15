@@ -1,3 +1,4 @@
+import {t,localizedError} from '../i18n/I18n.js';
 /** Loads the existing, locally hosted vendor assets once and only when requested. */
 export class PreviewResources {
   /** @param {string} base Deployment base URL, including its trailing slash. */
@@ -13,10 +14,10 @@ export class PreviewResources {
         const script = document.createElement('script');
         script.src = `${this.base}vendor/${filename}`;
         script.onload = () => globalThis[globalName]
-          ? resolve(globalThis[globalName]) : reject(Error(`${filename} 초기화에 실패했습니다.`));
+          ? resolve(globalThis[globalName]) : reject(localizedError('PreviewResources.1', {p0: filename}));
         script.onerror = () => {
           script.remove();
-          reject(Error(`${filename} 파일을 불러오지 못했습니다. 다시 시도하세요.`));
+          reject(localizedError('PreviewResources.2', {p0: filename}));
         };
         document.head.append(script);
       }).catch(error => {

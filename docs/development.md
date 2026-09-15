@@ -69,3 +69,11 @@ npm run test:browser -- --benchmark-workflows
 This mode uses the existing production-preview/Chrome runner and measures 10 and 100 slides three times each. It records load, selection, move/alignment/text-fit/deletion and undo, edited PPTX creation, and reopen durations. Each exported slide's element IDs and changed coordinates are checked. Fixture generation is excluded; file-open readiness includes recent-file storage. Output excludes OS disk-write time.
 
 Results are written to `artifacts/workflow-performance.json` and `artifacts/workflow-performance.md`. The checked-in measurement snapshot and environment are documented in [workflow performance](workflow-performance.md). Running this mode does not run the full regression suite; use `npm run test:browser` for that suite.
+
+## Interface languages
+
+All application-owned Korean/English copy lives in `src/i18n/messages.js`. Each entry has a stable key and `ko`/`en` values with matching `{p0}` placeholders. Keep new labels, help text, statuses and errors in that file. Use `t(key, params)` with plain-text values; never translate uploaded PPTX content or element names.
+
+`I18n` selects the saved preference first, then the first supported browser language, then Korean. `useLanguage()` subscribes React components without remounting them. Runtime status/notice callbacks and localized errors are reevaluated on language changes; source XML and preview documents are preserved. Use `localizedError` for application validation errors. New runtime-owned labels also need a refresh path.
+
+`tests/i18n.test.js` checks translation coverage/placeholders and browser/storage precedence. `scripts/localization-checks.mjs` verifies the two-button switch, automatic defaults, persistence and preservation of edits, draft values, previews and undo across language changes.

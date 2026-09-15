@@ -1,0 +1,61 @@
+import assert from 'node:assert/strict';
+
+/** @param {object} browser DevTools client. @param {string} origin App URL; verify language and editor state independently. */
+export async function checkLocalization(browser,origin) {
+  browser.errors=[];await browser.navigate(origin);
+  await browser.until('!!document.querySelector("#language-en")&&!document.querySelector("#language-en").disabled','language controls ready');
+  const choose=async language=>{
+    await browser.evaluate(`document.querySelector('#language-${language}').click()`);
+    await browser.until(`document.documentElement.lang==='${language}'&&document.querySelector('#language-${language}').getAttribute('aria-pressed')==='true'`,'language '+language);
+  };
+  const userAgent=(await browser.send('Browser.getVersion')).userAgent;
+  await browser.evaluate('localStorage.removeItem("slide-sync-language")');
+  await browser.send('Network.setUserAgentOverride',{userAgent,acceptLanguage:'en-US,en;q=0.9'});
+  await browser.navigate(origin);
+  await browser.until('!!document.querySelector("#language-en")&&!document.querySelector("#language-en").disabled','browser-language default ready');
+  assert.equal(await browser.evaluate('document.documentElement.lang'),'en','English browser defaults to English without a saved selection');
+  await choose('ko');await browser.navigate(origin);
+  await browser.until('!!document.querySelector("#language-ko")&&!document.querySelector("#language-ko").disabled','stored override ready');
+  assert.equal(await browser.evaluate('document.documentElement.lang'),'ko','saved Korean overrides English browser preference');
+  await choose('en');
+  assert.equal(await browser.evaluate('document.querySelector("#open").textContent'),'Open PPTX');
+  assert.equal(await browser.evaluate('document.querySelector("#demo").textContent'),'Try the example slides');
+  assert.equal(await browser.evaluate('!!document.querySelector("#language-select")'),false,'language uses two buttons');
+  assert.deepEqual(await browser.evaluate('document.querySelector("#app").innerText.replaceAll("한글","").split("\\n").filter(line=>/[가-힣]/.test(line))'),[],'empty editor has no untranslated Korean UI');
+  await browser.navigate(origin);
+  await browser.until('document.documentElement.lang==="en"&&!document.querySelector("#demo").disabled','saved preference after reload');
+  await browser.evaluate('document.querySelector("#demo").click()');
+  await browser.until('!document.querySelector("#download").disabled','English example loaded');
+  assert.equal(await browser.evaluate('document.querySelector("#status").textContent.startsWith("Opened ")'),true);
+  await browser.evaluate(`document.querySelector('.slide-surface').dispatchEvent(new KeyboardEvent('keydown',{key:'a',ctrlKey:true,bubbles:true}));
+    document.querySelector('#move-mode').value='relative';document.querySelector('#move-mode').dispatchEvent(new Event('change',{bubbles:true}));
+    document.querySelector('#x').value='0.25';document.querySelector('#y').value='0';document.querySelector('#move').click();`);
+  await browser.until('document.querySelector("#status").textContent.startsWith("Moved ")','English move message');
+  const before=await browser.evaluate(`(()=>{
+    globalThis.localeFrames=[...document.querySelectorAll('#stage iframe')].map(frame=>({frame,doc:frame.contentDocument,text:frame.contentDocument.body.innerText}));
+    document.querySelector('#x').value='3.75';document.querySelector('#range').value='1,3';
+    document.querySelector('#editor-section-text-fit').open=true;document.querySelector('#match-appearance').checked=true;
+    return {name:document.querySelector('#filename').textContent,count:document.querySelector('.selection-number').textContent,transform:localeFrames[0].doc.querySelector('[data-pptx-mover]').style.transform};
+  })()`);
+  await choose('ko');
+  await browser.until('document.querySelector("#x-label").textContent==="가로 이동 (cm)"','runtime labels follow selected move mode');
+  assert.deepEqual(await browser.evaluate(`({name:document.querySelector('#filename').textContent,count:document.querySelector('.selection-number').textContent,transform:localeFrames[0].doc.querySelector('[data-pptx-mover]').style.transform})`),before);
+  assert.equal(await browser.evaluate('document.querySelector("#x").value'),'3.75');
+  assert.equal(await browser.evaluate('document.querySelector("#range").value'),'1,3');
+  assert.equal(await browser.evaluate('document.querySelector("#editor-section-text-fit").open&&document.querySelector("#match-appearance").checked'),true);
+  assert.equal(await browser.evaluate('localeFrames.every(({frame,doc,text})=>frame.contentDocument===doc&&doc.body.innerText===text)'),true,'language changes preserve preview documents and uploaded text');
+  assert.equal(await browser.evaluate('document.querySelector("#status").textContent.includes("옮겼습니다")'),true,'existing status message changes language');
+  await choose('en');
+  await browser.until('document.querySelector("#x-label").textContent==="Horizontal offset (cm)"','English relative label');
+  assert.equal(await browser.evaluate('document.querySelector("#undo").disabled'),false,'language changes preserve undo history');
+  await browser.evaluate('document.querySelector("#undo").click()');
+  await browser.until('document.querySelector("#status").textContent==="Undid the last change."','English undo');
+  assert.equal(await browser.evaluate('localeFrames[0].doc.querySelector("[data-pptx-mover]").style.transform'),'');
+  await browser.evaluate('document.querySelector("#range").value="999";document.querySelector("#apply-range").click()');
+  await browser.until('document.querySelector("#notice").textContent.startsWith("Enter numbers from 1 to")','English validation message');
+  await choose('ko');
+  await browser.until('document.querySelector("#notice").textContent.includes("까지의 번호를 입력하세요")','existing validation error changes language');
+  await browser.send('Network.setUserAgentOverride',{userAgent,acceptLanguage:'ko-KR,ko;q=0.9,en;q=0.8'});
+  assert.deepEqual(browser.errors,[],'language switching has no browser errors');
+  console.log('PASS localization: two buttons, persisted preference, translated UI/status/errors, preserved drafts/selection/history/preview text');
+}
