@@ -239,29 +239,13 @@
 /* Google Drive dialogs and native Slides draft workspace. */
 .drive-dialog{width:min(560px,calc(100vw - 32px));max-height:85vh;overflow:auto;border:1px solid var(--line,#d8dee8);border-radius:16px;padding:24px;color:var(--text,#243047);background:var(--panel,#fff)}
 .drive-dialog::backdrop{background:#15243b80}
-.drive-dialog fieldset,.native-tools fieldset{border:0;padding:0;min-width:0;display:grid;gap:12px}
+.drive-dialog fieldset{border:0;padding:0;min-width:0;display:grid;gap:12px}
 .drive-dialog label{display:block;margin:8px 0}
 .drive-dialog input[type=radio]{width:16px;height:16px;min-height:16px;padding:0;margin:0 8px 0 0;accent-color:#466ce0}
 .drive-dialog label:has(input[type=radio]){display:flex;align-items:center;gap:4px}
 .drive-dialog input:not([type=radio]){width:100%}
 .drive-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
 .drive-dialog [role=alert],.native-slides-editor [role=alert]{color:#a02828;overflow-wrap:anywhere}
-.native-slides-editor{position:fixed;inset:0;z-index:1500;padding:20px;background:#f5f7fb;color:#243047;overflow:auto}
-.native-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.native-heading h2{margin:0;overflow-wrap:anywhere}.native-heading small{font-size:13px;font-weight:400}
-.native-help{max-width:1000px;color:#56637a}
-.native-columns{display:grid;grid-template-columns:210px minmax(280px,1fr) 310px;gap:20px;margin-top:16px}
-.native-pages,.native-tools,.native-preview{min-width:0;background:#fff;border:1px solid #d8dee8;border-radius:12px;padding:14px}
-.native-page-row{display:flex;gap:8px;margin-top:8px;align-items:center}.native-page-row button{overflow:hidden;text-overflow:ellipsis;text-align:left;white-space:nowrap;flex:1}
-.native-page-row [aria-current=page]{border-color:#7145c5;background:#f0e9ff}
-.native-preview{display:block;height:auto;align-self:start}
-.native-thumbnail,.native-layout{width:100%;display:block;border:1px solid #ccd4e0}
-.native-layout-object{cursor:pointer}.native-elements{max-height:260px;overflow:auto;border-block:1px solid #e2e7ee;padding:8px 0}
-.native-elements label{display:flex;gap:8px;padding:5px;overflow-wrap:anywhere;align-items:flex-start}.native-elements small{color:#667085}
-.native-deleted{text-decoration:line-through;opacity:.6}.native-coordinates{display:flex;gap:10px}.native-coordinates input{width:100%;min-width:0}.native-coordinates label{min-width:0}
-.native-slides-editor h3{font-size:14px;margin:8px 0}.native-preview p{font-size:12px;color:#59677b}
-@media(max-width:1050px){.native-columns{grid-template-columns:180px minmax(250px,1fr)}.native-tools{grid-column:1/-1}}
-@media(max-width:600px){.native-slides-editor{padding:10px}.native-columns{grid-template-columns:1fr}.native-tools{grid-column:auto}.native-pages{max-height:220px;overflow:auto}}
 
 .file-open-dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border:1px solid #d8dee8;border-radius:16px;padding:22px;color:#243047;background:#fff}
 .file-open-dialog::backdrop{background:#15243b80}
@@ -298,6 +282,7 @@
 .file-open-drive-settings:hover:not(:disabled){background:#edf2ff;border-color:#6d88d9}
 .drive-open-notice{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:2147483647;max-width:90vw;padding:10px 16px;border:1px solid #e6cc80;border-radius:8px;background:#fff8dc;color:#594409;pointer-events:none}
 
+
 /* Classic folder-to-folder paper transfer while a selected Drive file opens. */
 .drive-loading-dialog{width:min(380px,calc(100vw - 32px));text-align:center;padding:28px}
 .drive-loading-dialog h2{font-size:16px;line-height:1.6}
@@ -315,3 +300,40 @@
 
 .recent-file-offline{max-width:150px;flex-shrink:0}
 @media(max-width:480px){.recent-files-list li{flex-wrap:wrap}.recent-file-select{flex-basis:100%}.recent-file-offline{max-width:none}.recent-file-delete{margin-left:auto}}
+
+/* Native Slides reuses the existing editor shell and controls. Only canvas-specific rules live here. */
+.native-slides-editor{position:fixed;inset:0;z-index:1500;background:#edf0f4;color:#263346;overflow:auto}
+.native-slides-editor>.editor-layout{min-height:0}
+.native-tools>fieldset{border:0;padding:0;min-width:0}
+.native-tools input:not([type=checkbox]),.native-tools .inspector-section-content>input{width:100%}
+.native-tools .inspector-section>label{display:block;font-size:13px;margin:12px 0 6px;color:#66758a}
+.native-tools .inspector-section>summary{margin-bottom:12px}
+.native-selection-summary{display:flex;align-items:baseline;gap:9px;margin:21px 0 12px;font-size:13px;color:#788497}
+.native-selection-summary>strong{font-size:33px;font-weight:600;letter-spacing:-1px;color:#466ce0}
+.native-page-row{margin:0}.native-slide-link{border:0;padding:0;background:none;min-width:0;text-align:left;color:inherit}
+.native-page-row:has([aria-current=page]){outline:1px solid #7193ea}
+.native-elements{display:flex;flex-direction:column;gap:6px;margin-top:12px;max-height:260px;overflow:auto}
+.native-elements label{display:flex;gap:8px;align-items:flex-start;font-size:13px;overflow-wrap:anywhere;padding:5px 0}
+.native-elements input{flex-shrink:0}.native-elements small{color:#667085}.native-deleted{text-decoration:line-through;opacity:.6}
+.native-preview{display:flex}.native-preview .workspace-options{width:100%}
+.native-stage{min-height:0}.native-stage .slide-card{min-width:0}
+.native-slide-surface{position:relative;overflow:hidden;background:white;border:0}
+.native-layout{display:block;width:100%;height:100%;touch-action:none;user-select:none;outline-offset:-3px}
+.native-layout [data-object-id]{cursor:move}.native-layout foreignObject div{user-select:none}
+.native-format-slot:empty{display:none}.native-format-slot .native-format-apply{font-size:11px;width:34px}
+.native-format-slot fieldset{margin:0;min-width:0}
+.native-thumbnail{width:100%;display:block}.native-tools .native-thumbnail{margin-top:10px}
+.native-preview .statusbar{flex-shrink:0;flex-wrap:wrap}
+@media(max-width:850px){.native-slides-editor .editor-layout{height:auto}.native-slides-editor .native-stage{min-height:400px;max-height:75vh}.native-slides-editor .native-pages{max-height:380px}.native-slides-editor .native-tools{max-height:none}}
+.native-layout:focus{outline:none}.native-layout:focus-visible{outline:2px solid #466ce0}
+
+.native-render-container{position:relative;display:flex;flex:1;min-height:0;min-width:0;overflow:hidden}
+.native-saved-preview{position:absolute;left:12px;bottom:12px;z-index:20;display:flex;flex-direction:column;min-width:0;overflow:hidden;border:1px solid #b8c6df;border-radius:8px;background:#fff;box-shadow:0 5px 20px #26334626}
+.native-saved-preview>header{display:flex;align-items:center;gap:8px;padding:9px 28px 9px 10px;border-bottom:1px solid #e1e6ef;background:#f5f7fc;flex-shrink:0}
+.native-saved-preview h2{font-size:12px;line-height:1.4;min-width:0}.native-saved-preview header>span{font-size:11px;color:#647188}
+.native-saved-preview-body{display:flex;align-items:center;justify-content:center;flex:1;min-height:0;overflow:auto}
+.native-saved-preview-body img{display:block;width:100%;height:100%;object-fit:contain;user-select:none}
+.native-saved-preview-body p{padding:12px;font-size:12px;line-height:1.6;color:#647188}
+.native-saved-preview-resize{position:absolute;right:0;top:0;display:grid;place-items:center;width:25px;height:25px;min-height:25px;padding:0;border:0;border-radius:0 7px 0 5px;background:#e8eef9;color:#526b99;cursor:nesw-resize;touch-action:none}
+.native-saved-preview-resize:hover{background:#d7e3f9}
+@media(max-width:850px){.native-render-container{flex:none;height:70vh;min-height:400px;max-height:75vh}}

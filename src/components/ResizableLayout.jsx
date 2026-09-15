@@ -6,15 +6,15 @@ import {t} from '../i18n/I18n.js';
 
 /**
  * Resize side panels without remounting the editor or changing PPTX data.
- * @param {object} props Stable left, center and right React panes.
+ * @param {object} props Stable left, center and right React panes; optional busy overrides the editor busy state.
  */
-export function ResizableLayout({left,center,right}) {
+export function ResizableLayout({left,center,right,busy:busyOverride}) {
   useLanguage();
   const preferences=useMemo(()=>new LayoutPreferences(),[]);
   const [widths,setWidths]=useState(()=>preferences.load()),[containerWidth,setContainerWidth]=useState(0);
   const [dragging,setDragging]=useState(false),[saveFailed,setSaveFailed]=useState(false);
   const main=useRef(null),drag=useRef(null),raf=useRef(null);
-  const busy=useEditorValue('busy');
+  const editorBusy=useEditorValue('busy'),busy=busyOverride??editorBusy;
   const fitted=LayoutPreferences.fit(widths,containerWidth);
   function cancel() {
     const current=drag.current;if(!current)return;

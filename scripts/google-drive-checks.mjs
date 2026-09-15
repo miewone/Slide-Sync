@@ -1,3 +1,4 @@
+import {checkNativeSlidesEditing,checkNativeSlidesFormatSave} from './native-slides-editing-checks.mjs';
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
 import {nativeSlidesFixture} from '../tests/native-slides-fixture.js';
@@ -18,7 +19,7 @@ export async function checkGoogleDrive(browser,origin){
   const injection=await browser.send('Page.addScriptToEvaluateOnNewDocument',{source:`
     localStorage.setItem('slide-sync-language','ko');
     window.driveCalls=[];window.drivePick={id:'presentation_1'};
-    window.driveDocuments={presentation_1:${JSON.stringify(nativeSlidesFixture())}};
+    window.driveDocuments={presentation_1:${JSON.stringify((()=>{const fixture=nativeSlidesFixture();fixture.slides[1].pageElements[1].image.contentUrl='';fixture.slides[1].pageElements.push({objectId:'sparse_table',table:{tableRows:[{}]}},{objectId:'empty_group',elementGroup:{}});return fixture;})())}};
     window.driveCopyCount=0;
     const originalFetch=window.fetch;
     window.fetch=async function(url,options={}){
@@ -43,7 +44,15 @@ export async function checkGoogleDrive(browser,origin){
         for(const request of body.requests){
           for(const slide of doc.slides){
             if(request.deleteObject)slide.pageElements=slide.pageElements.filter(e=>e.objectId!==request.deleteObject.objectId);
-            else for(const element of slide.pageElements){const r=request.updatePageElementTransform;if(element.objectId===r.objectId){element.transform.translateX=(element.transform.translateX||0)+r.transform.translateX;element.transform.translateY=(element.transform.translateY||0)+r.transform.translateY;}}
+            else {
+              const visit=elements=>{for(const element of elements||[]){
+                const r=request.updatePageElementTransform;
+                if(r&&element.objectId===r.objectId){if(r.applyMode==='ABSOLUTE')element.transform={...r.transform};else{element.transform.translateX=(element.transform.translateX||0)+r.transform.translateX;element.transform.translateY=(element.transform.translateY||0)+r.transform.translateY;}}
+                const style=request.updateTextStyle;
+                if(style&&element.objectId===style.objectId)for(const part of element.shape.text.textElements)if(part.textRun)part.textRun.style={...part.textRun.style,...style.style};
+                if(element.elementGroup)visit(element.elementGroup.children);
+              }};visit(slide.pageElements);
+            }
           }
         }
         doc.revisionId+='-saved';return json({writeControl:{requiredRevisionId:doc.revisionId}});
@@ -76,6 +85,7 @@ export async function checkGoogleDrive(browser,origin){
     await click('#drive-connect');await browser.until('!document.querySelector("#drive-select").disabled','connected');
     await browser.navigate(origin);await ready();await prepareMocks();await click('#open');await click('#file-open-drive');await browser.until('!!document.querySelector("#native-slides-title")','native document opens');
     assert.equal(await browser.evaluate('document.querySelector("#app").inert'),true,'underlying PPTX UI is inert');
+    await checkNativeSlidesEditing(browser);
     await click('#native-select-matches');
     await browser.evaluate(`document.querySelectorAll('.native-page-row input')[1].click();document.querySelector('#native-x').value='2.54';document.querySelector('#native-x').dispatchEvent(new Event('input',{bubbles:true}));`);
     // React-controlled numeric inputs use the native setter to simulate actual user editing.
@@ -84,7 +94,7 @@ export async function checkGoogleDrive(browser,origin){
     assert.match(await browser.evaluate('document.querySelector(".native-slides-editor [role=status]").textContent'),/4개 객체/);
     await click('#native-undo');assert.match(await browser.evaluate('document.querySelector(".native-slides-editor [role=status]").textContent'),/0개 객체/);
     await click('#native-redo');await click('#native-delete');await click('#native-undo');
-    assert.equal(await browser.evaluate('getComputedStyle(document.querySelector(".native-preview")).display'),'block','native preview does not inherit the PPTX main grid');
+    assert.equal(await browser.evaluate('getComputedStyle(document.querySelector(".native-preview")).display'),'flex','native preview reuses the PPTX workspace layout');
     const screenshot=await browser.send('Page.captureScreenshot',{format:'png'});
     await writeFile(new URL('../artifacts/google-slides-native.png',import.meta.url),Buffer.from(screenshot.data,'base64'));
     await click('#native-save');
@@ -97,6 +107,7 @@ export async function checkGoogleDrive(browser,origin){
     assert.deepEqual(await browser.evaluate('driveCalls.find(c=>c.url.includes(":batchUpdate")).body.requests.map(r=>r.updatePageElementTransform.objectId)'),['shape_1','shape_2','shape_3','group_1']);
     assert.equal(await browser.evaluate('driveDocuments.presentation_1.slides[1].pageElements[0].transform.translateX'),25,'unchecked slide is preserved');
     assert.equal(await browser.evaluate('document.querySelector("#native-undo").disabled'),true,'save starts new undo history');
+    await checkNativeSlidesFormatSave(browser);
     await click('[data-native-element=shape_1]');await click('#native-delete');await click('#native-save');await click('#drive-save-confirm');
     await browser.until('!document.querySelector("#drive-save-dialog")','native copy saved');
     assert.equal(await browser.evaluate('driveDocuments.presentation_1.slides[0].pageElements.some(e=>e.objectId==="shape_1")'),true,'source survives copy deletion');

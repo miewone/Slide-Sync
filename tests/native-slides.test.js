@@ -45,3 +45,60 @@ test('revision conflicts and changed native copies are rejected; transient thumb
   assert.equal(model.matches(copy),false);assert.equal(model.matches(copy,{copy:true}),true);
   copy.slides[0].pageElements[0].title='Changed';assert.equal(model.matches(copy,{copy:true}),false);
 });
+
+test('native formatting is scoped, undoable and preserves grouped objects and unrelated styles on save',()=>{
+  const fixture=nativeSlidesFixture(),model=new NativeSlidesDocument(fixture),selected=new Set(['shape_1','group_1','shape_4']);
+  model.format(one,selected,{size:24,bold:false});
+  assert.deepEqual(model.requests().map(r=>r.updateTextStyle.objectId),['shape_1','child_1']);
+  assert.equal(model.elements(0)[0].native.shape.text.textElements[0].textRun.style.fontSize.magnitude,24);
+  assert.equal(model.elements(0)[3].changed,true);
+  model.undo();assert.equal(model.dirty,false);model.redo();
+  model.remove(one,new Set(['group_1']));
+  assert.deepEqual(model.requests().map(r=>Object.keys(r)[0]),['updateTextStyle','deleteObject']);
+  model.undo();model.acceptSave('copy','Saved','r2');
+  assert.deepEqual(model.original.slides[1],fixture.slides[1]);
+  assert.deepEqual(model.original.slides[0].pageElements[3].transform,fixture.slides[0].pageElements[3].transform);
+  const style=model.original.slides[0].pageElements[0].shape.text.textElements[0].textRun.style;
+  assert.deepEqual(style,{fontFamily:'Arial',bold:false,fontSize:{magnitude:24,unit:'PT'}});
+  assert.equal(model.dirty,false);
+});
+
+test('text resizing composes with movement, preserves text/fill and rolls back invalid batches',()=>{
+  const fixture=nativeSlidesFixture(),model=new NativeSlidesDocument(fixture),ids=new Set(['shape_1']);
+  model.move(one,ids,2.54,0);model.resizeText([{id:'shape_1',width:150,height:60}]);model.move(one,ids,0,2.54);
+  assert.deepEqual(model.elements(0)[0].box,{x:82,y:92,w:150,h:60});
+  assert.deepEqual(model.requests()[0].updatePageElementTransform,{objectId:'shape_1',applyMode:'ABSOLUTE',transform:{scaleX:1.5,shearY:0,shearX:0,scaleY:1.5,translateX:82,translateY:92,unit:'PT'}});
+  const requests=model.requests(),history=model.undoStack.length;
+  assert.throws(()=>model.resizeText([{id:'shape_1',width:20,height:30},{id:'shape_2',width:NaN,height:10}]));
+  assert.deepEqual(model.requests(),requests);assert.equal(model.undoStack.length,history);
+  model.undo();model.undo();assert.deepEqual(model.elements(0)[0].box,{x:82,y:20,w:100,h:40});
+  model.redo();model.acceptSave('presentation_1','Saved','r2');
+  assert.deepEqual(model.original.slides[0].pageElements[0].shape,fixture.slides[0].pageElements[0].shape);
+});
+
+test('slide target alignment works with a single object; range and literal search retain checked scope',()=>{
+  const model=new NativeSlidesDocument(nativeSlidesFixture());
+  model.align(one,new Set(['shape_1','shape_4']),'right','slide');assert.equal(model.elements(0)[0].box.x,620);assert.equal(model.elements(1)[0].box.x,25);model.undo();
+  assert.deepEqual(model.findSlides('ＳＥＡＲＣＨ   shape_4'),[1]);assert.deepEqual(model.findSlides(''),[]);
+  const selected=model.selectRectangle(one,new Set(['shape_4','shape_2']),{x:0,y:0,w:120,h:80});
+  assert.deepEqual([...selected],['shape_4','shape_1']);
+  model.adjustFontSize(one,new Set(['shape_1','group_1']),1,()=>18);
+  assert.equal(model.undoStack.length,1);assert.equal(model.requests().length,2);model.undo();assert.equal(model.dirty,false);
+});
+
+test('omitted tableCells, empty groups and empty text runs cannot crash native opening or saving',()=>{
+  const fixture=nativeSlidesFixture();
+  const table={objectId:'sparse_table',size:{width:{magnitude:100,unit:'PT'},height:{magnitude:50,unit:'PT'}},transform:{scaleX:1,scaleY:1,unit:'PT'},table:{rows:3,columns:2,tableRows:[{}, {tableCells:[]}, {tableCells:[{}, {text:{textElements:[{textRun:{}},{textRun:{content:'Visible cell'}}]}}]}]}};
+  const emptyGroup={objectId:'empty_group',elementGroup:{}};
+  const emptyText={objectId:'empty_text',shape:{text:{textElements:[{textRun:{}}]}}};
+  fixture.slides[0].pageElements.push(table,emptyGroup,emptyText);
+  const model=new NativeSlidesDocument(fixture);
+  assert.equal(model.elements(0).find(e=>e.id==='sparse_table').text,'Visible cell');
+  assert.equal(model.elements(0).find(e=>e.id==='empty_group').box,null);
+  assert.deepEqual(model.findSlides('Visible cell'),[0]);
+  assert.deepEqual(model.textShapes(one,new Set(['empty_group','empty_text'])),[]);
+  model.move(one,new Set(['sparse_table']),1,0);model.undo();model.redo();
+  model.acceptSave('saved','Saved','r2');
+  assert.deepEqual(model.original.slides[0].pageElements.find(e=>e.objectId==='sparse_table').table,table.table,'missing cells remain missing in native source');
+  assert.equal(model.elements(0).find(e=>e.id==='sparse_table').text,'Visible cell');
+});
