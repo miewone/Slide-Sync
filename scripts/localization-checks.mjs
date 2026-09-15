@@ -26,6 +26,9 @@ export async function checkLocalization(browser,origin) {
   await browser.until('document.documentElement.lang==="en"&&!document.querySelector("#demo").disabled','saved preference after reload');
   await browser.evaluate('document.querySelector("#demo").click()');
   await browser.until('!document.querySelector("#download").disabled','English example loaded');
+  assert.equal(await browser.evaluate('document.querySelector("#filename").textContent'),'example-slides.pptx');
+  await browser.until('[...document.querySelectorAll("#stage iframe")].some(frame=>frame.contentDocument?.body.innerText.includes("Quarterly sales"))','English slide content rendered');
+  assert.equal(await browser.evaluate('[...document.querySelectorAll("#stage iframe")].some(frame=>/[가-힣]/.test(frame.contentDocument?.body.innerText||""))'),false,'English example has translated slide content');
   assert.equal(await browser.evaluate('document.querySelector("#status").textContent.startsWith("Opened ")'),true);
   await browser.evaluate(`document.querySelector('.slide-surface').dispatchEvent(new KeyboardEvent('keydown',{key:'a',ctrlKey:true,bubbles:true}));
     document.querySelector('#move-mode').value='relative';document.querySelector('#move-mode').dispatchEvent(new Event('change',{bubbles:true}));
@@ -55,6 +58,12 @@ export async function checkLocalization(browser,origin) {
   await browser.until('document.querySelector("#notice").textContent.startsWith("Enter numbers from 1 to")','English validation message');
   await choose('ko');
   await browser.until('document.querySelector("#notice").textContent.includes("까지의 번호를 입력하세요")','existing validation error changes language');
+  await browser.navigate(origin);
+  await browser.until('!!document.querySelector("#demo")&&!document.querySelector("#demo").disabled','Korean example ready');
+  await browser.evaluate('document.querySelector("#demo").click()');
+  await browser.until('!document.querySelector("#download").disabled','Korean example loaded');
+  assert.equal(await browser.evaluate('document.querySelector("#filename").textContent'),'예제-슬라이드.pptx');
+  await browser.until('[...document.querySelectorAll("#stage iframe")].some(frame=>frame.contentDocument?.body.innerText.includes("분기별 매출"))','Korean slide content preserved');
   await browser.send('Network.setUserAgentOverride',{userAgent,acceptLanguage:'ko-KR,ko;q=0.9,en;q=0.8'});
   assert.deepEqual(browser.errors,[],'language switching has no browser errors');
   console.log('PASS localization: two buttons, persisted preference, translated UI/status/errors, preserved drafts/selection/history/preview text');
