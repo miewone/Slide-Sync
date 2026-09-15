@@ -14,7 +14,11 @@ export function SelectionList() {
   useLanguage();
   const selection = useEditorValue('selection');
   return <div id="selection-list" className="selection-list">{selection.rows.length ? selection.rows.map(row =>
-    <div key={row.index} className={`selection-row${row.matched ? '' : ' miss'}`} title={row.title}>
-      <span>{String(row.index + 1).padStart(2, '0')}</span><span>{row.label}</span>
-    </div>) : <p className="muted">{t('Selection.3')}</p>}</div>;
+    <article key={row.index} data-selection-slide={row.index} className={`selection-row${row.matched ? '' : ' miss'}`} title={row.title}
+      aria-label={t('selection.slideTitle',{p0:row.index+1})}>
+      <div className="selection-row-heading"><strong>{t('selection.slideTitle',{p0:String(row.index+1).padStart(2,'0')})}</strong>
+        <span className="selection-row-count">{row.matched?t('selection.selectedCount',{p0:row.count}):t('createEditorRuntime.14')}</span>
+      </div>
+      {row.matched&&<p className="selection-element-summary">{row.label}</p>}
+    </article>) : <p className="muted">{t('Selection.3')}</p>}</div>;
 }

@@ -1123,6 +1123,12 @@ Object.assign(messages, {
 });
 
 Object.assign(messages, {
+  'sidebar.excluded': {ko:'제외',en:'Excluded'},
+  'selection.slideTitle': {ko:'슬라이드 {p0}',en:'Slide {p0}'},
+  'selection.selectedCount': {ko:'{p0}개 선택',en:'{p0} selected'}
+});
+
+Object.assign(messages, {
   'previewGrid.label': {ko:'페이지 갯수 보기',en:'Slide grid'},
   'previewGrid.default': {ko:'기본',en:'Default'},
   'previewGrid.columns': {ko:'가로 칸 수 (1–8)',en:'Columns (1–8)'},

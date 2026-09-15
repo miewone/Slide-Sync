@@ -16,6 +16,9 @@ export async function checkSelectionVisibility(browser,origin) {
   const scope=value=>browser.evaluate(`document.querySelector('#range').value=${JSON.stringify(value)};document.querySelector('#apply-range').click()`);
   const toggle=id=>browser.evaluate(`document.querySelector('#${id}').click()`);
   assert.deepEqual(await visible(),[1,2,3,4]);
+  assert.equal(await browser.evaluate('!!document.querySelector(".sidebar #editor-section-selection") && !document.querySelector(".inspector #editor-section-selection")'),true,'selection results live in the left sidebar');
+  assert.equal(await browser.evaluate('!!(document.querySelector("#slide-list").compareDocumentPosition(document.querySelector("#editor-section-selection")) & Node.DOCUMENT_POSITION_FOLLOWING)'),true,'selection results follow the slide list');
+
   assert.equal(await browser.evaluate('document.querySelector("#only-with-selection").checked'),false);
   await browser.evaluate('document.querySelector("#only-with-selection").closest(".option-chip").click()');
   assert.deepEqual(await visible(),[],'chip background toggles its checkbox');
@@ -29,6 +32,10 @@ export async function checkSelectionVisibility(browser,origin) {
   await browser.evaluate(`const input=document.querySelector('#element-search-query');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'Text 2');input.dispatchEvent(new Event('input',{bubbles:true}));`);
   await browser.until('!document.querySelector("#element-search-select").disabled','search selected slides');
   await toggle('element-search-select');await scope('1-4');
+  assert.deepEqual(await browser.evaluate('[...document.querySelectorAll(".sidebar .selection-row:not(.miss)")].map(row=>Number(row.dataset.selectionSlide))'),[0,2],'separate result cards identify each selected slide');
+  assert.equal(await browser.evaluate('document.querySelectorAll(".sidebar .selection-row.miss").length'),2,'unmatched slides have distinct cards');
+  assert.deepEqual(await browser.evaluate('[...document.querySelectorAll(".slide-item")].map(row=>Number(row.dataset.selectedCount))'),[1,0,1,0],'slide rows show selected element counts');
+
   await browser.evaluate('globalThis.visibilityFrames=[...document.querySelectorAll("#stage iframe")].map(frame=>({frame,doc:frame.contentDocument}));void 0;');
   await toggle('only-with-selection');assert.deepEqual(await visible(),[1,3]);
   await toggle('only-checked');assert.deepEqual(await visible(),[1,3],'both view conditions apply');

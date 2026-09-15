@@ -6,7 +6,7 @@ import {SelectionList} from "./Selection.jsx";
 /** SelectionPanel controls; native form values are owned by the editor runtime. */
 export function SelectionPanel() {
   useLanguage();
-  return <InspectorSection id="editor-section-selection" title={t('SelectionPanel.1')} initiallyOpen={false}>
+  return <InspectorSection id="editor-section-selection" title={t('SelectionPanel.1')} initiallyOpen={true}>
       <div className="selection-heading">
       <button id="clear-selection" className="text-button">{t('SelectionPanel.2')}</button>
       </div>

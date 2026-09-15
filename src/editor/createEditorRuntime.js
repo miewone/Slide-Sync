@@ -124,8 +124,8 @@ function updateInspector(){
   updateFitControls();updateLayoutControls();guideUI?.updateControls();
   const rows = !n&&!state.point ? [] : [...state.checked].sort((a,b)=>a-b).map(i=>{
     const elements=selectedInSlide(state.deck.slides[i],state.selected.get(i));
-    return {index:i, matched:!!elements.length,
-      label:elements.length?`${elements.length>1?elements.length+t('createEditorRuntime.13'):''}${elements.map(e=>e.text||e.name).join(' / ')}`:t('createEditorRuntime.14'),
+    return {index:i, matched:!!elements.length,count:elements.length,
+      label:elements.length?elements.map(e=>e.text||e.name).join(' / '):t('createEditorRuntime.14'),
       title:elements.map(e=>`${kindLabel()[e.kind]||e.kind} · ${e.name} · X ${(e.g.x/EMU_PER_CM).toFixed(2)} / Y ${(e.g.y/EMU_PER_CM).toFixed(2)} cm`).join('\n')};
   });
   store.updateSelection({count:n,slides:state.selected.size,size,rows});
