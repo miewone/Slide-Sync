@@ -57,3 +57,11 @@
 .recent-files-error{color:#9b3b2f;font-size:13px;line-height:1.6;margin:12px 0}
 .recent-files-footer .button{flex-shrink:0}
 .header-actions{flex-wrap:wrap}
+
+.brand-icon{text-decoration:none;flex-shrink:0}
+.brand-icon:hover{background:#385bc6;color:#fff}
+.brand-info{display:flex;flex-direction:column;gap:3px}
+.brand-title{display:flex;align-items:center;gap:10px}
+.developer-email{font-size:11px;line-height:1.4;color:#647188;text-decoration:none}
+.developer-email:hover{color:#3259c9;text-decoration:underline}
+.brand a:focus-visible{outline:3px solid #789df7;outline-offset:3px}
