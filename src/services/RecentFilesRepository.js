@@ -10,14 +10,15 @@ export class RecentFilesRepository {
   open() {
     return new Promise((resolve,reject)=>{
       if(!this.indexedDB){reject(localizedError('RecentFilesRepository.1'));return;}
-      const request=this.indexedDB.open(this.name,1);
+      const request=this.indexedDB.open(this.name,2);
       let settled=false;
       const fail=error=>{if(settled)return;settled=true;clearTimeout(timer);reject(error);};
       const timer=setTimeout(()=>fail(localizedError('RecentFilesRepository.2')),5000);
       request.onupgradeneeded=()=>{
         const db=request.result;
-        db.createObjectStore('metadata',{keyPath:'id'});
-        db.createObjectStore('contents');
+        if(!db.objectStoreNames.contains('metadata'))db.createObjectStore('metadata',{keyPath:'id'});
+        if(!db.objectStoreNames.contains('contents'))db.createObjectStore('contents');
+        if(!db.objectStoreNames.contains('previews'))db.createObjectStore('previews',{keyPath:'id'}).createIndex('lastUsed','lastUsed');
       };
       request.onerror=()=>fail(request.error);
       request.onblocked=()=>fail(localizedError('RecentFilesRepository.3'));
@@ -86,15 +87,53 @@ export class RecentFilesRepository {
 
   /** @param {string} id Remove both metadata and the stored original, leaving the current editor untouched. */
   remove(id) {
-    return this.transaction(['metadata','contents'],'readwrite',tx=>{
+    return this.transaction(['metadata','contents','previews'],'readwrite',tx=>{
       tx.objectStore('metadata').delete(id);tx.objectStore('contents').delete(id);
+      // Previews are shared by content, so erase them conservatively on deletion.
+      tx.objectStore('previews').clear();
     });
   }
 
   /** Delete all locally remembered originals and metadata in one transaction. */
   clear() {
-    return this.transaction(['metadata','contents'],'readwrite',tx=>{
+    return this.transaction(['metadata','contents','previews'],'readwrite',tx=>{
       tx.objectStore('metadata').clear();tx.objectStore('contents').clear();
+      tx.objectStore('previews').clear();
+    });
+  }
+
+  /** @param {string[]} ids Slide hashes. Read only matching previews and refresh their recency. */
+  getPreviews(ids) {
+    return this.transaction(['previews'],'readwrite',tx=>{
+      const store=tx.objectStore('previews'),found=new Map();
+      for(const id of new Set(ids)){
+        const request=store.get(id);
+        request.onsuccess=()=>{
+          const entry=request.result;if(!entry)return;
+          found.set(id,entry.html);store.put({...entry,lastUsed:Date.now()});
+        };
+      }
+      return ()=>found;
+    });
+  }
+
+  /** @param {Array<{id:string,html:string}>} entries Successful previews; retain at most 32 MiB and 240 slides. */
+  savePreviews(entries) {
+    return this.transaction(['previews'],'readwrite',tx=>{
+      const store=tx.objectStore('previews'),now=Date.now();
+      for(const {id,html} of entries){
+        const size=html.length*2;
+        if(size<=4*1024*1024)store.put({id,html,size,lastUsed:now});
+      }
+      // Walk newest first; a cursor keeps old HTML out of an unbounded getAll result.
+      let bytes=0,count=0;
+      const request=store.index('lastUsed').openCursor(null,'prev');
+      request.onsuccess=()=>{
+        const cursor=request.result;if(!cursor)return;
+        bytes+=cursor.value.size;count++;
+        if(bytes>32*1024*1024||count>240)cursor.delete();
+        cursor.continue();
+      };
     });
   }
 }

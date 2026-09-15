@@ -2,6 +2,7 @@ import {t,localizedError,i18n} from '../i18n/I18n.js';
 import {ElementDeletion} from './ElementDeletion.js';
 import {SelectionLabel} from './SelectionLabel.js';
 import {RecentFilesRepository} from '../services/RecentFilesRepository.js';
+import {SlidePreviewCache} from './SlidePreviewCache.js';
 import {AppearanceMatcher} from './AppearanceMatcher.js';
 import {ElementSearchIndex} from './ElementSearchIndex.js';
 import {SlideSearchIndex} from './SlideSearchIndex.js';
@@ -34,6 +35,7 @@ let disposed = false;
 const ensureActive = () => { if (disposed) throw new DOMException('Editor disposed', 'AbortError'); };
 const $=id=>root.querySelector(`#${CSS.escape(id)}`),state={deck:null,name:'',checked:new Set(),selected:new Map(),allSelected:new Map(),reference:null,point:null,undo:[],busy:false,previews:new Map(),failed:new Set(),drag:null,boxSelection:null};
 const recentFiles=new RecentFilesRepository();
+const slidePreviewCache=new SlidePreviewCache(recentFiles);
 let recentQueue=Promise.resolve(),recentPending=0,recentErrorMessage=null;
 function updateRecent(patch){if('error' in patch){const value=patch.error;recentErrorMessage=typeof value==='function'?value:()=>value;patch={...patch,error:recentErrorMessage()};}if(!disposed)store.update({recentFiles:{...store.getSnapshot().recentFiles,...patch}});}
 function recentError(error){return error?.name==='QuotaExceededError'
@@ -496,7 +498,7 @@ async function fitText() {
   } catch(err){error(err);} finally {busy(false);}
 }
 
-function sanitizeRendered(root){for(const n of root.querySelectorAll('script,iframe,object,embed,video,audio,link,meta,base,foreignObject'))n.remove();for(const el of root.querySelectorAll('*')){for(const a of [...el.attributes]){const key=a.name.toLowerCase();if(key.startsWith('on')||key==='srcdoc'||key==='formaction')el.removeAttribute(a.name);if(['href','xlink:href','src'].includes(key)&&!a.value.startsWith('data:')&&!a.value.startsWith('blob:')&&!a.value.startsWith('#'))el.removeAttribute(a.name);}}return root;}
+function sanitizeRendered(root){for(const n of root.querySelectorAll('script,iframe,object,embed,video,audio,link,meta,base,foreignObject'))n.remove();for(const el of [root,...root.querySelectorAll('*')]){for(const a of [...el.attributes]){const key=a.name.toLowerCase();if(key.startsWith('on')||key==='srcdoc'||key==='formaction')el.removeAttribute(a.name);if(['href','xlink:href','src'].includes(key)&&!a.value.startsWith('data:')&&!a.value.startsWith('blob:')&&!a.value.startsWith('#'))el.removeAttribute(a.name);}}return root;}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fallback(slide){const d=state.deck,k=960/d.width;const elements=slide.elements.filter(e=>e.g&&!e.hidden).map(e=>{const g=e.g;return `<div data-pptx-element="${esc(e.id)}" style="position:absolute;left:${g.x*k}px;top:${g.y*k}px;width:${g.w*k}px;height:${g.h*k}px;transform:rotate(${g.rot}deg);border:1px solid #c3cad5;overflow:hidden;background:#f4f6fa;color:#445269;font:14px Arial;padding:5px;">${esc(e.text||e.name)}</div>`;}).join('');return `<div class="slide-wrapper" style="position:relative;width:960px;height:${960*d.height/d.width}px;background:white">${elements}</div>`;}
 let previewer=null,renderHost=null;
@@ -506,6 +508,19 @@ async function renderDeck() {
   status(()=>(t('createEditorRuntime.46')));
   renderCards();
   if(!renderHost){renderHost=make('div');renderHost.style.cssText='position:absolute;left:-100000px;top:0;width:960px;pointer-events:none;';renderHost.setAttribute('aria-hidden','true');document.body.append(renderHost);}
+  const saved=await slidePreviewCache.read(d);ensureActive();
+  for(const s of d.slides){
+    const html=saved.html.get(saved.keys[s.index]);if(typeof html!=='string')continue;
+    const template=make('template');template.innerHTML=html;
+    const node=template.content.firstElementChild;
+    if(!node||node.tagName!=='DIV'||template.content.childElementCount!==1||!(node.matches('.slide-wrapper')||node.querySelector('.slide-wrapper')))continue;
+    try{
+      sanitizeRendered(node);renderHost.append(node);
+      await state.fonts?.prepare(node,s.index);ensureActive();
+      state.previews.set(s.index,node);mountPreview(s.index);
+    }catch{ensureActive();}finally{node.remove();}
+  }
+  const pending=new Set(d.slides.filter(s=>!state.previews.has(s.index)).map(s=>s.index));
   const fallbackFor=s=>{
     state.failed.add(s.index);
     const template=make('template');template.innerHTML=fallback(s);
@@ -513,36 +528,38 @@ async function renderDeck() {
     mountPreview(s.index);
   };
   try {
-    previewer?.destroy();renderHost.replaceChildren();
-    const {init}=await resources.loadRenderer({charts:deckHasCharts(d)});ensureActive();
-    previewer=init(renderHost,{width:960,height:960*d.height/d.width,mode:'list',staticPreview:true});
-    // File loading is the only place that parses and renders the whole PPTX.
-    // ZIP encoding is reserved for the download action.
-    await previewer.load(d.original);ensureActive();
-    new PreviewTheme(previewer.htmlRender).install();
-    tagRenderer(previewer.htmlRender);
-    const rendererIndices=new Map(previewer.pptx.slides.map((slide,index)=>[slide.name.replace(/^\//,''),index]));
-    const pending=new Set(d.slides.map(slide=>slide.index));
-    let completed=0;
-    while(pending.size) {
-      const index=viewport.indices().find(i=>pending.has(i))??pending.values().next().value;
-      pending.delete(index);
-      const s=d.slides[index],ri=rendererIndices.get(s.path);
-      try {
-        if(ri===undefined)throw localizedError('createEditorRuntime.47');
-        previewer.htmlRender.renderSlide(ri);await tick();ensureActive();
-        const node=previewer.wrapper.querySelector(`.pptx-preview-slide-wrapper-${ri}`);
-        if(!node)throw localizedError('createEditorRuntime.48');
-        node.style.margin='0';
-        for(const canvas of node.querySelectorAll('canvas')){const image=make('img');image.src=canvas.toDataURL();image.style.cssText=canvas.style.cssText;canvas.replaceWith(image);}
-        node.remove();
-        state.previews.set(s.index,cachePreview(sanitizeRendered(node.cloneNode(true)),s));
-        mountPreview(s.index);
-      } catch(err) {ensureActive();fallbackFor(s);}
-      status(()=>(t('createEditorRuntime.49', {p0: ++completed, p1: d.slides.length})));
+    if(pending.size){
+      previewer?.destroy();renderHost.replaceChildren();
+      const {init}=await resources.loadRenderer({charts:deckHasCharts(d)});ensureActive();
+      previewer=init(renderHost,{width:960,height:960*d.height/d.width,mode:'list',staticPreview:true});
+      // File loading is the only place that parses and renders the whole PPTX.
+      // ZIP encoding is reserved for the download action.
+      await previewer.load(d.original);ensureActive();
+      new PreviewTheme(previewer.htmlRender).install();
+      tagRenderer(previewer.htmlRender);
+      const rendererIndices=new Map(previewer.pptx.slides.map((slide,index)=>[slide.name.replace(/^\//,''),index]));
+      let completed=d.slides.length-pending.size;
+      while(pending.size) {
+        const index=viewport.indices().find(i=>pending.has(i))??pending.values().next().value;
+        pending.delete(index);
+        const s=d.slides[index],ri=rendererIndices.get(s.path);
+        try {
+          if(ri===undefined)throw localizedError('createEditorRuntime.47');
+          previewer.htmlRender.renderSlide(ri);await tick();ensureActive();
+          const node=previewer.wrapper.querySelector(`.pptx-preview-slide-wrapper-${ri}`);
+          if(!node)throw localizedError('createEditorRuntime.48');
+          node.style.margin='0';
+          for(const canvas of node.querySelectorAll('canvas')){const image=make('img');image.src=canvas.toDataURL();image.style.cssText=canvas.style.cssText;canvas.replaceWith(image);}
+          node.remove();
+          state.previews.set(s.index,cachePreview(sanitizeRendered(node.cloneNode(true)),s));
+          mountPreview(s.index);
+        } catch(err) {ensureActive();fallbackFor(s);}
+        status(()=>(t('createEditorRuntime.49', {p0: ++completed, p1: d.slides.length})));
+      }
     }
-  } catch(err) {ensureActive();for(const s of d.slides)fallbackFor(s);}
+  } catch(err) {ensureActive();for(const s of d.slides)if(!state.previews.has(s.index))fallbackFor(s);}
   finally {previewer?.destroy();previewer=null;renderHost.replaceChildren();}
+  await slidePreviewCache.write(saved.keys,state.previews,state.failed);ensureActive();
   updateOverlays();
   if(state.failed.size)notice(()=>(t('createEditorRuntime.50', {p0: state.failed.size})));
   else {const unresolved=d.slides.reduce((n,s)=>n+s.elements.filter(e=>!e.g).length,0);notice(()=>(unresolved?t('createEditorRuntime.51', {p0: unresolved}):''));}
@@ -669,7 +686,7 @@ async function undo() {
     state.undo.pop();updateSummary();updatePositionFields();status(()=>(t('createEditorRuntime.61')));
   } catch(err){error(err);}finally{busy(false);}
 }
-async function download(){if(!state.deck||state.busy)return;busy(true);try{prepareGuideExport(state.deck);const blob=await exportDeck(state.deck,'blob');ensureActive();const link=make('a');const url=URL.createObjectURL(blob);link.href=url;link.download=state.name.replace(/\.pptx$/i,'')+'-edited.pptx';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);status(()=>(t('createEditorRuntime.62')));}catch(err){error(err);}finally{busy(false);}}
+async function download(){if(!state.deck||state.busy)return;busy(true);try{prepareGuideExport(state.deck);const blob=await exportDeck(state.deck,'blob');ensureActive();try{const keys=await slidePreviewCache.keys(state.deck);ensureActive();await slidePreviewCache.write(keys,state.previews,state.failed);}catch{}ensureActive();const link=make('a');const url=URL.createObjectURL(blob);link.href=url;link.download=state.name.replace(/\.pptx$/i,'')+'-edited.pptx';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);status(()=>(t('createEditorRuntime.62')));}catch(err){error(err);}finally{busy(false);}}
 $('match-appearance').onchange=()=>{cancelActiveDrag?.();status(()=>($('match-appearance').checked?t('createEditorRuntime.63'):t('createEditorRuntime.64')));};
 $('box-select-mode').onchange=()=>{cancelActiveDrag?.();root.classList.toggle('box-select-mode',$('box-select-mode').checked);};
 $('apply-range').onclick=()=>{if(!state.deck||state.busy)return;try{setChecked(parseRange($('range').value,state.deck.slides.length));notice(()=>(''));}catch(err){error(err);}};$('range').onkeydown=event=>{if(event.key==='Enter')$('apply-range').click();};$('only-checked').onchange=updateScope;$('only-with-selection').onchange=()=>{cancelActiveDrag?.();updateVisibility();};$('clear-selection').onclick=resetSelection;$('move-mode').onchange=()=>{cancelActiveDrag?.();nudgeHistory=null;const relative=$('move-mode').value==='relative';$('position-help').textContent=relative?t('createEditorRuntime.65'):t('MovePanel.6');$('x-label').textContent=relative?t('createEditorRuntime.66'):'X (cm)';$('y-label').textContent=relative?t('createEditorRuntime.67'):'Y (cm)';if(relative){$('x').value='0';$('y').value='0';}else updatePositionFields();};$('move').onclick=()=>{if(!$('x').value.trim()||!$('y').value.trim()){error(localizedError('createEditorRuntime.68'));return;}applyMove(Number($('x').value)*EMU_PER_CM,Number($('y').value)*EMU_PER_CM,$('move-mode').value);};$('undo').onclick=undo;async function openDemo(){if(state.busy||disposed)return;try{const sample=i18n.getLanguage()==='en'?'sample-en.pptx':'sample.pptx',name=t('createEditorRuntime.70');const response=await fetch(`${resources.base}${sample}`,{signal:events.abortController.signal});if(!response.ok)throw localizedError('createEditorRuntime.69');ensureActive();await openBuffer(await response.arrayBuffer(),name);}catch(err){if(!disposed)error(err);}}

@@ -1,3 +1,4 @@
+import {checkPreviewCache} from './preview-cache-checks.mjs';
 import {checkPreviewFormatFiles} from './preview-format-files-checks.mjs';
 import {checkPreviewFormat} from './preview-format-checks.mjs';
 import {checkPanelLayout} from './panel-layout-checks.mjs';
@@ -125,6 +126,8 @@ try {
       const screenshot=await browser.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
       await writeFile(join(artifacts,'preview-format.png'),Buffer.from(screenshot.data,'base64'));
     }
+  } else if(process.argv.includes('--check-preview-cache')) {
+    for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkPreviewCache(browser,origin);
   } else if(process.argv.includes('--check-preview-grid')) {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkPreviewGrid(browser,origin);
   } else {
@@ -174,13 +177,14 @@ try {
       const input=document.querySelector('#file');input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));`);
     await browser.until('document.querySelector("#filename").textContent==="roundtrip.pptx" && !document.querySelector("#download").disabled', 'reimport');
     await browser.until('!!document.querySelector("#stage iframe")?.contentDocument?.querySelector("[data-pptx-mover]")', 'reimport frame ready');
-    assert.equal(await browser.evaluate('Number(document.querySelector("#stage iframe").contentDocument.querySelector("[data-pptx-mover]").dataset.originX)'), await browser.evaluate('originalX+360000'), 'export/reimport preserves 1 cm movement');
+    assert.ok(await browser.evaluate('(()=>{const mover=document.querySelector("#stage iframe").contentDocument.querySelector("[data-pptx-mover]");const x=Number(mover.dataset.originX)+new DOMMatrix(mover.style.transform).m41*Number(mover.dataset.unitsPerPixel);return Math.abs(x-originalX-360000)<1;})()'), 'export/reimport preserves 1 cm movement within CSS rounding (1 EMU)');
     assert.equal(await browser.evaluate('document.querySelectorAll(".foot-note").length'), 0, 'reimport no fallback');
     const screenshot = await browser.send('Page.captureScreenshot', {format:'png'});
     await writeFile(join(artifacts, `${mode}.png`), Buffer.from(screenshot.data, 'base64'));
     assert.deepEqual(browser.errors, [], `${mode} browser errors`);
     console.log(`PASS ${mode}: ${count} previews, lazy loading, selection, move/undo, scope, guides, frame/ZIP reuse, export/reimport, no browser errors`);
   }
+  for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkPreviewCache(browser,origin);
   browser.errors = [];
   await checkPreviewFormatFiles(browser,'http://127.0.0.1:5179');
   await checkPreviewFormat(browser,'http://127.0.0.1:5179');

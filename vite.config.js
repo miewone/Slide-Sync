@@ -3,6 +3,22 @@ import react from '@vitejs/plugin-react';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 
+import {readdirSync,readFileSync} from 'node:fs';
+
+/** Invalidate persisted HTML when rendering code or bundled resources change. */
+function previewCacheVersion() {
+  const hash=createHash('sha256');
+  const visit=url=>{
+    for(const entry of readdirSync(url,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name))){
+      const child=new URL(entry.name+(entry.isDirectory()?'/':''),url);
+      if(entry.isDirectory())visit(child);
+      else {hash.update(child.pathname);hash.update(readFileSync(child));}
+    }
+  };
+  visit(new URL('./src/',import.meta.url));visit(new URL('./public/',import.meta.url));
+  return hash.digest('hex');
+}
+
 /** Add optional production analytics and hash final inline scripts for the CSP. */
 function productionCsp() {
   let measurementId = '';
@@ -45,6 +61,7 @@ function productionCsp() {
 }
 
 export default defineConfig({
+  define:{__PREVIEW_CACHE_VERSION__:JSON.stringify(previewCacheVersion())},
   plugins:[react(), productionCsp()],
   resolve:{alias:Object.fromEntries(Object.entries({tslib:'tslib.es6.js',jszip:'jszip-adapter.js',lodash:'lodash-adapter.js',uuid:'uuid-adapter.js',echarts:'echarts-adapter.js'}).map(([name,file])=>[name,fileURLToPath(new URL(`./src/vendor/${file}`,import.meta.url))]))},
   build:{target:'es2022', sourcemap:false},
