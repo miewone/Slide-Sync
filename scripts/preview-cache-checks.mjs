@@ -5,7 +5,7 @@ export async function checkPreviewCache(browser,origin) {
   browser.errors=[];
   const dev=origin.includes(':5179');
   const ready=()=>browser.until('!!document.querySelector("#demo")&&!document.querySelector("#demo").disabled','cache app ready');
-  const loaded=()=>browser.until('!document.querySelector("#download").disabled&&!!document.querySelector("#stage iframe")?.contentDocument?.querySelector("[data-pptx-mover]")','cached deck ready');
+  const loaded=()=>browser.until('!document.querySelector("#download").disabled&&document.querySelector("#background-save-status").hidden&&!!document.querySelector("#stage iframe")?.contentDocument?.querySelector("[data-pptx-mover]")','cached deck and background persistence ready');
   const instrument=async()=>{
     if(!dev)return;
     await browser.evaluate(`(async()=>{
@@ -69,7 +69,7 @@ export async function checkPreviewCache(browser,origin) {
   await browser.evaluate(`const originalURL=URL.createObjectURL;URL.createObjectURL=function(blob){if(blob.type==='application/zip'||blob.size>1000)globalThis.savedPptx=blob;return originalURL.call(this,blob);};
     const click=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(!this.download)click.call(this);};
     document.querySelector('#move').click();document.querySelector('#download').click();`);
-  await browser.until('!!globalThis.savedPptx&&!document.querySelector("#download").disabled','edited cache export');
+  await browser.until('!!globalThis.savedPptx&&!document.querySelector("#download").disabled&&document.querySelector("#background-save-status").hidden','edited export cache persisted');
   const renderedBefore=dev?await browser.evaluate('renderCalls'):0;
   await upload('cache-export.pptx','await savedPptx.arrayBuffer()');
   if(dev)assert.equal(await browser.evaluate('renderCalls'),renderedBefore,'edited export reuses synchronized previews');
@@ -91,11 +91,17 @@ export async function checkPreviewCache(browser,origin) {
       deck.zip.file(theme,(await deck.zip.file(theme).async('string'))+' ');const e=await cache.keys(deck);
       deck.zip.file('docProps/app.xml','<Properties><Application>WPS</Application></Properties>');const producer=await cache.keys(deck);
       const version=await new SlidePreviewCache(null,{version:'different-renderer'}).keys(deck);
-      return {text:b.map((v,i)=>v!==a[i]),image:d.map((v,i)=>v!==c[i]),theme:e.some((v,i)=>v!==d[i]),producer:producer.every((v,i)=>v!==e[i]),version:version.every((v,i)=>v!==producer[i])};
+      const playable=['audio','video','media'];
+      deck.zip.file(path,rels.replace('</Relationships>',playable.map(type=>'<Relationship Id="cache-'+type+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/'+type+'" Target="../media/cache-'+type+'.bin"/>').join('')+'</Relationships>'));
+      for(const type of playable)deck.zip.file('ppt/media/cache-'+type+'.bin',new Uint8Array([1]));
+      const mediaBefore=await cache.keys(deck);
+      for(const type of playable)deck.zip.file('ppt/media/cache-'+type+'.bin',new Uint8Array([2]));
+      const mediaAfter=await cache.keys(deck);
+      return {text:b.map((v,i)=>v!==a[i]),image:d.map((v,i)=>v!==c[i]),theme:e.some((v,i)=>v!==d[i]),producer:producer.every((v,i)=>v!==e[i]),version:version.every((v,i)=>v!==producer[i]),staticMedia:mediaAfter.every((v,i)=>v===mediaBefore[i])};
     })()`);
     assert.deepEqual(hashes.text,Array.from({length:count},(_,i)=>i===0));
     assert.deepEqual(hashes.image,Array.from({length:count},(_,i)=>i===0));
-    assert.equal(hashes.theme,true);assert.equal(hashes.producer,true);assert.equal(hashes.version,true);
+    assert.equal(hashes.theme,true);assert.equal(hashes.producer,true);assert.equal(hashes.version,true);assert.equal(hashes.staticMedia,true);
     const storage=await browser.evaluate(`(async()=>{
       const {RecentFilesRepository}=await import('/src/services/RecentFilesRepository.js');
       await new Promise((resolve,reject)=>{

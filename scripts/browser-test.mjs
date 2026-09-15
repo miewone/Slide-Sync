@@ -1,5 +1,6 @@
 import {checkTextFormat} from './text-format-checks.mjs';
 import {checkPreviewCache} from './preview-cache-checks.mjs';
+import {checkBackgroundPersistence} from './background-persistence-checks.mjs';
 import {checkPreviewFormatFiles} from './preview-format-files-checks.mjs';
 import {checkPreviewFormat} from './preview-format-checks.mjs';
 import {checkPanelLayout} from './panel-layout-checks.mjs';
@@ -113,7 +114,9 @@ try {
   await browser.send('Emulation.setDeviceMetricsOverride', {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await browser.send('Network.setUserAgentOverride',{userAgent:(await browser.send('Browser.getVersion')).userAgent,acceptLanguage:'ko-KR,ko;q=0.9,en;q=0.8'});
 
-  if(process.argv.includes('--check-appearance')) {
+  if(process.argv.includes('--check-background-persistence')) {
+    await checkBackgroundPersistence(browser,'http://127.0.0.1:5179');
+  } else if(process.argv.includes('--check-appearance')) {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkRangeSelection(browser,origin,3);
     await browser.evaluate('document.querySelector("#appearance-settings").click()');
     await browser.until('document.querySelector("#appearance-panel").matches(":popover-open")','appearance screenshot');
@@ -243,6 +246,7 @@ try {
   await checkRecentFiles(browser,'http://127.0.0.1:5179');
   await checkRecentFiles(browser,'http://127.0.0.1:4179');
   await checkRecentFiles(browser,'http://127.0.0.1:4189/slides/');
+  await checkBackgroundPersistence(browser,'http://127.0.0.1:5179');
   await checkRangeSelection(browser,'http://127.0.0.1:5179',3);
   await checkRangeSelection(browser,'http://127.0.0.1:4179',12);
   await checkRangeSelection(browser,'http://127.0.0.1:4189/slides/',3);

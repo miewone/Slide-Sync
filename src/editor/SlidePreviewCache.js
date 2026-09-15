@@ -20,7 +20,7 @@ export class SlidePreviewCache {
   /**
    * Hash current slide XML plus transitive rendering dependencies and presentation defaults.
    * Shared parts are decoded and hashed once per call; relationship cycles terminate.
-   * @param {object} deck Parsed deck, including its unchanged package and current slide documents.
+   * @param {object} deck Parsed deck or snapshot(), including its package and slide XML.
    * @returns {Promise<string[]>} Hashes in editor slide order.
    */
   async keys(deck) {
@@ -35,7 +35,8 @@ export class SlidePreviewCache {
       parts.set(path,await partHash(path));
       parts.set(relPath(path),await partHash(relPath(path)));
       for(const rel of (await reader.readRelationships(path)).values()){
-        if(rel.external||/\/(slide|notesSlide|notesMaster|hyperlink)$/.test(rel.type))continue;
+        // Static previews keep poster images, but never decode playable audio/video bodies.
+        if(rel.external||/\/(slide|notesSlide|notesMaster|hyperlink|audio|video|media)$/.test(rel.type))continue;
         // Master-to-layout links list sibling layouts, not inherited artwork.
         if(rel.type.endsWith('/slideLayout')&&path!==root)continue;
         await visit(rel.path,parts,root);
@@ -57,7 +58,7 @@ export class SlidePreviewCache {
       const parts=new Map(common);
       await visit(slide.path,parts,slide.path);
       // The editor may have moved, fitted or deleted objects since loading the ZIP.
-      parts.set(slide.path,await this.digest(serialize(slide.doc)));
+      parts.set(slide.path,await this.digest(slide.xml??serialize(slide.doc)));
       keys.push(await this.digest(JSON.stringify([this.version,globalThis.navigator?.userAgent||'',960,deck.width,deck.height,[...parts].sort(([a],[b])=>a<b?-1:a>b?1:0)])));
     }
     return keys;
@@ -69,19 +70,36 @@ export class SlidePreviewCache {
     catch{return {keys:[],html:new Map()};}
   }
 
+  /** @param {Map<number,Element>} previews Live previews. @param {Set<number>} failed Fallback indices. @returns {object[]} Bounded HTML copies, isolated from later edits. */
+  capture(previews,failed) {
+    const entries=[];let bytes=0;
+    for(const [index,root] of previews){
+      if(failed.has(index))continue;
+      const html=root.outerHTML,size=html.length*2;
+      // Object URLs expire when the document closes and must never enter persistent HTML.
+      if(size>4*1024*1024||bytes+size>32*1024*1024||/blob:/i.test(html))continue;
+      entries.push({index,html});bytes+=size;
+    }
+    return entries;
+  }
+
+  /** @param {object} deck Exported deck. @returns {object} Package directory and XML copies for hashing after editing resumes. */
+  snapshot(deck) {
+    return {zip:deck.zip.clone(),width:deck.width,height:deck.height,
+      slides:deck.slides.map(slide=>({path:slide.path,xml:serialize(slide.doc)}))};
+  }
+
+  /** @param {string[]} keys Slide hashes. @param {object[]} entries Captured HTML; no live DOM is read while saving. */
+  async save(keys,entries) {
+    try{
+      const values=entries.filter(entry=>keys[entry.index]).map(({index,html})=>({id:keys[index],html}));
+      if(values.length)await this.repository.savePreviews(values);
+    }catch{/* Storage is optional; the live preview and export remain available. */}
+  }
+
   /** @param {string[]} keys Slide hashes. @param {Map<number,Element>} previews Detached, sanitized previews. @param {Set<number>} failed Fallbacks must be retried. */
   async write(keys,previews,failed) {
-    try{
-      const entries=[];let bytes=0;
-      for(const [index,root] of previews){
-        if(!keys[index]||failed.has(index))continue;
-        const html=root.outerHTML;
-        // Object URLs expire when the browser closes; never persist them as reusable output.
-        const size=html.length*2;
-        if(size>4*1024*1024||bytes+size>32*1024*1024||/blob:/i.test(html))continue;
-        entries.push({id:keys[index],html});bytes+=size;
-      }
-      if(entries.length)await this.repository.savePreviews(entries);
-    }catch{/* Storage is optional; the live preview and export remain available. */}
+    try{await this.save(keys,this.capture(previews,failed));}
+    catch{/* A failed optional snapshot must not prevent editing or export. */}
   }
 }

@@ -38,20 +38,43 @@ const ensureActive = () => { if (disposed) throw new DOMException('Editor dispos
 const $=id=>root.querySelector(`#${CSS.escape(id)}`),state={deck:null,name:'',checked:new Set(),selected:new Map(),allSelected:new Map(),reference:null,point:null,undo:[],redo:[],busy:false,previews:new Map(),failed:new Set(),drag:null,boxSelection:null};
 const recentFiles=new RecentFilesRepository();
 const slidePreviewCache=new SlidePreviewCache(recentFiles);
-let recentQueue=Promise.resolve(),recentPending=0,recentErrorMessage=null;
+let storageQueue=Promise.resolve(),recentPending=0,recentErrorMessage=null,backgroundPending=0;
+/** @param {Function} action Browser-local storage work; mutations retain their enqueue order. */
+function storageAction(action) {
+  const task=storageQueue.then(async()=>{await tick();ensureActive();return action();});
+  storageQueue=task.catch(()=>{});
+  return task;
+}
+/** @param {Promise} task A handled save operation; expose progress independently of editing. */
+function trackBackground(task) {
+  backgroundPending++;store.update({backgroundSaving:backgroundPending});
+  return task.finally(()=>{backgroundPending--;if(!disposed)store.update({backgroundSaving:backgroundPending});});
+}
+/** @param {string[]|object} source Known keys or a frozen export snapshot. Capture HTML before unlocking edits. */
+function savePreviewInBackground(source) {
+  try{
+    if(Array.isArray(source)&&!source.length)return;
+    const entries=slidePreviewCache.capture(state.previews,state.failed);
+    if(!entries.length)return;
+    trackBackground(storageAction(async()=>{
+      const keys=Array.isArray(source)?source:await slidePreviewCache.keys(source);
+      ensureActive();await slidePreviewCache.save(keys,entries);
+    }).catch(()=>false));
+  }catch{/* Preview persistence never blocks the live document. */}
+}
 function updateRecent(patch){if('error' in patch){const value=patch.error;recentErrorMessage=typeof value==='function'?value:()=>value;patch={...patch,error:recentErrorMessage()};}if(!disposed)store.update({recentFiles:{...store.getSnapshot().recentFiles,...patch}});}
 function recentError(error){return error?.name==='QuotaExceededError'
   ?t('createEditorRuntime.1')
   :t('createEditorRuntime.2');}
-function recentAction(action=()=>{}) {
+function recentAction(action=()=>{},{background=false}={}) {
   if(disposed)return Promise.resolve(false);
   recentPending++;updateRecent({busy:true,error:()=>('')});
-  const task=recentQueue.then(async()=>{
+  const task=storageAction(async()=>{
     ensureActive();await action();ensureActive();
     const files=await recentFiles.list();ensureActive();updateRecent({files,error:()=>(''),loaded:true});return true;
   }).catch(error=>{updateRecent({error:()=>(recentError(error))});return false;})
     .finally(()=>{recentPending--;updateRecent({busy:recentPending>0});});
-  recentQueue=task;return task;
+  return background?trackBackground(task):task;
 }
 function refreshRecentFiles(){return recentAction();}
 function removeRecentFile(id){if(state.busy||store.getSnapshot().recentFiles.busy)return;return recentAction(()=>recentFiles.remove(id));}
@@ -586,7 +609,7 @@ async function renderDeck() {
     }
   } catch(err) {ensureActive();for(const s of d.slides)if(!state.previews.has(s.index))fallbackFor(s);}
   finally {previewer?.destroy();previewer=null;renderHost.replaceChildren();}
-  await slidePreviewCache.write(saved.keys,state.previews,state.failed);ensureActive();
+  savePreviewInBackground(saved.keys);ensureActive();
   updateOverlays();
   if(state.failed.size)notice(()=>(t('createEditorRuntime.50', {p0: state.failed.size})));
   else {const unresolved=d.slides.reduce((n,s)=>n+s.elements.filter(e=>!e.g).length,0);notice(()=>(unresolved?t('createEditorRuntime.51', {p0: unresolved}):''));}
@@ -626,8 +649,11 @@ async function openFile(file) {
     if(file.size>50*1024*1024)throw localizedError('createEditorRuntime.55');
     const buffer=await file.arrayBuffer();ensureActive();
     if(await openBuffer(buffer,file.name,{keepBusy:true})) {
-      const saved=await recentAction(()=>recentFiles.save(file.name,buffer));
-      if(!saved&&!disposed)notice(()=>(t('createEditorRuntime.56')+store.getSnapshot().recentFiles.error));
+      const deck=state.deck,previousNotice=noticeMessage;
+      recentAction(()=>recentFiles.save(file.name,buffer),{background:true}).then(saved=>{
+        if(!saved&&!disposed&&state.deck===deck&&noticeMessage===previousNotice)
+          notice(()=>(t('createEditorRuntime.56')+store.getSnapshot().recentFiles.error));
+      });
     }
   } catch(err) {if(!disposed)error(err);}
   finally {if(!disposed)busy(false);}
@@ -645,7 +671,7 @@ async function openRecentFile(id) {
     if(!await openBuffer(file.buffer,file.name,{keepBusy:true})) {
       updateRecent({error:()=>(t('createEditorRuntime.58'))});return false;
     }
-    await recentAction(()=>recentFiles.touch(id));
+    recentAction(()=>recentFiles.touch(id),{background:true});
     return true;
   } catch(err) {updateRecent({error:()=>(recentError(err))});return false;}
   finally {if(!disposed)busy(false);}
@@ -718,7 +744,18 @@ async function restoreHistory(direction) {
   } catch(err){error(err);}finally{busy(false);}
 }
 const undo=()=>restoreHistory('undo'),redo=()=>restoreHistory('redo');
-async function download(){if(!state.deck||state.busy)return;busy(true);try{prepareGuideExport(state.deck);const blob=await exportDeck(state.deck,'blob');ensureActive();try{const keys=await slidePreviewCache.keys(state.deck);ensureActive();await slidePreviewCache.write(keys,state.previews,state.failed);}catch{}ensureActive();const link=make('a');const url=URL.createObjectURL(blob);link.href=url;link.download=state.name.replace(/\.pptx$/i,'')+'-edited.pptx';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);status(()=>(t('createEditorRuntime.62')));}catch(err){error(err);}finally{busy(false);}}
+async function download(){
+  if(!state.deck||state.busy)return;
+  busy(true);
+  try{
+    prepareGuideExport(state.deck);const blob=await exportDeck(state.deck,'blob');ensureActive();
+    const link=make('a'),url=URL.createObjectURL(blob);
+    link.href=url;link.download=state.name.replace(/\.pptx$/i,'')+'-edited.pptx';
+    document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+    try{savePreviewInBackground(slidePreviewCache.snapshot(state.deck));}catch{}
+    status(()=>(t('createEditorRuntime.62')));
+  }catch(err){if(!disposed)error(err);}finally{busy(false);}
+}
 $('match-appearance').onchange=()=>{cancelActiveDrag?.();status(()=>($('match-appearance').checked?t('createEditorRuntime.63'):t('createEditorRuntime.64')));};
 $('box-select-mode').onchange=()=>{cancelActiveDrag?.();root.classList.toggle('box-select-mode',$('box-select-mode').checked);};
 $('apply-range').onclick=()=>{if(!state.deck||state.busy)return;try{setChecked(parseRange($('range').value,state.deck.slides.length));notice(()=>(''));}catch(err){error(err);}};$('range').onkeydown=event=>{if(event.key==='Enter')$('apply-range').click();};$('only-checked').onchange=updateScope;$('only-with-selection').onchange=()=>{cancelActiveDrag?.();updateVisibility();};$('clear-selection').onclick=resetSelection;$('move-mode').onchange=()=>{cancelActiveDrag?.();nudgeHistory=null;const relative=$('move-mode').value==='relative';$('position-help').textContent=relative?t('createEditorRuntime.65'):t('MovePanel.6');$('x-label').textContent=relative?t('createEditorRuntime.66'):'X (cm)';$('y-label').textContent=relative?t('createEditorRuntime.67'):'Y (cm)';if(relative){$('x').value='0';$('y').value='0';}else updatePositionFields();};$('move').onclick=()=>{if(!$('x').value.trim()||!$('y').value.trim()){error(localizedError('createEditorRuntime.68'));return;}applyMove(Number($('x').value)*EMU_PER_CM,Number($('y').value)*EMU_PER_CM,$('move-mode').value);};$('undo').onclick=undo;$('redo').onclick=redo;async function openDemo(){if(state.busy||disposed)return;try{const sample=i18n.getLanguage()==='en'?'sample-en.pptx':'sample.pptx',name=t('createEditorRuntime.70');const response=await fetch(`${resources.base}${sample}`,{signal:events.abortController.signal});if(!response.ok)throw localizedError('createEditorRuntime.69');ensureActive();await openBuffer(await response.arrayBuffer(),name);}catch(err){if(!disposed)error(err);}}

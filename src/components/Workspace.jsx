@@ -35,7 +35,10 @@ function EmptyState() {
 function StatusBar() {
   useLanguage();
   const status = useEditorValue('status'), size = useEditorValue('size');
-  return <footer className="statusbar"><span id="status" role="status">{status}</span><span id="size-info">{size}</span></footer>;
+  const backgroundSaving=useEditorValue('backgroundSaving');
+  return <footer className="statusbar"><span id="status" role="status">{status}</span>
+    <span id="background-save-status" role="status" hidden={!backgroundSaving}>{backgroundSaving?t('storage.saving'):''}</span>
+    <span id="size-info">{size}</span></footer>;
 }
 
 /** Presentation metadata and isolated preview host. */

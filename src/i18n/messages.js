@@ -1,5 +1,6 @@
 /** All application-owned UI text. Keep Korean/English placeholders identical. */
 export const messages = {
+  'storage.saving': {ko:'최근 파일·미리보기 보관 중…',en:'Saving recent files and previews…'},
   "appearance.settings": {"ko": "일치 조건 선택", "en": "Choose matching criteria"},
   "appearance.close": {"ko": "닫기", "en": "Close"},
   "appearance.description": {"ko": "체크한 조건을 모두 만족하는 요소만 다음 클릭·영역 선택에서 선택합니다.", "en": "Subsequent clicks and box selections require all checked criteria to match."},

@@ -64,7 +64,7 @@ export async function checkRecentFiles(browser,origin) {
     assert.deepEqual(result,{bytes:[1,2,3],rejected:true,intact:true,empty:true,noContents:true,unavailable:true});
     await upload('storage-full.pptx');
     assert.equal(await browser.evaluate('document.querySelector("#download").disabled'),false,'storage quota failure does not prevent editing');
-    assert.equal(await browser.evaluate('document.querySelector("#notice").textContent.includes("보관하지 못했습니다")'),true);
+    await browser.until('document.querySelector("#notice").textContent.includes("보관하지 못했습니다")','background quota failure is reported');
     await browser.evaluate(`(async()=>{const {RecentFilesRepository}=await import('/src/services/RecentFilesRepository.js');RecentFilesRepository.prototype.save=originalRecentSave;})()`);
   }
   assert.deepEqual(browser.errors,[],'recent files have no browser errors');
