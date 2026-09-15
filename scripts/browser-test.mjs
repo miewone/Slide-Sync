@@ -1,0 +1,201 @@
+import {checkPreviewHover} from './preview-hover-checks.mjs';
+import {checkPreviewActivation} from './activation-checks.mjs';
+import {checkInspector} from './inspector-checks.mjs';
+import {checkSlideSearch} from './slide-search-checks.mjs';
+import {checkRangeSelection} from './range-selection-checks.mjs';
+import {checkChartLoading,checkLargeDecks} from './optimization-checks.mjs';
+import {build, createServer, preview} from 'vite';
+import {spawn} from 'node:child_process';
+import {mkdtemp, readFile, mkdir, writeFile, rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import assert from 'node:assert/strict';
+
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+/** Minimal Chrome DevTools client; uses Node's WebSocket without test dependencies. */
+class Browser {
+  /** @param {WebSocket} socket Open page-level DevTools connection. */
+  constructor(socket) {
+    this.socket = socket;this.pending = new Map();this.nextId = 1;this.errors = [];this.loadedDocuments = new Set();
+    socket.addEventListener('message', event => {
+      const message = JSON.parse(event.data);
+      if (message.id) {
+        const pending = this.pending.get(message.id);
+        if (!pending) return;
+        this.pending.delete(message.id);
+        message.error ? pending.reject(Error(`${pending.method}: ${JSON.stringify(message.error)}`)) : pending.resolve(message.result);
+      }
+      if(message.method==='Page.lifecycleEvent' && message.params.name==='DOMContentLoaded')this.loadedDocuments.add(message.params.loaderId);
+      if (message.method === 'Runtime.exceptionThrown') this.errors.push(message.params.exceptionDetails);
+      if (message.method === 'Log.entryAdded' && message.params.entry.level === 'error') this.errors.push(message.params.entry);
+    });
+  }
+  /** @param {string} method DevTools method. @param {object} params Command arguments. */
+  send(method, params = {}) {
+    return new Promise((resolve, reject) => {
+      const id = this.nextId++;this.pending.set(id, {resolve, reject, method});
+      this.socket.send(JSON.stringify({id, method, params}));
+    });
+  }
+  /** @param {string} url Wait for the new document before inspecting app readiness. */
+  async navigate(url) {
+    const {loaderId,errorText}=await this.send('Page.navigate',{url});
+    if(errorText)throw Error(errorText);
+    if(!loaderId)return;
+    for(let attempt=0;attempt<400;attempt++){
+      if(this.loadedDocuments.has(loaderId))return;
+      await pause(25);
+    }
+    throw Error(`Document did not load: ${url}`);
+  }
+  /** @param {string} expression Browser JavaScript expression, awaited by Chrome. */
+  async evaluate(expression) {
+    let response;
+    try{response=await this.send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});}
+    catch(error){throw Error(`${error.message}\nExpression: ${expression.slice(0,250)}`,{cause:error});}
+    if (response.exceptionDetails) throw Error(JSON.stringify(response.exceptionDetails));
+    return response.result.value;
+  }
+  /** @param {string} expression Boolean browser predicate. @param {string} label Failure context. */
+  async until(expression, label) {
+    for (let i = 0; i < 200; i++) {
+      if (await this.evaluate(expression)) return;
+      await pause(100);
+    }
+    throw Error(`Timed out: ${label}\n${JSON.stringify(this.errors)}`);
+  }
+}
+
+const artifacts = 'artifacts';
+await mkdir(artifacts, {recursive:true});
+const profile = await mkdtemp(join(tmpdir(), 'slide-sync-chrome-'));
+let dev, prod, subpath, baseline, chrome, browser;
+const timeout = setTimeout(() => { console.error('Browser tests exceeded 240 seconds');process.exit(1); }, 240000);
+try {
+  const previousNodeEnv=process.env.NODE_ENV;
+  await build({base:'/slides/',build:{outDir:'artifacts/subpath'}});
+  if(previousNodeEnv===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=previousNodeEnv;
+  dev = await createServer({server:{port:5179, strictPort:true}});await dev.listen();
+  prod = await preview({preview:{port:4179, strictPort:true}});
+  subpath = await preview({base:'/slides/',build:{outDir:'artifacts/subpath'},preview:{port:4189,strictPort:true}});
+  if(process.argv.includes('--benchmark-baseline'))baseline=await preview({build:{outDir:'artifacts/baseline'},preview:{port:4190,strictPort:true}});
+  chrome = spawn(process.env.CHROME_BIN || 'google-chrome', ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--disable-features=BackForwardCache', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], {stdio:'ignore'});
+  let port;
+  for (let i = 0; i < 100; i++) {
+    try { port = (await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0];break; }
+    catch { await pause(100); }
+  }
+  assert.ok(port, 'Chrome must start');
+  const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+  const socket = new WebSocket(targets.find(target => target.type === 'page').webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => {socket.addEventListener('open', resolve, {once:true});socket.addEventListener('error', reject, {once:true});});
+  browser = new Browser(socket);
+  await browser.send('Page.enable');await browser.send('Page.setLifecycleEventsEnabled',{enabled:true});await browser.send('Runtime.enable');await browser.send('Log.enable');
+  await browser.send('Emulation.setDeviceMetricsOverride', {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+
+  for (const [mode, origin] of [['development','http://127.0.0.1:5179'], ['production','http://127.0.0.1:4179'], ['subpath','http://127.0.0.1:4189/slides/']]) {
+    browser.errors = [];
+    await browser.navigate(origin);
+    await browser.until('!!document.querySelector("#demo") && !document.querySelector("#demo").disabled', `${mode} ready`);
+    assert.equal(await browser.evaluate('performance.getEntriesByType("resource").filter(e => e.name.includes("/vendor/")).length'), 0, 'no initial vendor loads');
+    await browser.evaluate('document.querySelector("#demo").click()');
+    await browser.until('document.querySelectorAll("#stage iframe").length > 0 && !document.querySelector("#download").disabled', `${mode} sample open`);
+    await browser.until('[...document.querySelectorAll("#stage iframe")].every(f => f.contentDocument?.querySelector("[data-pptx-mover]"))', 'preview documents loaded');
+    assert.equal(await browser.evaluate('document.querySelectorAll(".foot-note").length'), 0, 'no fallback');
+    const count = await browser.evaluate('document.querySelectorAll("#stage iframe").length');
+    assert.ok(count > 1);
+    await browser.evaluate(`window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}));`);
+    await browser.evaluate(`globalThis.framesBefore = [...document.querySelectorAll('#stage iframe')].map(frame => ({frame,doc:frame.contentDocument}));
+      globalThis.initialResources = performance.getEntriesByType('resource').filter(e => e.name.includes("/vendor/")).length;
+      globalThis.zipEncodes=0;const originalEncode=JSZip.prototype.generateAsync;JSZip.prototype.generateAsync=function(...args){zipEncodes++;return originalEncode.apply(this,args)};
+      globalThis.srcdocWrites=0;const srcdoc=Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype,'srcdoc');Object.defineProperty(HTMLIFrameElement.prototype,'srcdoc',{...srcdoc,set(value){srcdocWrites++;return srcdoc.set.call(this,value)}});
+      document.querySelector('.slide-surface').dispatchEvent(new KeyboardEvent('keydown',{key:'a',ctrlKey:true,bubbles:true}));`);
+    await browser.until('Number(document.querySelector(".selection-number").textContent)>0', 'select all');
+    await browser.evaluate(`document.querySelector('#move-mode').value='relative';document.querySelector('#move-mode').dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#x').value='1';document.querySelector('#y').value='0';document.querySelector('#move').click();`);
+    await browser.until('!document.querySelector("#undo").disabled', 'move');
+    assert.ok(await browser.evaluate('framesBefore[0].doc.querySelector("[data-pptx-mover]").style.transform.includes("translate")'), 'preview moves');
+    await browser.evaluate('document.querySelector("#undo").click()');
+    await browser.until('document.querySelector("#undo").disabled', 'undo');
+    assert.equal(await browser.evaluate('framesBefore[0].doc.querySelector("[data-pptx-mover]").style.transform'), '', 'undo coordinates');
+    await browser.evaluate('document.querySelector("#select-none").click()');
+    await browser.until('[...document.querySelectorAll(".slide-item input")].every(e => !e.checked)', 'React scope list');
+    await browser.evaluate('document.querySelector("#select-all").click()');
+    await browser.until('[...document.querySelectorAll(".slide-item input")].every(e => e.checked)', 'restore scope');
+    await browser.evaluate('document.querySelector("#guide-horizontal").click()');
+    await browser.until('document.querySelectorAll(".guide-line").length > 0', 'add guides');
+    await browser.evaluate('document.querySelector("#undo").click()');
+    assert.equal(await browser.evaluate('framesBefore.every(({frame,doc})=>frame.isConnected && frame.contentDocument===doc)'), true, 'iframe documents preserved');
+    assert.equal(await browser.evaluate('srcdocWrites'), 0, 'no frame reload during edits');
+    assert.equal(await browser.evaluate('zipEncodes'), 0, 'no ZIP encoding during edits');
+    assert.equal(await browser.evaluate('performance.getEntriesByType("resource").filter(e=>e.name.includes("/vendor/")).length===initialResources'), true, 'vendor resources reused');
+    // Export the edited XML and re-open it through React's file input.
+    await browser.evaluate(`globalThis.originalX=Number(framesBefore[0].doc.querySelector('[data-pptx-mover]').dataset.originX);
+      const createURL=URL.createObjectURL;URL.createObjectURL=function(blob){globalThis.exportedBlob=blob;return createURL.call(this,blob)};
+      const anchorClick=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(!this.download)anchorClick.call(this)};
+      document.querySelector('#move').click();document.querySelector('#download').click();`);
+    await browser.until('!!globalThis.exportedBlob && !document.querySelector("#download").disabled', 'PPTX export');
+    assert.equal(await browser.evaluate('zipEncodes'), 1, 'encode only on download');
+    await browser.evaluate(`const transfer=new DataTransfer();transfer.items.add(new File([exportedBlob],'roundtrip.pptx'));
+      const input=document.querySelector('#file');input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));`);
+    await browser.until('document.querySelector("#filename").textContent==="roundtrip.pptx" && !document.querySelector("#download").disabled', 'reimport');
+    await browser.until('!!document.querySelector("#stage iframe")?.contentDocument?.querySelector("[data-pptx-mover]")', 'reimport frame ready');
+    assert.equal(await browser.evaluate('Number(document.querySelector("#stage iframe").contentDocument.querySelector("[data-pptx-mover]").dataset.originX)'), await browser.evaluate('originalX+360000'), 'export/reimport preserves 1 cm movement');
+    assert.equal(await browser.evaluate('document.querySelectorAll(".foot-note").length'), 0, 'reimport no fallback');
+    const screenshot = await browser.send('Page.captureScreenshot', {format:'png'});
+    await writeFile(join(artifacts, `${mode}.png`), Buffer.from(screenshot.data, 'base64'));
+    assert.deepEqual(browser.errors, [], `${mode} browser errors`);
+    console.log(`PASS ${mode}: ${count} previews, lazy loading, selection, move/undo, scope, guides, frame/ZIP reuse, export/reimport, no browser errors`);
+  }
+  browser.errors = [];
+  await browser.navigate('http://127.0.0.1:5179/tests/preview-theme.html');
+  await browser.until('document.querySelector("#result")?.textContent !== "RUNNING" && !!document.querySelector("#result")', 'theme fixture');
+  const theme = await browser.evaluate('document.querySelector("#result").textContent');
+  assert.ok(theme.startsWith('PASS'), theme);console.log(theme);
+  browser.errors = [];
+  await browser.navigate('http://127.0.0.1:5179/tests/editor-lifecycle.html');
+  await browser.until('!!document.querySelector("#demo") && !document.querySelector("#demo").disabled', 'lifecycle ready');
+  await browser.evaluate('pauseZip();document.querySelector("#demo").click()');
+  await browser.until('!!document.querySelector(".topbar.busy")', 'async ZIP suspended');
+  await browser.evaluate('unmountEditor();releaseZip();');
+  await pause(200);
+  await browser.evaluate('mountEditor()');
+  await browser.until('!!document.querySelector("#demo") && !document.querySelector("#demo").disabled', 'remount ready');
+  assert.equal(await browser.evaluate('document.querySelectorAll("#stage iframe").length'), 0, 'disposed load cannot attach previews');
+  await browser.evaluate('document.querySelector("#demo").click()');
+  await browser.until('!document.querySelector("#download").disabled', 'remounted editor loads sample');
+  assert.equal(await browser.evaluate('document.querySelectorAll("#stage iframe").length'), 3, 'single runtime after remount');
+  assert.deepEqual(browser.errors, [], 'lifecycle has no async unmount exceptions');
+  console.log('PASS lifecycle: StrictMode, unmount during async loading, remount and reopen');
+  await checkPreviewHover(browser,'http://127.0.0.1:5179');
+  await checkPreviewHover(browser,'http://127.0.0.1:4179');
+  await checkPreviewHover(browser,'http://127.0.0.1:4189/slides/');
+  await checkPreviewActivation(browser,'http://127.0.0.1:5179');
+  await checkPreviewActivation(browser,'http://127.0.0.1:4179');
+  await checkPreviewActivation(browser,'http://127.0.0.1:4189/slides/');
+  await checkRangeSelection(browser,'http://127.0.0.1:5179',3);
+  await checkRangeSelection(browser,'http://127.0.0.1:4179',12);
+  await checkRangeSelection(browser,'http://127.0.0.1:4189/slides/',3);
+  await checkSlideSearch(browser,'http://127.0.0.1:5179');
+  await checkSlideSearch(browser,'http://127.0.0.1:4179');
+  await checkSlideSearch(browser,'http://127.0.0.1:4189/slides/');
+  await checkInspector(browser,'http://127.0.0.1:5179');
+  await checkInspector(browser,'http://127.0.0.1:4179');
+  await checkInspector(browser,'http://127.0.0.1:4189/slides/');
+  await checkChartLoading(browser,'http://127.0.0.1:4179');
+  const measurements=[];
+  if(baseline)measurements.push(...await checkLargeDecks(browser,'http://127.0.0.1:4190',{baseline:true}));
+  measurements.push(...await checkLargeDecks(browser,'http://127.0.0.1:4179'));
+  await writeFile(join(artifacts,'optimization-metrics.json'),JSON.stringify(measurements,null,2));
+  console.log('PASS large decks: 30/60/120 slides, progressive display, limited initial frames, offscreen move/fit/undo');
+} finally {
+  clearTimeout(timeout);
+  browser?.socket.close();
+  chrome?.kill('SIGTERM');
+  await dev?.close();
+  await new Promise(resolve => prod ? prod.httpServer.close(resolve) : resolve());
+  await new Promise(resolve => subpath ? subpath.httpServer.close(resolve) : resolve());
+  await new Promise(resolve => baseline ? baseline.httpServer.close(resolve) : resolve());
+  if(chrome) await new Promise(resolve => chrome.exitCode !== null ? resolve() : chrome.once('exit', resolve));
+  await rm(profile, {recursive:true, force:true, maxRetries:5, retryDelay:200});
+}

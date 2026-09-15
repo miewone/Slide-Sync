@@ -1,0 +1,68 @@
+[
+  {
+    "mode": "baseline",
+    "slides": 30,
+    "firstFrameMs": 507,
+    "readyMs": 545,
+    "frames": 30,
+    "documents": 63,
+    "domNodes": 21828,
+    "jsHeapMiB": 11,
+    "dragP95Ms": 5.4
+  },
+  {
+    "mode": "baseline",
+    "slides": 60,
+    "firstFrameMs": 828,
+    "readyMs": 864,
+    "frames": 60,
+    "documents": 123,
+    "domNodes": 43038,
+    "jsHeapMiB": 17.9,
+    "dragP95Ms": 17.1
+  },
+  {
+    "mode": "baseline",
+    "slides": 120,
+    "firstFrameMs": 1715,
+    "readyMs": 1625,
+    "frames": 120,
+    "documents": 243,
+    "domNodes": 85458,
+    "jsHeapMiB": 31.8,
+    "dragP95Ms": 16.8
+  },
+  {
+    "mode": "optimized",
+    "slides": 30,
+    "firstFrameMs": 161,
+    "readyMs": 438,
+    "frames": 8,
+    "documents": 41,
+    "domNodes": 19561,
+    "jsHeapMiB": 5.7,
+    "dragP95Ms": 2.3
+  },
+  {
+    "mode": "optimized",
+    "slides": 60,
+    "firstFrameMs": 216,
+    "readyMs": 867,
+    "frames": 8,
+    "documents": 71,
+    "domNodes": 37681,
+    "jsHeapMiB": 6.3,
+    "dragP95Ms": 3.5
+  },
+  {
+    "mode": "optimized",
+    "slides": 120,
+    "firstFrameMs": 300,
+    "readyMs": 1471,
+    "frames": 8,
+    "documents": 131,
+    "domNodes": 73921,
+    "jsHeapMiB": 8.7,
+    "dragP95Ms": 4.9
+  }
+]

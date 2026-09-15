@@ -1,0 +1,10 @@
+Third-party runtime packages (ES modules may be bundled/minified by Vite):
+JSZip 3.10.1, MIT (see jszip-LICENSE.txt).
+lodash 4.17.21, MIT (see lodash-LICENSE.txt).
+uuid 8.3.2, MIT (see uuid-LICENSE.md).
+Apache ECharts 5.5.1, Apache 2.0 (see echarts-LICENSE.txt).
+tslib 2.8.1, 0BSD (see tslib-LICENSE.txt).
+pptx-preview 1.0.7, by hit757 / 501351981. Published npm package is free for personal and commercial use according to its README. The npm metadata states ISC. Library remains a third-party dependency, not an original work of Slide Sync. https://www.npmjs.com/package/pptx-preview
+react 19.3.0, MIT (see react-LICENSE.txt).
+react-dom 19.3.0, MIT (see react-dom-LICENSE.txt).
+scheduler 0.28.0, MIT (see scheduler-LICENSE.txt).

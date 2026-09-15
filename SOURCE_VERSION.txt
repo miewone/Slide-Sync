@@ -1,0 +1,4 @@
+Slide Sync v6 - React + Vite migration
+Original v5 source commit: d4b4409bed27725eb41a2907f8e5546189abea72
+Editable source: src/ and public/
+Generated distribution: npm run build -> dist/
