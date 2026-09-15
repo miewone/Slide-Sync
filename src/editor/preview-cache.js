@@ -1,4 +1,5 @@
 import {textBoxInfo,captureTextStyles,scaleTextPreview} from './text-fit.js';
+import {TextFormat} from './TextFormat.js';
 import {serialize} from './core.js';
 import {PreviewTable} from './PreviewTable.js';
 const moverIndexes=new WeakMap(),elementIndexes=new WeakMap();
@@ -69,6 +70,7 @@ export function cachePreview(root, slide, unitsPerPixel = 12700) {
       mover.dataset.originalTextWhiteSpace=text.style.whiteSpace;
       mover.dataset.originalBodyPr=info.props?serialize(info.props):'';
       captureTextStyles(text);
+      TextFormat.capture(mover,info.body,text);
       // Resizing the background must not scale the text itself.
       const svg=Array.from(child.children).find(n=>n.tagName.toLowerCase()==='svg');
       if(svg){svg.setAttribute('viewBox',`0 0 ${element.g.w/unitsPerPixel} ${element.g.h/unitsPerPixel}`);svg.setAttribute('preserveAspectRatio','none');for(const n of svg.querySelectorAll('*'))n.setAttribute('vector-effect','non-scaling-stroke');}
@@ -106,6 +108,7 @@ export function syncPreviewPositions(root, slide, options={}) {
       shape.style.height=`${g.h/units}px`;
       const text=shape.querySelector('.text-wrapper');
       if(text){
+        TextFormat.sync(mover,info.body,text);
         scaleTextPreview(text,info.fontScale/Number(mover.dataset.originalFontScale||1),info.lineScale/Number(mover.dataset.originalLineScale||1));
         if(text.style.transform.includes('translateY(-50%)'))text.style.top=g.h===Number(mover.dataset.originH)?mover.dataset.originalTextTop:`${parseFloat(mover.dataset.originalTextTop||'0')+(g.h-Number(mover.dataset.originH))/(2*units)}px`;
         const fitted=g.h!==Number(mover.dataset.originH)||(info.props?serialize(info.props):'')!==mover.dataset.originalBodyPr;

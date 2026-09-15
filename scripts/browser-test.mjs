@@ -1,3 +1,4 @@
+import {checkTextFormat} from './text-format-checks.mjs';
 import {checkPreviewCache} from './preview-cache-checks.mjs';
 import {checkPreviewFormatFiles} from './preview-format-files-checks.mjs';
 import {checkPreviewFormat} from './preview-format-checks.mjs';
@@ -128,6 +129,10 @@ try {
     }
   } else if(process.argv.includes('--check-preview-cache')) {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkPreviewCache(browser,origin);
+  } else if(process.argv.includes('--check-text-format')) {
+    await checkTextFormat(browser,'http://127.0.0.1:5179');
+    await checkPreviewFit(browser,'http://127.0.0.1:5179');
+    await checkInspector(browser,'http://127.0.0.1:5179');
   } else if(process.argv.includes('--check-preview-grid')) {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkPreviewGrid(browser,origin);
   } else {
@@ -246,6 +251,7 @@ try {
   await checkRepeatedEdits(browser,'http://127.0.0.1:4179');
   await checkRepeatedEdits(browser,'http://127.0.0.1:4189/slides/');
   await checkStaticMedia(browser,'http://127.0.0.1:4179');
+  await checkTextFormat(browser,'http://127.0.0.1:5179');
   await checkMissingDefaultTextStyle(browser,'http://127.0.0.1:4179');
   await checkXmlErrors(browser,'http://127.0.0.1:4179');
   await checkXmlCompatibility(browser,'http://127.0.0.1:5179');

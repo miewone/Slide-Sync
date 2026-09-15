@@ -1,5 +1,20 @@
 /** All application-owned UI text. Keep Korean/English placeholders identical. */
 export const messages = {
+  'history.title': {ko:'삭제·실행 취소·다시 실행',en:'Delete, undo and redo'},
+  'history.redo': {ko:'↷ 다시 실행',en:'↷ Redo'},
+  'history.redone': {ko:'변경을 다시 실행했습니다.',en:'Change redone.'},
+  'textFormat.title': {ko:'텍스트 서식',en:'Text formatting'},
+  'textFormat.empty': {ko:'텍스트 박스를 선택하세요.',en:'Select a text box.'},
+  'textFormat.count': {ko:'체크된 슬라이드의 선택한 텍스트 박스 {count}개 전체에 적용합니다.',en:'Applies to all text in {count} selected boxes on checked slides.'},
+  'textFormat.size': {ko:'글자 크기 (pt)',en:'Font size (pt)'},
+  'textFormat.decrease': {ko:'글자 크기 줄이기',en:'Decrease font size'},
+  'textFormat.increase': {ko:'글자 크기 키우기',en:'Increase font size'},
+  'textFormat.sizeHelp': {ko:'글자 크기 (pt) · 입력 후 Enter 또는 포커스를 옮기면 적용',en:'Font size (pt) · press Enter or leave the field to apply'},
+  'textFormat.bold': {ko:'볼드',en:'Bold'},
+  'textFormat.normal': {ko:'볼드 해제',en:'Remove bold'},
+  'textFormat.mixed': {ko:'혼합 또는 상속',en:'Mixed or inherited'},
+  'textFormat.invalid': {ko:'글자 크기는 1~400pt 사이로 입력하세요.',en:'Enter a font size between 1 and 400 pt.'},
+  'textFormat.done': {ko:'텍스트 박스 {count}개의 서식을 적용했습니다.',en:'Formatted {count} text boxes.'},
   "ElementNamePopover.1": {
     "ko": "요소 이름 목록",
     "en": "Element names"

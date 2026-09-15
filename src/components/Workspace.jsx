@@ -2,6 +2,7 @@ import {t} from '../i18n/I18n.js';
 import {useLanguage} from '../hooks/useLanguage.js';
 import {useState} from 'react';
 import {PreviewStage} from './PreviewStage.jsx';
+import {TextFormatToolbar} from './TextFormatToolbar.jsx';
 import {PreviewGridControl} from './PreviewGridControl.jsx';
 import {Button, Checkbox} from './ui.jsx';
 import {useEditor, useEditorValue} from '../hooks/useEditor.js';
@@ -44,6 +45,7 @@ export function Workspace() {
   const name = useEditorValue('name'), summary = useEditorValue('summary'), notice = useEditorValue('notice');
   return <section className="workspace">
     <div className="workspace-bar"><div className="workspace-heading"><div className="workspace-title-row"><h1 id="filename">{name}</h1><PreviewGridControl grid={grid} disabled={busy} onChange={setGrid}/></div><p id="workspace-summary">{summary}</p></div>
+      <TextFormatToolbar/>
       <div className="view-option workspace-options">
         <Checkbox variant="chip" id="match-appearance" label={t('Help.5')} helpKey="match-appearance"/>
         <Checkbox variant="chip" id="box-select-mode" label={t('Help.3')} helpKey="box-select-mode"/>

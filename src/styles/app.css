@@ -204,3 +204,17 @@
 .range-control{align-items:center}
 .range-control input{flex:1;min-width:0;width:0}
 .range-control #apply-range{flex:0 0 auto;min-height:30px;padding:4px 8px;font-size:12px;line-height:1.25;white-space:nowrap}
+
+.text-format-toolbar{display:flex;align-items:center;gap:3px;flex:0 0 auto;padding:4px 6px;border:1px solid #d5dce6;border-radius:7px;background:#f3f6fc;color:#344259}
+.text-format-label{font-size:12px;white-space:nowrap;margin:0 8px 0 3px;color:#647188}
+.text-format-toolbar button{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;min-height:32px;padding:0;border:0;border-radius:5px;background:transparent;color:inherit;font-size:22px;line-height:1}
+.text-format-toolbar button:hover:not(:disabled){background:#e3eaf8}
+.text-format-toolbar button[aria-pressed=true]{background:#d6e2ff;color:#224493}
+.text-format-toolbar button[aria-pressed=mixed]{background:#e6ebf5;box-shadow:inset 0 -2px #8193b4}
+.text-format-toolbar .text-format-bold{font-size:19px;font-weight:750}
+.text-format-toolbar input{width:46px;height:30px;min-height:30px;padding:3px;text-align:center;font-size:14px;border-color:#9ea8b8;background:transparent;appearance:textfield;-moz-appearance:textfield}
+.text-format-toolbar input::-webkit-inner-spin-button,.text-format-toolbar input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.text-format-divider{height:22px;border-left:1px solid #ccd3df;margin:0 4px}
+@media(max-width:540px){.text-format-label{display:none}}
+.history-controls{display:flex;align-items:center;gap:6px;margin-top:8px}
+.history-controls .button{width:32px;height:30px;min-height:30px;padding:0;font-size:20px;font-weight:500;line-height:1}
