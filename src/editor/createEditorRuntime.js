@@ -82,6 +82,8 @@ function recentAction(action=()=>{},{background=false}={}) {
   return background?trackBackground(task):task;
 }
 function refreshRecentFiles(){return recentAction();}
+/** @param {object} source Successfully opened native Drive file metadata; keep a reference without document contents. */
+function rememberDriveFile(source){return recentAction(()=>recentFiles.saveDrive(source),{background:true});}
 function removeRecentFile(id){if(state.busy||store.getSnapshot().recentFiles.busy)return;return recentAction(()=>recentFiles.remove(id));}
 function clearRecentFiles(){if(state.busy||store.getSnapshot().recentFiles.busy)return;return recentAction(()=>recentFiles.clear());}
 let guideUI=null;
@@ -741,7 +743,7 @@ async function openRecentFile(id) {
       updateRecent({files:store.getSnapshot().recentFiles.files.filter(row=>row.id!==id),error:()=>(t('createEditorRuntime.57'))});
       return false;
     }
-    if(!await openBuffer(file.buffer,file.name,{keepBusy:true})) {
+    if(!file.buffer||!await openBuffer(file.buffer,file.name,{keepBusy:true})) {
       updateRecent({error:()=>(t('createEditorRuntime.58'))});return false;
     }
     recentAction(()=>recentFiles.touch(id),{background:true});
@@ -823,7 +825,9 @@ async function openDrivePptx(files,fileId){
   cancelActiveDrag?.();busy(true);
   try{
     const {source,buffer}=await files.openPptx(fileId);ensureActive();
-    return await openBuffer(buffer,source.name,{keepBusy:true,driveSource:source});
+    const opened=await openBuffer(buffer,source.name,{keepBusy:true,driveSource:source});
+    if(opened)recentAction(()=>recentFiles.saveDrive(source,buffer),{background:true});
+    return opened;
   }finally{if(!disposed)busy(false);}
 }
 /** @param {GoogleFiles} files Drive transport. @param {object} options Explicit destination choice. */
@@ -926,7 +930,7 @@ return {
   uploadPreviewFont(key,file){return fontAction(fonts=>fonts.upload(key,file),key);},
   accessLocalFonts(){return fontAction(fonts=>fonts.accessLocal());},
   openFile, openDemo, download, openDrivePptx, saveDrivePptx, applySlideSearch, applyElementSearch,
-  refreshRecentFiles, openRecentFile, removeRecentFile, clearRecentFiles,
+  refreshRecentFiles, rememberDriveFile, openRecentFile, removeRecentFile, clearRecentFiles,
   setElementSearchQuery(query){if(!state.busy && state.deck && !disposed)updateElementSearch(String(query));},
   selectElementName(name){
     if(state.busy || !state.deck || disposed)return;

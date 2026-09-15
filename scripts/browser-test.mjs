@@ -1,3 +1,4 @@
+import {checkDriveLoading} from './drive-loading-checks.mjs';
 import {checkAnalyticsConsent} from './analytics-consent-checks.mjs';
 import {checkPolicyPages} from './policy-pages-checks.mjs';
 import {checkGoogleSettings} from './google-settings-checks.mjs';
@@ -129,8 +130,14 @@ try {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkFileOpen(browser,origin);
     await checkGoogleSettings(browser,'http://127.0.0.1:5179');
     await checkGoogleDrive(browser,'http://127.0.0.1:5179');
+    await checkDriveLoading(browser,'http://127.0.0.1:5179');
+  } else if(process.argv.includes('--check-recent-files')) {
+    for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkRecentFiles(browser,origin);
+  } else if(process.argv.includes('--check-drive-loading')) {
+    await checkDriveLoading(browser,'http://127.0.0.1:5179');
   } else if(process.argv.includes('--check-google-drive')) {
     await checkGoogleDrive(browser,'http://127.0.0.1:5179');
+    await checkDriveLoading(browser,'http://127.0.0.1:5179');
   } else if(process.argv.includes('--check-activity-log')) {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkActivityLog(browser,origin);
   } else if(process.argv.includes('--check-background-persistence')) {
@@ -266,6 +273,7 @@ try {
   await checkPanelLayout(browser,'http://127.0.0.1:4179');
   await checkPanelLayout(browser,'http://127.0.0.1:4189/slides/');
   await checkGoogleDrive(browser,'http://127.0.0.1:5179');
+  await checkDriveLoading(browser,'http://127.0.0.1:5179');
   await checkGoogleSettings(browser,'http://127.0.0.1:5179');
   await checkFileOpen(browser,'http://127.0.0.1:5179');
   await checkRecentFiles(browser,'http://127.0.0.1:5179');

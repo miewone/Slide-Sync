@@ -297,3 +297,21 @@
 .file-open-drive-settings{position:absolute;right:8px;bottom:8px;display:grid;place-items:center;width:32px;height:32px;padding:5px;border:1px solid #c5cedc;border-radius:50%;background:white;color:#46556e}
 .file-open-drive-settings:hover:not(:disabled){background:#edf2ff;border-color:#6d88d9}
 .drive-open-notice{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:2147483647;max-width:90vw;padding:10px 16px;border:1px solid #e6cc80;border-radius:8px;background:#fff8dc;color:#594409;pointer-events:none}
+
+/* Classic folder-to-folder paper transfer while a selected Drive file opens. */
+.drive-loading-dialog{width:min(380px,calc(100vw - 32px));text-align:center;padding:28px}
+.drive-loading-dialog h2{font-size:16px;line-height:1.6}
+.drive-loading-dialog .drive-loading-name{margin-top:8px;overflow-wrap:anywhere;color:#647188;font-size:13px}
+
+.drive-transfer-animation{position:relative;width:100%;max-width:260px;height:96px;margin:4px auto 22px;perspective:400px}
+.drive-transfer-folder{position:absolute;left:2px;bottom:5px;z-index:2}
+.drive-transfer-destination{left:auto;right:2px}
+.drive-flying-page{position:absolute;left:8%;top:50px;width:22px;height:28px;transform-origin:center;animation:drive-paper-flight 2s linear infinite}
+.drive-flying-page svg{display:block;animation:drive-paper-fold 2s ease-in-out infinite}
+.drive-flying-page-next,.drive-flying-page-next svg{animation-delay:-1s}
+@keyframes drive-paper-flight{0%{left:8%;top:50px;opacity:0;transform:rotate(-25deg) scale(.85)}12%{opacity:1}25%{left:27%;top:18px;transform:rotate(15deg) scale(1)}50%{left:48%;top:4px;transform:rotate(-18deg) scale(.9)}75%{left:69%;top:18px;transform:rotate(20deg) scale(1)}88%{opacity:1}100%{left:86%;top:50px;opacity:0;transform:rotate(-12deg) scale(.85)}}
+@keyframes drive-paper-fold{0%,100%{transform:rotateY(0deg) skewY(0deg)}25%{transform:rotateY(35deg) skewY(-12deg)}50%{transform:rotateY(72deg) skewY(16deg)}75%{transform:rotateY(-25deg) skewY(-10deg)}}
+@media(prefers-reduced-motion:reduce){.drive-flying-page,.drive-flying-page svg{animation:none}.drive-flying-page{left:48%;top:14px;transform:rotate(-15deg)}.drive-flying-page-next{display:none}}
+
+.recent-file-offline{max-width:150px;flex-shrink:0}
+@media(max-width:480px){.recent-files-list li{flex-wrap:wrap}.recent-file-select{flex-basis:100%}.recent-file-offline{max-width:none}.recent-file-delete{margin-left:auto}}

@@ -1,0 +1,64 @@
+import {checkRecentDrive} from './recent-drive-checks.mjs';
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+import {nativeSlidesFixture} from '../tests/native-slides-fixture.js';
+
+/** Hold Drive responses to check the loading animation across metadata, Slides, PPTX, failure and cancellation. */
+export async function checkDriveLoading(browser,origin){
+  browser.errors=[];await browser.navigate(origin);
+  const click=selector=>browser.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+  await browser.until('!!document.querySelector("#open")&&!document.querySelector("#open").disabled','Drive loading ready');
+  await browser.evaluate(`(async()=>{
+    const {RecentFilesRepository}=await import('/src/services/RecentFilesRepository.js');await new RecentFilesRepository().clear();
+    const {GoogleSession,PPTX_MIME,SLIDES_MIME}=await import('/src/services/google/GoogleSession.js');
+    const {GoogleSettingsRepository}=await import('/src/services/google/GoogleSettingsRepository.js');
+    const {GoogleFiles}=await import('/src/services/google/GoogleFiles.js');
+    await new GoogleSettingsRepository().save({clientId:'123-loading.apps.googleusercontent.com',apiKey:'AIza'+'x'.repeat(30),appId:'123'});
+    GoogleSession.prototype.prepare=async function(){this.accessToken='loading-test';this.expiresAt=Date.now()+3600000;};
+    GoogleSession.prototype.pick=async()=>window.loadingPick;
+    GoogleFiles.prototype.metadata=async()=>{await window.metadataGate;if(window.loadingFailure)throw Error('Loading test failed');return window.loadingSource;};
+    GoogleFiles.prototype.presentation=async()=>{await window.presentationGate;return ${JSON.stringify(nativeSlidesFixture())};};
+    GoogleFiles.prototype.openPptx=async()=>{await window.pptxGate;return {source:window.loadingSource,buffer:window.loadingBytes};};
+    GoogleFiles.prototype.thumbnail=async()=>{throw Error('Preview unavailable in loading test');};
+    window.loadingBytes=await (await fetch('/sample.pptx')).arrayBuffer();
+    window.loadingPick={id:'presentation_1',name:'Loading slides'};
+    window.loadingSource={id:'presentation_1',name:'Loading slides',mimeType:SLIDES_MIME,capabilities:{canEdit:true,canCopy:true}};
+    window.metadataGate=new Promise(resolve=>window.releaseMetadata=resolve);
+    window.presentationGate=new Promise(resolve=>window.releasePresentation=resolve);
+  })()`);
+  const open=async()=>{await click('#open');await click('#file-open-drive');};
+  const loading=()=>browser.until('document.querySelector("#drive-loading-dialog")?.open','page animation visible');
+  await open();await loading();
+  assert.equal(await browser.evaluate('document.querySelector("#drive-loading-title").textContent'),'Google Drive 파일을 불러오는 중…');
+  await browser.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await browser.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  assert.equal(await browser.evaluate('document.querySelector("#drive-loading-dialog").open'),true,'Escape cannot hide an active load');
+  await browser.evaluate('releaseMetadata()');
+  await loading();
+  await browser.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  assert.equal(await browser.evaluate('getComputedStyle(document.querySelector(".drive-flying-page")).animationName'),'none','reduced motion keeps static document');
+  await browser.send('Emulation.setEmulatedMedia',{features:[]});
+  await browser.send('Emulation.setDeviceMetricsOverride',{width:375,height:812,deviceScaleFactor:1,mobile:false});
+  assert.equal(await browser.evaluate('(()=>{const r=document.querySelector("#drive-loading-dialog").getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;})()'),true,'loading fits mobile');
+  await browser.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  const screenshot=await browser.send('Page.captureScreenshot',{format:'png'});
+  await writeFile(new URL('../artifacts/drive-loading.png',import.meta.url),Buffer.from(screenshot.data,'base64'));
+  await browser.evaluate('releasePresentation()');
+  await browser.until('!!document.querySelector("#native-slides-title")&&!document.querySelector("#drive-loading-dialog")','Slides completion removes loading');
+  await click('#native-close');
+  await browser.evaluate(`loadingPick={id:'pptx_1',name:'Loading.pptx'};loadingSource={...loadingSource,...loadingPick,mimeType:'application/vnd.openxmlformats-officedocument.presentationml.presentation'};pptxGate=new Promise(resolve=>window.releasePptx=resolve);void 0`);
+  await open();await loading();
+  await browser.evaluate('releasePptx()');
+  await browser.until('!document.querySelector("#drive-loading-dialog")&&!document.querySelector("#download").disabled&&document.querySelector("#filename").textContent==="Loading.pptx"','PPTX completion removes loading');
+  await browser.evaluate('loadingFailure=true;metadataGate=new Promise(resolve=>window.releaseMetadata=resolve);void 0');
+  await open();await loading();await browser.evaluate('releaseMetadata()');
+  await browser.until('!document.querySelector("#drive-loading-dialog")&&document.querySelector("#drive-dialog").open&&document.querySelector("#drive-dialog [role=alert]")?.textContent==="Loading test failed"','failure removes loading and shows error');
+  await click('#drive-close');
+  await browser.evaluate('loadingPick=null');
+  await open();
+  await browser.until('!document.querySelector("#open").disabled','picker cancellation completes');
+  assert.equal(await browser.evaluate('!!document.querySelector("#drive-loading-dialog")'),false,'cancelled picker never starts file loading');
+  await checkRecentDrive(browser,origin);
+  assert.deepEqual(browser.errors,[]);
+  console.log('PASS Drive loading: flying folded paper, metadata/Slides/PPTX waits, success/error/cancel cleanup, reduced motion and mobile');
+}

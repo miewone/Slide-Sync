@@ -26,7 +26,7 @@ export default function App() {
       removeRecentFile:invoke('removeRecentFile'), clearRecentFiles:invoke('clearRecentFiles'),
       selectElementName:invoke('selectElementName'), setAppearanceCriterion:invoke('setAppearanceCriterion'),
       choosePreviewFont:invoke('choosePreviewFont'), uploadPreviewFont:invoke('uploadPreviewFont'), accessLocalFonts:invoke('accessLocalFonts'),
-      openDrivePptx:invoke('openDrivePptx'), saveDrivePptx:invoke('saveDrivePptx'), download:invoke('download'), setElementSearchQuery:invoke('setElementSearchQuery'), applyElementSearch:invoke('applyElementSearch'), setSlideSearchQuery:invoke('setSlideSearchQuery'), applySlideSearch:invoke('applySlideSearch'), setSlideChecked:invoke('setSlideChecked'), selectSlides:invoke('selectSlides'),
+      openDrivePptx:invoke('openDrivePptx'), rememberDriveFile:invoke('rememberDriveFile'), saveDrivePptx:invoke('saveDrivePptx'), download:invoke('download'), setElementSearchQuery:invoke('setElementSearchQuery'), applyElementSearch:invoke('applyElementSearch'), setSlideSearchQuery:invoke('setSlideSearchQuery'), applySlideSearch:invoke('applySlideSearch'), setSlideChecked:invoke('setSlideChecked'), selectSlides:invoke('selectSlides'),
       chooseFile:() => root.current?.querySelector('#file').click()}};
   }, []);
 

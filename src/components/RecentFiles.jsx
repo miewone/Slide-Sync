@@ -4,20 +4,20 @@ import {useRef} from 'react';
 import {Button} from './ui.jsx';
 import {useEditor,useEditorValue} from '../hooks/useEditor.js';
 
-/** Explicit recent-file chooser; opening the list never opens a presentation. */
-export function RecentFiles() {
+/** Explicit local/Drive recent-file chooser. @param {object} props onDriveOpen opens a remembered Drive reference; disabled blocks choices during Drive work. */
+export function RecentFiles({onDriveOpen,disabled=false}={}) {
   useLanguage();
   const dialog=useRef(null),trigger=useRef(null);
   const {commands}=useEditor();
   const recent=useEditorValue('recentFiles'),busy=useEditorValue('busy'),ready=useEditorValue('ready');
-  const blocked=busy||recent.busy||!ready;
+  const blocked=disabled||busy||recent.busy||!ready;
   const close=()=>dialog.current.close();
   return <>
-    <Button id="recent-files-open" ref={trigger} disabled={!ready||busy} onClick={()=>{
+    <Button id="recent-files-open" ref={trigger} disabled={disabled||!ready||busy} onClick={()=>{
       dialog.current.showModal();commands.refreshRecentFiles();
     }}>{t('RecentFiles.1')}{recent.files.length?` (${recent.files.length})`:''}</Button>
     <dialog ref={dialog} id="recent-files-dialog" className="recent-files-dialog" aria-labelledby="recent-files-title"
-      aria-describedby="recent-files-help" onClose={()=>trigger.current?.focus()} onKeyDown={event=>event.stopPropagation()}>
+      aria-describedby="recent-files-help" onClose={()=>{if(!document.querySelector('dialog[open]'))trigger.current?.focus();}} onKeyDown={event=>event.stopPropagation()}>
       <div className="recent-files-heading"><h2 id="recent-files-title">{t('RecentFiles.2')}</h2>
         <Button id="recent-files-close" onClick={close}>{t('RecentFiles.3')}</Button></div>
       <p id="recent-files-help" className="field-help">{t('RecentFiles.4')}<br/>{t('RecentFiles.5')}</p>
@@ -26,11 +26,14 @@ export function RecentFiles() {
       {!recent.files.length&&!recent.busy&&<p className="recent-files-empty">{t('RecentFiles.8')}</p>}
       <ul className="recent-files-list">{recent.files.map(file=><li key={file.id} data-recent-id={file.id}>
         <button type="button" className="recent-file-select" disabled={blocked} onClick={async()=>{
+          if(file.kind==='drive'){close();onDriveOpen(file);return;}
           if(await commands.openRecentFile(file.id))close();
         }}>
           <strong>{file.name}</strong>
-          <span>{(file.size/1024/1024).toLocaleString(locale(),{maximumFractionDigits:2})}{t('RecentFiles.9')}{new Date(file.lastOpened).toLocaleString(locale())}</span>
+          <span>{file.kind==='drive'?t('recent.driveSource')+' · ':''}{file.size>0?<>{(file.size/1024/1024).toLocaleString(locale(),{maximumFractionDigits:2})}{t('RecentFiles.9')}</>:null}{new Date(file.lastOpened).toLocaleString(locale())}</span>
+          {file.kind==='drive'&&<span>{t('recent.openDrive')}</span>}
         </button>
+        {file.kind==='drive'&&file.hasLocalCopy&&<Button className="recent-file-offline" disabled={blocked} onClick={async()=>{if(await commands.openRecentFile(file.id))close();}}>{t('recent.openCopy')}</Button>}
         <Button className="recent-file-delete" disabled={blocked} aria-label={t('RecentFiles.10', {p0: file.name})}
           onClick={()=>commands.removeRecentFile(file.id)}>{t('GuidePanel.11')}</Button>
       </li>)}</ul>

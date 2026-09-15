@@ -9,16 +9,18 @@ import {GoogleFiles} from '../services/google/GoogleFiles.js';
 import {NativeSlidesDocument} from '../editor/google/NativeSlidesDocument.js';
 import {NativeSlidesEditor} from './NativeSlidesEditor.jsx';
 import {DriveSaveDialog} from './DriveSaveDialog.jsx';
+import {DriveLoadingDialog} from './DriveLoadingDialog.jsx';
 import {Button} from './ui.jsx';
 
-/** Drive entry point, consent and presentation routing. Native Slides data stays in memory; PPTX retains the existing preview cache. @param {object} props Optional renderTrigger receives openDrive, openSettings and disabled to reuse this session from a custom entry point. openSettings accepts an optional callback for returning to the source chooser on close. */
+/** Drive entry point, consent and presentation routing. Native Slides data stays in memory; PPTX retains the existing preview cache. @param {object} props Optional renderTrigger receives openDrive, openRecentDrive, openSettings and disabled to reuse this session from a custom entry point. openSettings accepts an optional callback for returning to the source chooser on close. */
 export function GoogleDriveControls({renderTrigger}={}){
   useLanguage();
   const {commands}=useEditor(),busy=useEditorValue('busy'),ready=useEditorValue('ready'),hasDeck=useEditorValue('hasDeck'),source=useEditorValue('driveSource'),title=useEditorValue('name');
   const [session,setSession]=useState(()=>new GoogleSession());
   const repository=useMemo(()=>new GoogleSettingsRepository(),[]);
-  const pendingOpen=useRef(false),returnToChooser=useRef(null);
+  const pendingOpen=useRef(false),pendingFile=useRef(null),returnToChooser=useRef(null);
   const [notice,setNotice]=useState(false);
+  const [loadingFile,setLoadingFile]=useState(null);
   const [loaded,setLoaded]=useState(false),[editing,setEditing]=useState(false);
   const files=useMemo(()=>new GoogleFiles(session),[session]);
   const dialog=useRef(null),mounted=useRef(true),[prepared,setPrepared]=useState(false),[connected,setConnected]=useState(false),[working,setWorking]=useState(false),[error,setError]=useState(''),[save,setSave]=useState(false),[native,setNative]=useState(null),[result,setResult]=useState(null);
@@ -32,19 +34,22 @@ export function GoogleDriveControls({renderTrigger}={}){
     dialog.current.close();
     const currentFiles=current===session?files:new GoogleFiles(current);
     try{
-      const selected=await current.pick();if(!selected)return;
+      const selected=pendingFile.current||await current.pick();if(!selected)return;
+      setNotice(false);setLoadingFile({name:selected.name||''});
       const metadata=await currentFiles.metadata(selected.id);
-      if(metadata.mimeType===SLIDES_MIME){const model=new NativeSlidesDocument(await currentFiles.presentation(metadata.id));if(mounted.current)setNative({model,source:metadata});}
+      if(mounted.current)setLoadingFile({name:metadata.name});
+      if(metadata.mimeType===SLIDES_MIME){const model=new NativeSlidesDocument(await currentFiles.presentation(metadata.id));if(mounted.current){setNative({model,source:metadata});commands.rememberDriveFile(metadata);}}
       else if(metadata.mimeType===PPTX_MIME){if(!await commands.openDrivePptx(currentFiles,metadata.id))dialog.current.showModal();}
       else throw new Error(t('drive.typeError'));
     }catch(err){dialog.current?.showModal();throw err;}
-    finally{setNotice(false);pendingOpen.current=false;}
+    finally{if(mounted.current){setLoadingFile(null);setNotice(false);}pendingOpen.current=false;pendingFile.current=null;}
   };
   const close=()=>{
-    pendingOpen.current=false;setNotice(false);dialog.current.close();
+    pendingOpen.current=false;pendingFile.current=null;setNotice(false);dialog.current.close();
     const onReturn=returnToChooser.current;returnToChooser.current=null;onReturn?.();
   };
-  const show=(openFile=false,onReturn=null)=>{
+  const show=(openFile=false,onReturn=null,file=null)=>{
+    pendingFile.current=file;
     returnToChooser.current=onReturn;
     pendingOpen.current=openFile;setNotice(openFile);
     setError('');setEditing(false);dialog.current.showModal();
@@ -73,7 +78,7 @@ export function GoogleDriveControls({renderTrigger}={}){
     setConnected(false);setPrepared(false);setResult(null);setEditing(true);
   });
   return <>
-    {renderTrigger?renderTrigger({openDrive:()=>show(true),openSettings:onReturn=>show(false,onReturn),disabled:!ready||busy||working}):<Button id="drive-open" disabled={!ready||busy||working} onClick={()=>show(true)}>Google Drive</Button>}
+    {renderTrigger?renderTrigger({openDrive:()=>show(true),openRecentDrive:file=>show(true,null,{id:file.driveFileId,name:file.name}),openSettings:onReturn=>show(false,onReturn),disabled:!ready||busy||working}):<Button id="drive-open" disabled={!ready||busy||working} onClick={()=>show(true)}>Google Drive</Button>}
     {notice&&<div className="drive-open-notice" role="status">{t('drive.editingNotice')}</div>}
     <dialog ref={dialog} className="drive-dialog" id="drive-dialog" aria-labelledby="drive-title" onCancel={e=>{e.preventDefault();if(!working)close();}} onKeyDownCapture={e=>e.stopPropagation()}>
       <h2 id="drive-title">Google Drive</h2>{notice&&<p role="status">{t('drive.editingNotice')}</p>}<p>{t('drive.privacy')}</p>
@@ -94,6 +99,7 @@ export function GoogleDriveControls({renderTrigger}={}){
       onClose={()=>{setSave(false);dialog.current.showModal();}} onSave={options=>run(async()=>{
         const target=await commands.saveDrivePptx(files,options);if(target){setResult(target);setSave(false);dialog.current.showModal();}
       })}/>}
+    {loadingFile&&<DriveLoadingDialog fileName={loadingFile.name}/>}
     {native&&<NativeSlidesEditor document={native.model} source={native.source} files={files} session={session} onClose={()=>setNative(null)}/>}
   </>;
 }

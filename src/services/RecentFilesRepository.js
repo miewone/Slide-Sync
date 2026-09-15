@@ -1,5 +1,5 @@
 import {t,localizedError} from '../i18n/I18n.js';
-/** Browser-local original PPTX storage; metadata reads never load file contents. */
+/** Browser-local PPTX originals and Drive references; metadata reads never load file contents. */
 export class RecentFilesRepository {
   /** @param {object} options Optional database name and browser APIs for isolated tests. */
   constructor({name='slide-sync-recent-files',indexedDB=globalThis.indexedDB,crypto=globalThis.crypto}={}) {
@@ -69,11 +69,25 @@ export class RecentFilesRepository {
     return id;
   }
 
-  /** @param {string} id Content-and-name identifier chosen explicitly by the user. */
+  /** Remember a successfully opened Drive file, optionally retaining its original PPTX for offline use. @param {object} source Drive id, name and mimeType. @param {ArrayBuffer} buffer Optional original PPTX bytes. */
+  async saveDrive(source,buffer) {
+    const pptx='application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    if(!source?.id||!source.name||![pptx,'application/vnd.google-apps.presentation'].includes(source.mimeType))throw localizedError('RecentFilesRepository.5');
+    if(buffer!==undefined&&(source.mimeType!==pptx||!(buffer instanceof ArrayBuffer)||!buffer.byteLength||buffer.byteLength>50*1024*1024))throw localizedError('RecentFilesRepository.5');
+    const id=JSON.stringify(['google-drive',source.id]);
+    const metadata={id,name:source.name,kind:'drive',driveFileId:source.id,mimeType:source.mimeType,size:buffer?.byteLength||0,hasLocalCopy:!!buffer,lastOpened:Date.now()};
+    await this.transaction(['metadata','contents'],'readwrite',tx=>{
+      tx.objectStore('metadata').put(metadata);
+      if(buffer)tx.objectStore('contents').put(buffer,id);else tx.objectStore('contents').delete(id);
+    });
+    return id;
+  }
+
+  /** @param {string} id Local content identifier or Drive reference chosen explicitly by the user. Returns metadata with optional stored bytes. */
   get(id) {
     return this.transaction(['metadata','contents'],'readonly',tx=>{
       const metadata=tx.objectStore('metadata').get(id),contents=tx.objectStore('contents').get(id);
-      return ()=>metadata.result&&contents.result?{...metadata.result,buffer:contents.result}:null;
+      return ()=>metadata.result&&(contents.result||metadata.result.kind==='drive')?{...metadata.result,buffer:contents.result}:null;
     });
   }
 

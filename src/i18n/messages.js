@@ -36,6 +36,10 @@ export const messages = {
   'fileOpen.local': {ko:'내 컴퓨터',en:'My computer'},
   'fileOpen.localHelp': {ko:'폴더에서 PPTX 파일 선택',en:'Choose a PPTX from a folder'},
   'fileOpen.driveHelp': {ko:'PPTX · Google Slides 선택',en:'Choose PPTX or Google Slides'},
+  'recent.driveSource': {ko:'Google Drive',en:'Google Drive'},
+  'recent.openDrive': {ko:'Drive 최신 파일 열기',en:'Open latest from Drive'},
+  'recent.openCopy': {ko:'보관한 사본 열기',en:'Open saved copy'},
+  'drive.loadingFile': {ko:'Google Drive 파일을 불러오는 중…',en:'Opening your Google Drive file…'},
   'drive.editingNotice': {ko:'현재는 Google Slides 선택 시 편집이 어렵습니다.',en:'Editing is currently difficult when selecting Google Slides.'},
   'drive.typeError': {ko:'PPTX 또는 Google Slides 파일을 선택해 주세요.',en:'Choose a PPTX or Google Slides file.'},
   "drive.configMissing": {"ko": "내 Google API 설정에서 클라이언트 ID, API 키, 프로젝트 번호를 입력해 주세요.", "en": "Enter your client ID, API key and project number in My Google API settings."},
@@ -517,24 +521,24 @@ export const messages = {
     "en": "Click a preview before using arrow keys or Select all. On Mac, you can use ⌘ instead of Ctrl."
   },
   "RecentFiles.1": {
-    "ko": "최근 PPTX",
-    "en": "Recent PPTX"
+    "ko": "최근 파일",
+    "en": "Recent files"
   },
   "RecentFiles.2": {
-    "ko": "최근 사용한 PPTX",
-    "en": "Recently used PPTX files"
+    "ko": "최근 사용한 파일",
+    "en": "Recently used files"
   },
   "RecentFiles.3": {
     "ko": "닫기",
     "en": "Close"
   },
   "RecentFiles.4": {
-    "ko": "이 브라우저에 보관한 원본 파일입니다. 사용할 파일을 선택하세요.",
-    "en": "Original files stored in this browser. Choose the file to use."
+    "ko": "로컬 PPTX는 보관한 원본을, Google Drive 파일은 최신 파일을 엽니다. Drive PPTX는 보관한 사본도 열 수 있습니다.",
+    "en": "Local PPTX opens the stored original. Drive opens the latest file; a saved PPTX copy is also available."
   },
   "RecentFiles.5": {
-    "ko": "편집 내용은 자동 저장되지 않습니다. 수정본은 다운로드해 보관하세요.",
-    "en": "Edits are not saved automatically. Download the edited file to keep your changes."
+    "ko": "편집 내용은 자동 저장되지 않습니다. 수정본을 다운로드하거나 Drive에 저장하세요.",
+    "en": "Edits are not saved automatically. Download your changes or save them to Drive."
   },
   "RecentFiles.6": {
     "ko": "최근 파일을 처리하고 있습니다…",
@@ -545,8 +549,8 @@ export const messages = {
     "en": "{p0} files stored"
   },
   "RecentFiles.8": {
-    "ko": "아직 보관한 파일이 없습니다. PPTX를 열면 이 목록에 추가됩니다.",
-    "en": "No files stored yet. Opening a PPTX adds it to this list."
+    "ko": "아직 최근 파일이 없습니다. 로컬 PPTX 또는 Google Drive 파일을 열면 추가됩니다.",
+    "en": "No recent files yet. Open a local PPTX or a Google Drive file to add it."
   },
   "RecentFiles.9": {
     "ko": " MB · ",
@@ -557,8 +561,8 @@ export const messages = {
     "en": "Remove stored file: {p0}"
   },
   "RecentFiles.11": {
-    "ko": "브라우저를 닫아도 유지됩니다. 사이트 데이터를 지우거나 브라우저가 저장 공간을 정리하면 삭제될 수 있습니다.",
-    "en": "Files remain after you close the browser. Clearing site data or browser storage cleanup can remove them."
+    "ko": "목록에서 삭제해도 Drive 원본은 유지됩니다. 브라우저 데이터를 지우면 최근 목록과 보관한 PPTX 사본이 삭제될 수 있습니다.",
+    "en": "Removing an entry keeps the Drive original. Clearing browser data can remove this list and saved PPTX copies."
   },
   "RecentFiles.12": {
     "ko": "전체 삭제",
