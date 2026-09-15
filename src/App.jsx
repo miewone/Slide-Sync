@@ -15,6 +15,8 @@ export default function App() {
     const store = new EditorStore();
     const invoke = name => (...args) => runtime.current?.[name](...args);
     return {store, commands:{openFile:invoke('openFile'), openDemo:invoke('openDemo'),
+      refreshRecentFiles:invoke('refreshRecentFiles'), openRecentFile:invoke('openRecentFile'),
+      removeRecentFile:invoke('removeRecentFile'), clearRecentFiles:invoke('clearRecentFiles'),
       download:invoke('download'), setElementSearchQuery:invoke('setElementSearchQuery'), applyElementSearch:invoke('applyElementSearch'), setSlideSearchQuery:invoke('setSlideSearchQuery'), applySlideSearch:invoke('applySlideSearch'), setSlideChecked:invoke('setSlideChecked'), selectSlides:invoke('selectSlides'),
       chooseFile:() => root.current?.querySelector('#file').click()}};
   }, []);

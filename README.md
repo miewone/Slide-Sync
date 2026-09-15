@@ -79,3 +79,12 @@ Open the URL shown in the terminal. See [development](docs/development.md) for b
 Slide Sync’s original code is licensed under the [MIT License](LICENSE). Copyright (c) 2026 wongyun.park.
 
 Third-party libraries retain their respective licenses. See the [third-party notices](public/vendor/NOTICE.txt) and accompanying license files.
+
+## Reopen recent presentations
+
+Choose **최근 PPTX** in the header to view locally stored originals, then explicitly select a file. Successfully opened PPTX originals remain available after restarting the browser; the app never opens one automatically. Identical filenames and contents share one entry; changed contents are stored separately.
+
+- Delete one entry or clear all stored originals without changing the current editor document.
+- **Edits are not autosaved.** Download edited presentations to keep them. The built-in demo is not remembered.
+- Files stay in this browser’s IndexedDB without server uploads, scoped to the same origin and browser profile.
+- Clearing site data, ending a private browsing session, or browser storage eviction can remove files. Storage failures are reported without deleting older entries or preventing editing.

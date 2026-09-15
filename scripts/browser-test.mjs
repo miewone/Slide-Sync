@@ -1,3 +1,4 @@
+import {checkRecentFiles} from './recent-files-checks.mjs';
 import {checkPreviewHover} from './preview-hover-checks.mjs';
 import {checkPreviewActivation} from './activation-checks.mjs';
 import {checkInspector} from './inspector-checks.mjs';
@@ -173,6 +174,9 @@ try {
   await checkPreviewActivation(browser,'http://127.0.0.1:5179');
   await checkPreviewActivation(browser,'http://127.0.0.1:4179');
   await checkPreviewActivation(browser,'http://127.0.0.1:4189/slides/');
+  await checkRecentFiles(browser,'http://127.0.0.1:5179');
+  await checkRecentFiles(browser,'http://127.0.0.1:4179');
+  await checkRecentFiles(browser,'http://127.0.0.1:4189/slides/');
   await checkRangeSelection(browser,'http://127.0.0.1:5179',3);
   await checkRangeSelection(browser,'http://127.0.0.1:4179',12);
   await checkRangeSelection(browser,'http://127.0.0.1:4189/slides/',3);

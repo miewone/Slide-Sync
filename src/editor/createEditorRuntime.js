@@ -1,3 +1,4 @@
+import {RecentFilesRepository} from '../services/RecentFilesRepository.js';
 import {AppearanceMatcher} from './AppearanceMatcher.js';
 import {ElementSearchIndex} from './ElementSearchIndex.js';
 import {SlideSearchIndex} from './SlideSearchIndex.js';
@@ -29,6 +30,25 @@ const toolLifecycle = new AbortController();
 let disposed = false;
 const ensureActive = () => { if (disposed) throw new DOMException('Editor disposed', 'AbortError'); };
 const $=id=>root.querySelector(`#${CSS.escape(id)}`),state={deck:null,name:'',checked:new Set(),selected:new Map(),allSelected:new Map(),reference:null,point:null,undo:[],busy:false,previews:new Map(),failed:new Set(),drag:null,boxSelection:null};
+const recentFiles=new RecentFilesRepository();
+let recentQueue=Promise.resolve(),recentPending=0;
+function updateRecent(patch){if(!disposed)store.update({recentFiles:{...store.getSnapshot().recentFiles,...patch}});}
+function recentError(error){return error?.name==='QuotaExceededError'
+  ?'브라우저 저장 공간이 부족합니다. 최근 파일을 삭제한 뒤 다시 시도하세요.'
+  :'최근 파일 보관을 사용할 수 없습니다. 브라우저 저장소 설정을 확인하거나 다시 시도하세요.';}
+function recentAction(action=()=>{}) {
+  if(disposed)return Promise.resolve(false);
+  recentPending++;updateRecent({busy:true,error:''});
+  const task=recentQueue.then(async()=>{
+    ensureActive();await action();ensureActive();
+    const files=await recentFiles.list();ensureActive();updateRecent({files,error:''});return true;
+  }).catch(error=>{updateRecent({error:recentError(error)});return false;})
+    .finally(()=>{recentPending--;updateRecent({busy:recentPending>0});});
+  recentQueue=task;return task;
+}
+function refreshRecentFiles(){return recentAction();}
+function removeRecentFile(id){if(state.busy||store.getSnapshot().recentFiles.busy)return;return recentAction(()=>recentFiles.remove(id));}
+function clearRecentFiles(){if(state.busy||store.getSnapshot().recentFiles.busy)return;return recentAction(()=>recentFiles.clear());}
 let guideUI=null;
 let searchIndex=new SlideSearchIndex();
 let elementSearchIndex=new ElementSearchIndex(),elementSearchCache=null;
@@ -486,8 +506,8 @@ async function renderDeck() {
   if(state.failed.size)notice(`${state.failed.size}개 슬라이드는 간이 미리보기로 표시합니다. PowerPoint의 일부 도형·효과는 브라우저에서 재현되지 않을 수 있습니다.`);
   else {const unresolved=d.slides.reduce((n,s)=>n+s.elements.filter(e=>!e.g).length,0);notice(unresolved?`위치를 읽을 수 없는 요소 ${unresolved}개는 선택 대상에서 제외했습니다.`:'');}
 }
-async function openBuffer(buffer, name) {
-  if(state.busy || disposed)return;
+async function openBuffer(buffer, name, {keepBusy=false}={}) {
+  if((state.busy&&!keepBusy) || disposed)return false;
   cancelActiveDrag?.();busy(true);notice('');
   const previousSearchIndex=searchIndex,previousSearch=store.getSnapshot().slideSearch;
   const previousElementIndex=elementSearchIndex,previousElementSearch=store.getSnapshot().elementSearch;
@@ -505,20 +525,45 @@ async function openBuffer(buffer, name) {
     $('stage').replaceChildren(make('div','loading','슬라이드 미리보기를 만드는 중입니다…'));
     await renderDeck();
     status(`${deck.slides.length}개 슬라이드를 열었습니다. 요소를 클릭해 선택하세요.`);
+    return true;
   } catch(err) {
     if(!disposed){Object.assign(state,previous);searchIndex=previousSearchIndex;elementSearchIndex=previousElementIndex;store.update({slideSearch:previousSearch,elementSearch:previousElementSearch});updateSummary();error(err);}
   } finally {
-    if(!disposed){busy(false);renderList();}
+    if(!disposed){if(!keepBusy)busy(false);renderList();}
   }
 }
 
 async function openFile(file) {
   if(!file || state.busy || disposed)return;
+  cancelActiveDrag?.();busy(true);
   try {
     if(!/\.pptx$/i.test(file.name))throw Error('.pptx 파일을 선택하세요.');
     if(file.size>50*1024*1024)throw Error('50MB 이하의 PPTX 파일을 선택하세요.');
-    await openBuffer(await file.arrayBuffer(),file.name);
-  } catch(err) {error(err);}
+    const buffer=await file.arrayBuffer();ensureActive();
+    if(await openBuffer(buffer,file.name,{keepBusy:true})) {
+      const saved=await recentAction(()=>recentFiles.save(file.name,buffer));
+      if(!saved&&!disposed)notice('파일은 열었지만 최근 파일로 보관하지 못했습니다. '+store.getSnapshot().recentFiles.error);
+    }
+  } catch(err) {if(!disposed)error(err);}
+  finally {if(!disposed)busy(false);}
+}
+
+async function openRecentFile(id) {
+  if(state.busy||disposed||store.getSnapshot().recentFiles.busy)return false;
+  cancelActiveDrag?.();busy(true);updateRecent({error:''});
+  try {
+    const file=await recentFiles.get(id);ensureActive();
+    if(!file) {
+      updateRecent({files:store.getSnapshot().recentFiles.files.filter(row=>row.id!==id),error:'보관된 파일이 없습니다. 다른 탭이나 브라우저에서 삭제되었을 수 있습니다.'});
+      return false;
+    }
+    if(!await openBuffer(file.buffer,file.name,{keepBusy:true})) {
+      updateRecent({error:'보관된 PPTX를 열지 못했습니다. 원본 파일을 다시 선택하세요.'});return false;
+    }
+    await recentAction(()=>recentFiles.touch(id));
+    return true;
+  } catch(err) {updateRecent({error:recentError(err)});return false;}
+  finally {if(!disposed)busy(false);}
 }
 
 async function applyMove(x,y,mode,axis=null,nudge=false){
@@ -558,9 +603,11 @@ $('layout-target').onchange=updateLayoutControls;for(const button of root.queryS
 
 guideUI=createGuideUI({root,getSurfaces:indices=>viewport.surfaces(indices),state,$,make,status,error,cancelDrag:()=>{cancelActiveDrag?.();nudgeHistory=null;},setDragHandlers:(cancel,refresh)=>{cancelActiveDrag=cancel;refreshActiveDrag=refresh;},recordEdit});
 busy(false);
+refreshRecentFiles();
 
 return {
   openFile, openDemo, download, applySlideSearch, applyElementSearch,
+  refreshRecentFiles, openRecentFile, removeRecentFile, clearRecentFiles,
   setElementSearchQuery(query){if(!state.busy && state.deck && !disposed)updateElementSearch(String(query));},
   setSlideSearchQuery(query){if(!state.busy && state.deck && !disposed)updateSlideSearch(String(query));},
   setSlideChecked(index, checked) {
