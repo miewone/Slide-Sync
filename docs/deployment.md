@@ -1,5 +1,15 @@
 # Cloudflare 배포
 
+## 방문 통계 (GA4)
+
+Cloudflare의 빌드 환경 변수에 `VITE_GA4_MEASUREMENT_ID`를 추가하고, 값으로 GA4 웹 데이터 스트림의 측정 ID(`G-XXXXXXXXXX`)를 입력한 뒤 다시 빌드·배포합니다. Worker 런타임 변수만 설정하면 정적 파일 빌드에 반영되지 않습니다. 개인 측정 ID는 저장소에 넣지 않습니다.
+
+`npm run build`의 운영 빌드에서 ID가 설정된 경우에만 Google 태그가 HTML에 삽입됩니다. ID가 없거나 `npm run dev`로 실행하면 태그를 로드하지 않습니다. ID를 넣어 만든 운영 빌드는 로컬 `npm run preview`에서도 추적하므로, 일반적인 로컬 검증에서는 변수를 설정하지 마세요. 설정 변경은 다시 빌드해야 반영되며, 측정 ID는 브라우저에서 확인 가능한 공개 식별자입니다.
+
+`vite.config.js`는 GA4가 활성화된 빌드에만 Google 태그 및 Analytics 수집 출처를 CSP에 허용하고, 인라인 초기화 코드는 빌드 시 SHA-256 해시로 허용합니다. 광고 기능용 출처는 추가하지 않았습니다. 허용 출처는 [Google의 CSP 안내](https://developers.google.com/tag-platform/security/guides/csp)를 기준으로 합니다.
+
+배포 후 사이트를 열고 GA4 실시간 보고서에서 방문을 확인하세요. 개발자 도구에서 Google 태그와 수집 요청의 CSP 차단 여부도 확인합니다. 편집·다운로드용 사용자 정의 이벤트는 추가하지 않았으며, 자동 이벤트는 GA4 향상된 측정 설정에 따릅니다.
+
 ## Workers Git 연동 (현재 배포 설정)
 
 저장소 루트의 `wrangler.jsonc`에서 Worker 이름 `slide-sync`, 호환성 날짜 `2026-09-11`, 정적 파일 디렉터리 `./dist`를 지정합니다. 날짜는 배포 오류 로그에서 안내한 값을 사용합니다. Worker 이름을 바꾸면 설정 파일의 `name`도 대시보드 이름과 일치시켜야 합니다.
