@@ -1,3 +1,4 @@
+import {measureWorkflows,workflowMarkdown} from './workflow-performance.mjs';
 import {checkDeletion} from './deletion-checks.mjs';
 import {checkCorePerformance} from './core-performance-checks.mjs';
 import {checkPreviewFit} from './preview-fit-checks.mjs';
@@ -100,6 +101,12 @@ try {
   await browser.send('Page.enable');await browser.send('Page.setLifecycleEventsEnabled',{enabled:true});await browser.send('Runtime.enable');await browser.send('Log.enable');
   await browser.send('Emulation.setDeviceMetricsOverride', {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
 
+  if(process.argv.includes('--benchmark-workflows')) {
+    const report=await measureWorkflows(browser,'http://127.0.0.1:4179');
+    await writeFile(join(artifacts,'workflow-performance.json'),JSON.stringify(report,null,2)+'\n');
+    await writeFile(join(artifacts,'workflow-performance.md'),workflowMarkdown(report));
+    console.log('PASS workflow benchmark: 10/100 slides, three repeats, edited PPTX validation');
+  } else {
   for (const [mode, origin] of [['development','http://127.0.0.1:5179'], ['production','http://127.0.0.1:4179'], ['subpath','http://127.0.0.1:4189/slides/']]) {
     browser.errors = [];
     await browser.navigate(origin);
@@ -207,6 +214,7 @@ try {
   measurements.push(...await checkLargeDecks(browser,'http://127.0.0.1:4179'));
   await writeFile(join(artifacts,'optimization-metrics.json'),JSON.stringify(measurements,null,2));
   console.log('PASS large decks: 30/60/120 slides, progressive display, limited initial frames, offscreen move/fit/undo');
+  }
 } finally {
   clearTimeout(timeout);
   browser?.socket.close();
