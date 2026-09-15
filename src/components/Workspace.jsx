@@ -45,9 +45,10 @@ export function Workspace() {
   return <section className="workspace">
     <div className="workspace-bar"><div><h1 id="filename">{name}</h1><p id="workspace-summary">{summary}</p></div>
       <div className="view-option workspace-options">
-        <Checkbox id="match-appearance" label={t('Help.5')} helpKey="match-appearance"/>
-        <Checkbox id="box-select-mode" label={t('Help.3')} helpKey="box-select-mode"/>
-        <Checkbox id="only-checked" label={t('Help.7')} helpKey="only-checked"/>
+        <Checkbox variant="chip" id="match-appearance" label={t('Help.5')} helpKey="match-appearance"/>
+        <Checkbox variant="chip" id="box-select-mode" label={t('Help.3')} helpKey="box-select-mode"/>
+        <Checkbox variant="chip" id="only-checked" label={t('Help.7')} helpKey="only-checked"/>
+        <Checkbox variant="chip" id="only-with-selection" label={t('view.selectedElementsOnly')} helpKey="only-with-selection"/>
       </div>
     </div>
     <div id="notice" className="notice" role="alert" hidden={!notice}>{notice}</div>

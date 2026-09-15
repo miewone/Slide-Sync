@@ -13,13 +13,15 @@ export function SelectField({id, label, options, ...props}) {
   </select></>;
 }
 
-/** Uncontrolled checkbox for native editor preferences. @param {object} props Label, optional helpKey from the shared help catalog, and input attributes. */
-export function Checkbox({label, helpKey, ...props}) {
+/** Uncontrolled checkbox for native editor preferences. @param {object} props Label, optional helpKey, optional chip variant, and native input attributes. */
+export function Checkbox({label, helpKey, variant, ...props}) {
   const generatedId=useId(),id=props.id??generatedId;
-  if(!helpKey)return <label><input type="checkbox" {...props}/> {label}</label>;
-  return <span className="option-with-help">
+  if(!helpKey&&!variant)return <label><input type="checkbox" {...props}/> {label}</label>;
+  return <span className={`option-with-help${variant==='chip'?' option-chip':''}`} onClick={event=>{
+    if(variant==='chip'&&event.target===event.currentTarget)event.currentTarget.querySelector('input')?.click();
+  }}>
     <input type="checkbox" {...props} id={id}/>
-    <Help helpKey={helpKey}/>
+    {helpKey&&<Help helpKey={helpKey}/>}
     <label htmlFor={id}>{label}</label>
   </span>;
 }

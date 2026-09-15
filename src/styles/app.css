@@ -113,3 +113,18 @@
 .language-control button[aria-pressed=true]{background:#eaf0ff;color:#3259c9;font-weight:700}
 .language-control button:hover:not(:disabled){color:#3259c9;background:#f0f3f8}
 @media(max-width:850px){.topbar{height:auto;min-height:68px;flex-wrap:wrap;padding-top:12px;padding-bottom:12px}.language-control{flex-shrink:0}}
+
+.workspace-options{gap:8px}
+.option-chip{max-width:100%;gap:7px;padding:9px 11px;border:1px solid #d6deeb;border-radius:9px;background:#fff;color:#5b6980;box-shadow:0 1px 2px #26334606;cursor:pointer;transition:background .15s,border-color .15s,box-shadow .15s}
+.option-chip:hover{background:#f5f8ff;border-color:#9ab1e9}
+.option-chip:has(input:checked){background:#eaf0ff;border-color:#7193ea;color:#254ead;box-shadow:0 1px 3px #466ce018}
+.option-chip:has(input:focus-visible){outline:3px solid #789df7;outline-offset:2px}
+.option-chip:has(input:disabled){opacity:.5;cursor:default}
+.option-chip label{white-space:normal;line-height:1.4;font-size:12px;font-weight:500;cursor:inherit}
+.option-chip input[type=checkbox]{appearance:none;-webkit-appearance:none;display:grid;place-content:center;flex-shrink:0;width:17px;height:17px;min-height:17px;margin:0;padding:0;border:1.5px solid #a8b6cc;border-radius:5px;background:#fff;cursor:inherit}
+.option-chip input[type=checkbox]:checked{background:#466ce0;border-color:#466ce0}
+.option-chip input[type=checkbox]::before{content:"";width:7px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-1px) rotate(-45deg) scale(0)}
+.option-chip input[type=checkbox]:checked::before{transform:translateY(-1px) rotate(-45deg) scale(1)}
+.option-chip input[type=checkbox]:focus-visible{outline:none}
+.option-chip .option-help{background:transparent}
+@media(prefers-reduced-motion:reduce){.option-chip{transition:none}}

@@ -5,6 +5,7 @@ import {createPortal} from 'react-dom';
 
 /** Central catalog for option help. Consumers reference a key instead of duplicating copy. */
 const helpEntries = ()=>({
+  'only-with-selection': {label:t('view.selectedElementsOnly'),text:t('view.selectedElementsHelp')},
   'delete-selection': {
     label:t('Help.1'),
     text:t('Help.2'),

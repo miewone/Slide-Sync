@@ -1,3 +1,4 @@
+import {checkSelectionVisibility} from './selection-visibility-checks.mjs';
 import {checkLocalization} from './localization-checks.mjs';
 import {measureWorkflows,workflowMarkdown} from './workflow-performance.mjs';
 import {checkDeletion} from './deletion-checks.mjs';
@@ -194,6 +195,9 @@ try {
   await checkLocalization(browser,'http://127.0.0.1:5179');
   await checkLocalization(browser,'http://127.0.0.1:4179');
   await checkLocalization(browser,'http://127.0.0.1:4189/slides/');
+  await checkSelectionVisibility(browser,'http://127.0.0.1:5179');
+  await checkSelectionVisibility(browser,'http://127.0.0.1:4179');
+  await checkSelectionVisibility(browser,'http://127.0.0.1:4189/slides/');
   await checkRecentFiles(browser,'http://127.0.0.1:5179');
   await checkRecentFiles(browser,'http://127.0.0.1:4179');
   await checkRecentFiles(browser,'http://127.0.0.1:4189/slides/');
