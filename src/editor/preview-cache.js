@@ -66,6 +66,7 @@ export function cachePreview(root, slide, unitsPerPixel = 12700) {
       mover.dataset.originalFontScale=String(info.fontScale);
       mover.dataset.originalLineScale=String(info.lineScale);
       mover.dataset.originalTextTop=text.style.top;
+      mover.dataset.originalTextWidth=text.style.width;
       mover.dataset.originalTextPadding=text.style.padding;
       mover.dataset.originalTextWhiteSpace=text.style.whiteSpace;
       mover.dataset.originalBodyPr=info.props?serialize(info.props):'';
@@ -105,17 +106,19 @@ export function syncPreviewPositions(root, slide, options={}) {
     if(options.positionOnly)continue;
     const info=textBoxInfo(element),shape=mover.firstElementChild;
     if(info&&shape){
+      shape.style.width=`${g.w/units}px`;
       shape.style.height=`${g.h/units}px`;
       const text=shape.querySelector('.text-wrapper');
       if(text){
+        text.style.width=g.w===Number(mover.dataset.originW)?mover.dataset.originalTextWidth||'':`${g.w/units}px`;
         TextFormat.sync(mover,info.body,text);
         scaleTextPreview(text,info.fontScale/Number(mover.dataset.originalFontScale||1),info.lineScale/Number(mover.dataset.originalLineScale||1));
         if(text.style.transform.includes('translateY(-50%)'))text.style.top=g.h===Number(mover.dataset.originH)?mover.dataset.originalTextTop:`${parseFloat(mover.dataset.originalTextTop||'0')+(g.h-Number(mover.dataset.originH))/(2*units)}px`;
-        const fitted=g.h!==Number(mover.dataset.originH)||(info.props?serialize(info.props):'')!==mover.dataset.originalBodyPr;
-        if(fitted&&info.props?.getAttribute('wrap')==='square'){
+        const fitted=g.w!==Number(mover.dataset.originW)||g.h!==Number(mover.dataset.originH)||(info.props?serialize(info.props):'')!==mover.dataset.originalBodyPr;
+        if(fitted&&['square','none'].includes(info.props?.getAttribute('wrap'))){
           const inset=(key,def)=>Number(info.props?.getAttribute(key)||def)/units;
           text.style.padding=`${inset('tIns',45720)}px ${inset('rIns',91440)}px ${inset('bIns',45720)}px ${inset('lIns',91440)}px`;
-          text.style.whiteSpace='normal';
+          text.style.whiteSpace=info.props?.getAttribute('wrap')==='none'?'pre':'normal';
         }else{text.style.padding=mover.dataset.originalTextPadding||'';text.style.whiteSpace=mover.dataset.originalTextWhiteSpace||'';}
       }
     }

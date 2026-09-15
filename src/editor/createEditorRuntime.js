@@ -1,3 +1,4 @@
+import {TextBoxBackground} from './TextBoxBackground.js';
 import {t,localizedError,i18n} from '../i18n/I18n.js';
 import {EditHistorySnapshot} from './EditHistorySnapshot.js';
 import {ElementDeletion} from './ElementDeletion.js';
@@ -94,7 +95,7 @@ let statusMessage=null,noticeMessage=null;
 function log(key,params={},level='info',fileName=state.name){if(!disposed)activityLog.record(key,params,{level,fileName});}
 function status(text){statusMessage=typeof text==='function'?text:()=>text;if(!disposed)store.update({status:statusMessage()});}
 function notice(text){noticeMessage=typeof text==='function'?text:()=>text;if(!disposed)store.update({notice:noticeMessage()||''});}
-function busy(value){if(disposed)return;state.busy=value;store.update({busy:value});for(const id of ['only-with-selection','delete-selection','match-appearance','box-select-mode','move','undo','redo','apply-range','clear-selection','text-format-size','text-format-decrease','text-format-increase','text-format-bold','fit-text','fit-scope','layout-target','guide-horizontal','guide-vertical','guide-select','guide-position','guide-apply','guide-delete','guides-visible','guides-edit','guides-snap']){const el=$(id);if(el)el.disabled=value;}for(const el of root.querySelectorAll('.card-head input,[data-layout]'))el.disabled=value;$('only-checked').disabled=value;if(!value)updateInspector();}
+function busy(value){if(disposed)return;state.busy=value;store.update({busy:value});for(const id of ['only-with-selection','delete-selection','match-appearance','box-select-mode','move','undo','redo','apply-range','clear-selection','text-format-size','text-format-decrease','text-format-increase','text-format-bold','fit-text','fit-text-width','fit-width-unwrap','fit-width-scope','fit-width-background','fit-scope','layout-target','guide-horizontal','guide-vertical','guide-select','guide-position','guide-apply','guide-delete','guides-visible','guides-edit','guides-snap']){const el=$(id);if(el)el.disabled=value;}for(const el of root.querySelectorAll('.card-head input,[data-layout]'))el.disabled=value;$('only-checked').disabled=value;if(!value)updateInspector();}
 function error(err,fileName=state.name){notice(()=>(err?.message||String(err)));status(()=>(t('createEditorRuntime.8')));log('activity.error',{message:err?.message||String(err)},'error',fileName);}
 function syncSelection(){state.selected=new Map([...state.allSelected].filter(([i,ids])=>state.checked.has(i)&&ids.size));}
 function selectedElements(){if(!state.deck)return [];return [...state.selected].flatMap(([i,ids])=>selectedInSlide(state.deck.slides[i],ids).map(element=>({slide:state.deck.slides[i],element})));}
@@ -546,25 +547,33 @@ function applyTextFormat(patch) {
   catch(err){error(err);}finally{busy(false);}
 }
 
+function widthFitCandidates() {
+  return fitCandidates(state.deck,state.checked,state.selected,$('fit-width-scope').value).filter(({element})=>!element.hidden);
+}
+
 function updateFitControls() {
   const button=$('fit-text');if(!button)return;
   const candidates=fitCandidates(state.deck,state.checked,state.selected,$('fit-scope').value);
   button.disabled=state.busy||!candidates.length;
+  $('fit-text-width').disabled=state.busy||!widthFitCandidates().length;
   $('fit-count').textContent=candidates.length?t('createEditorRuntime.41', {p0: candidates.length}):t('TextFitPanel.6');
 }
 
-async function fitText() {
+async function fitText(axis='height') {
+  const unwrap=axis==='width'&&$('fit-width-unwrap').checked;
+  const filterBackground=axis==='width'&&$('fit-width-background').checked;
   if(!state.deck||state.busy)return;
   cancelActiveDrag?.();nudgeHistory=null;
-  const candidates=fitCandidates(state.deck,state.checked,state.selected,$('fit-scope').value);
+  let candidates=axis==='width'?widthFitCandidates():fitCandidates(state.deck,state.checked,state.selected,$('fit-scope').value);
   if(!candidates.length)return;
   busy(true);notice(()=>(''));status(()=>(t('createEditorRuntime.42')));
   try {
     await state.fontRefresh;ensureActive();
-    const result=await measureTextBoxes(candidates,state.previews,document);ensureActive();
-    const snapshots=fitTextBoxes(state.deck,result.changes);
+    if(filterBackground){candidates=await new TextBoxBackground(state.deck).filter(candidates);ensureActive();}
+    const result=await measureTextBoxes(candidates,state.previews,document,axis,unwrap);ensureActive();
+    const snapshots=fitTextBoxes(state.deck,result.changes,axis,unwrap);
     recordEdit(snapshots,false,{operation:'activity.fitted'});updatePositionFields();
-    status(()=>(t('createEditorRuntime.43', {p0: result.changes.length, p1: result.skipped?t('createEditorRuntime.44', {p0: result.skipped}):''})));
+    status(()=>(t(axis==='width'?'textFit.widthDone':'createEditorRuntime.43', {p0: result.changes.length, p1: result.skipped?t('createEditorRuntime.44', {p0: result.skipped}):''})));
     if(result.skipped)notice(()=>(t('createEditorRuntime.45')));
   } catch(err){error(err);} finally {busy(false);}
 }
@@ -871,7 +880,7 @@ $('text-format-size').onkeydown=event=>{if(event.key==='Enter'){event.preventDef
 $('text-format-decrease').onclick=()=>applyTextFormat({size:Math.max(1,Number($('text-format-size').value)-1)});
 $('text-format-increase').onclick=()=>applyTextFormat({size:Math.min(400,Number($('text-format-size').value)+1)});
 $('text-format-bold').onclick=()=>applyTextFormat({bold:$('text-format-bold').getAttribute('aria-pressed')!=='true'});
-$('fit-text').onclick=fitText;$('fit-scope').onchange=updateFitControls;events.on(window,'blur',()=>{cancelActiveDrag?.();nudgeHistory=null;});
+$('fit-text').onclick=()=>fitText();$('fit-text-width').onclick=()=>fitText('width');$('fit-scope').onchange=updateFitControls;$('fit-width-scope').onchange=updateFitControls;events.on(window,'blur',()=>{cancelActiveDrag?.();nudgeHistory=null;});
 $('layout-target').onchange=updateLayoutControls;for(const button of root.querySelectorAll('[data-layout]'))button.onclick=()=>applyLayout(button.dataset.layout);
 
 guideUI=createGuideUI({root,getSurfaces:indices=>viewport.surfaces(indices),state,$,make,status,error,cancelDrag:()=>{cancelActiveDrag?.();nudgeHistory=null;},setDragHandlers:(cancel,refresh)=>{cancelActiveDrag=cancel;refreshActiveDrag=refresh;},recordEdit});

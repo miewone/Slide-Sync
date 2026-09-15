@@ -1,3 +1,4 @@
+import {TextWidthMeasurement} from './TextWidthMeasurement.js';
 import {t,localizedError} from '../i18n/I18n.js';
 import {NS, child, children, descendants, serialize, setPosition,selectedIds} from './core.js';
 const candidateCache=new WeakMap();
@@ -54,7 +55,8 @@ export function scaleTextPreview(text,fontRatio=1,lineRatio=1) {
   }
 }
 
-export async function measureTextBoxes(candidates,previews,document) {
+/** Measure eligible boxes using cached previews. @param {object[]} candidates Targets. @param {Map} previews Cached DOM. @param {Document} document Measurement document. @param {string} axis height or width. @param {boolean} unwrap Remove automatic wrapping for width fitting. */
+export async function measureTextBoxes(candidates,previews,document,axis='height',unwrap=false) {
   if(document.fonts?.ready)await document.fonts.ready;
   const host=document.createElement('div');
   host.style.cssText='position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none;contain:layout style;';
@@ -75,10 +77,10 @@ export async function measureTextBoxes(candidates,previews,document) {
       if(info.unsupported||!text){skipped.push(candidate);continue;}
       const clone=text.cloneNode(true);
       const originalScale=Number(mover.dataset.originalFontScale||1),originalLine=Number(mover.dataset.originalLineScale||1);
-      scaleTextPreview(clone,1/originalScale,1/originalLine);
+      scaleTextPreview(clone,(axis==='width'?info.fontScale:1)/originalScale,(axis==='width'?info.lineScale:1)/originalLine);
       clone.style.position='relative';clone.style.left='0';clone.style.top='0';clone.style.bottom='auto';clone.style.right='auto';
       clone.style.transform='none';clone.style.height='auto';clone.style.minHeight='0';clone.style.maxHeight='none';clone.style.overflow='visible';
-      clone.style.width=`${element.g.w/12700}px`;clone.style.whiteSpace='normal';
+      clone.style.width=`${element.g.w/12700}px`;clone.style.whiteSpace=axis==='width'&&info.props?.getAttribute('wrap')==='none'?'pre':'normal';
       // Match OOXML insets rather than the renderer's rounded/default insets.
       const inset=(key,def)=>Number(info.props?.getAttribute(key)||def)/12700;
       clone.style.padding=`${inset('tIns',45720)}px ${inset('rIns',91440)}px ${inset('bIns',45720)}px ${inset('lIns',91440)}px`;
@@ -87,34 +89,41 @@ export async function measureTextBoxes(candidates,previews,document) {
     // Batch all writes before reading layout; no slide rendering or ZIP work.
     const changes=[];
     for(const item of prepared){
-      const px=Math.max(item.clone.getBoundingClientRect().height,item.clone.scrollHeight);
+      const px=axis==='width'?TextWidthMeasurement.measure(item.clone,unwrap):Math.max(item.clone.getBoundingClientRect().height,item.clone.scrollHeight);
       if(!Number.isFinite(px)||px<=0){skipped.push(item);continue;}
-      changes.push({index:item.slide.index,id:item.element.id,height:Math.ceil((px+0.5)*12700)});
+      changes.push({index:item.slide.index,id:item.element.id,[axis]:Math.ceil((px+0.5)*12700)});
     }
     return {changes,skipped:skipped.length};
   } finally {host.remove();}
 }
 
-export function fitTextBoxes(deck,changes) {
+/** Apply measured dimensions with slide snapshots for undo. Width fitting preserves font scaling and height. @param {object} deck Deck. @param {object[]} changes Measured dimensions in EMU. @param {string} axis height or width. @param {boolean} unwrap Disable automatic wrapping when fitting width. */
+export function fitTextBoxes(deck,changes,axis='height',unwrap=false) {
+  if(!['height','width'].includes(axis))throw localizedError('text-fit.1');
   const elementIndexes=new Map();
   const plans=changes.map(change=>{
     const slide=deck.slides[change.index];
     if(slide&&!elementIndexes.has(slide))elementIndexes.set(slide,new Map(slide.elements.map(element=>[element.id,element])));
     const element=elementIndexes.get(slide)?.get(change.id),info=element&&textBoxInfo(element);
-    if(!info||info.unsupported||!Number.isFinite(change.height)||change.height<=0||change.height>360000000)throw localizedError('text-fit.1');
-    return {...change,height:Math.round(change.height),slide,element,info};
+    if(!info||info.unsupported||!Number.isFinite(change[axis])||change[axis]<=0||change[axis]>360000000)throw localizedError('text-fit.1');
+    return {...change,size:Math.round(change[axis]),slide,element,info};
   });
   const snapshots=new Map();
-  for(const {slide,element,info,height}of plans){
-    const already=element.g.h===height&&!!child(info.props,'spAutoFit')&&info.props?.getAttribute('wrap')==='square';
+  for(const {slide,element,info,size}of plans){
+    const dimension=axis==='width'?'w':'h';
+    const already=element.g[dimension]===size&&(axis==='width'?(!unwrap||info.props?.getAttribute('wrap')==='none'):!!child(info.props,'spAutoFit')&&info.props?.getAttribute('wrap')==='square');
     if(already)continue;
     if(!snapshots.has(slide.index))snapshots.set(slide.index,{index:slide.index,xml:serialize(slide.doc),dirty:slide.dirty});
     setPosition(element,element.g.x,element.g.y);
     const transform=child(child(element.node,'spPr'),'xfrm');
-    child(transform,'ext').setAttribute('cy',String(height));
-    element.g={...element.g,h:height};
+    child(transform,'ext').setAttribute(axis==='width'?'cx':'cy',String(size));
+    element.g={...element.g,[dimension]:size};
     let props=info.props;
     if(!props){props=slide.doc.createElementNS(NS.a,'a:bodyPr');info.body.insertBefore(props,info.body.firstChild);}
+    if(axis==='width'){
+      if(unwrap)props.setAttribute('wrap','none');
+      slide.dirty=true;continue;
+    }
     for(const n of children(props))if(['normAutofit','noAutofit','spAutoFit'].includes(n.localName))props.removeChild(n);
     const auto=slide.doc.createElementNS(NS.a,'a:spAutoFit');
     const next=children(props).find(n=>['scene3d','sp3d','flatTx','extLst'].includes(n.localName));

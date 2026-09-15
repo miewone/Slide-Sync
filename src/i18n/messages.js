@@ -631,6 +631,12 @@ export const messages = {
     "ko": "{p0}개 일치 · {p1}개 선택됨",
     "en": "{p0} matches · {p1} selected"
   },
+  'textFit.widthScope': {ko:'가로 맞춤 대상',en:'Width fit scope'},
+  'textFit.background': {ko:'투명·흰색 배경만',en:'Transparent or white fill only'},
+  'textFit.unwrap': {ko:'가로 맞춤 시 자동 줄바꿈 풀기',en:'Remove automatic wrapping when fitting width'},
+  'textFit.width': {ko:'텍스트에 맞게 가로 조정',en:'Fit text box width'},
+  'textFit.widthHelp': {ko:'자동 줄바꿈 풀기를 끄면 현재 줄바꿈을 유지하고, 켜면 직접 입력한 줄바꿈만 유지합니다.',en:'Keep current wrapping when off; keep only explicit line breaks when on.'},
+  'textFit.widthDone': {ko:'텍스트 상자 {p0}개의 가로를 내용에 맞췄습니다.{p1}',en:'Fitted the width of {p0} text boxes.{p1}'},
   "TextFitPanel.1": {
     "ko": "텍스트 상자 맞춤",
     "en": "Fit text boxes"
