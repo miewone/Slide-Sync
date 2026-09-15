@@ -23,14 +23,18 @@ export async function checkRecentFiles(browser,origin) {
   await browser.navigate(origin);await ready();await show();
   await browser.evaluate('document.querySelector("#recent-files-clear").click()');
   await browser.until('!document.querySelector(".recent-files-list li")','history starts empty');await close();
+  await browser.until('document.querySelector("#dropzone").classList.contains("welcome-state")','empty history highlights demo after storage is ready');
+  assert.equal(await browser.evaluate('document.querySelector(".empty-state-actions").firstElementChild.id'), 'demo');
   await upload('최근 문서.pptx');await show();assert.equal(await count(),1);await close();
   await browser.navigate(origin);await ready();
   assert.equal(await browser.evaluate('document.querySelector("#download").disabled'),true,'reload never auto-opens a deck');
   assert.equal(await browser.evaluate('document.querySelectorAll(".slide-surface").length'),0);
   await show();assert.equal(await count(),1,'original survives reload');
+  assert.equal(await browser.evaluate('document.querySelector("#dropzone").classList.contains("welcome-state")'),false,'stored history keeps normal file opening');
   await browser.evaluate('document.querySelector(".recent-file-select").click()');
   await browser.until('!document.querySelector("#recent-files-dialog").open&&!document.querySelector("#download").disabled','explicit choice opens stored bytes');
   assert.equal(await browser.evaluate('document.querySelector("#filename").textContent'),'최근 문서.pptx');
+  assert.equal(await browser.evaluate('document.querySelector("#dropzone").hidden'),true,'opened file hides the welcome screen');
   await upload('최근 문서.pptx');await show();assert.equal(await count(),1,'same name and content deduplicated');await close();
   await upload('최근 문서.pptx',{changed:true});await show();assert.equal(await count(),2,'same filename with changed contents is retained separately');await close();
   await upload('broken.pptx',{invalid:true});await show();assert.equal(await count(),2,'invalid input is never remembered');

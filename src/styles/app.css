@@ -70,3 +70,20 @@
 .delete-selection-control>.button{flex:1}
 .button.danger{color:#a63c35;border-color:#deb8b4}
 .button.danger:hover:not(:disabled){background:#fff0ef;border-color:#c36d65}
+
+.workspace>.empty-state{align-self:center;width:calc(100% - 48px);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:340px}
+.empty-state-actions{display:flex;flex-direction:column;align-items:stretch;gap:10px;width:min(100%,300px);margin-bottom:22px}
+.empty-state-actions .demo-button{margin:0}
+.empty-state.welcome-state{border:1px solid #b8c9f6;background:linear-gradient(150deg,#fff 0%,#eef3ff 100%);box-shadow:0 12px 36px #466ce012}
+.welcome-state .upload-symbol{width:68px;height:68px;background:#466ce0;color:#fff;border:0;font-size:42px;margin-bottom:18px}
+.welcome-eyebrow{color:#466ce0;font-size:12px;font-weight:650;letter-spacing:.3px;margin-bottom:10px}
+.welcome-state .welcome-demo{min-height:52px;font-size:16px;box-shadow:0 5px 14px #466ce02b}
+@media(max-width:540px){.workspace>.empty-state{width:calc(100% - 28px);margin:14px;padding:30px 16px}.welcome-state h2{font-size:19px}}
+
+@keyframes welcome-demo-pulse{
+  0%,100%{transform:scale(1);box-shadow:0 5px 14px #466ce02b}
+  50%{transform:scale(1.035);box-shadow:0 6px 22px #466ce04d,0 0 0 7px #466ce014}
+}
+.welcome-state .welcome-demo:not(:disabled){animation:welcome-demo-pulse 2.2s ease-in-out 3}
+.welcome-state .welcome-demo:hover,.welcome-state .welcome-demo:focus-visible{animation:none}
+@media(prefers-reduced-motion:reduce){.welcome-state .welcome-demo:not(:disabled){animation:none}}

@@ -42,7 +42,7 @@ function recentAction(action=()=>{}) {
   recentPending++;updateRecent({busy:true,error:''});
   const task=recentQueue.then(async()=>{
     ensureActive();await action();ensureActive();
-    const files=await recentFiles.list();ensureActive();updateRecent({files,error:''});return true;
+    const files=await recentFiles.list();ensureActive();updateRecent({files,error:'',loaded:true});return true;
   }).catch(error=>{updateRecent({error:recentError(error)});return false;})
     .finally(()=>{recentPending--;updateRecent({busy:recentPending>0});});
   recentQueue=task;return task;

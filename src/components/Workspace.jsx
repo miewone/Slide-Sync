@@ -8,13 +8,19 @@ const PreviewStage = memo(function PreviewStage() { return <div id="stage" class
 /** Empty-state file actions; hidden without being removed during a file load. */
 function EmptyState() {
   const ready = useEditorValue('ready'), busy = useEditorValue('busy'), hasDeck = useEditorValue('hasDeck');
+  const recent=useEditorValue('recentFiles');
   const {commands} = useEditor();
-  return <div className="empty-state" id="dropzone" hidden={hasDeck}>
-    <div className="upload-symbol">↥</div><h2>PPTX 파일을 여기에 놓으세요</h2>
-    <p>여러 슬라이드의 같은 좌표를 클릭하고<br/>선택된 요소를 함께 옮길 수 있습니다.</p>
-    <Button id="empty-open" variant="primary" disabled={!ready || busy} onClick={commands.chooseFile}>파일 선택</Button>
-    <button id="demo" className="text-button demo-button" disabled={!ready || busy} onClick={commands.openDemo}>예제 슬라이드로 사용해 보기</button>
-    <small>파일은 브라우저 안에서 처리됩니다.</small>
+  const welcome=ready&&!hasDeck&&recent.loaded&&!recent.busy&&!recent.error&&recent.files.length===0;
+  const demo=<Button key="demo" id="demo" variant={welcome?'primary':undefined}
+    className={welcome?'welcome-demo':'demo-button'} disabled={!ready||busy} onClick={commands.openDemo}>예제 슬라이드 사용해보기</Button>;
+  const open=<Button key="open" id="empty-open" variant={welcome?undefined:'primary'} disabled={!ready||busy} onClick={commands.chooseFile}>내 PPTX 파일 열기</Button>;
+  return <div className={`empty-state${welcome?' welcome-state':''}`} id="dropzone" hidden={hasDeck}>
+    <div className="upload-symbol" aria-hidden="true">{welcome?'▱':'↥'}</div>
+    {welcome&&<span className="welcome-eyebrow">처음이라면 예제로 시작하세요</span>}
+    <h2>{welcome?'슬라이드 편집, 바로 경험해 보세요':'PPTX 파일을 여기에 놓으세요'}</h2>
+    <p>{welcome?<>파일 없이도 예제로 시작할 수 있어요.<br/>여러 슬라이드의 요소를 함께 선택하고, 옮기고, 삭제해 보세요.</>:<>여러 슬라이드의 같은 좌표를 클릭하고<br/>선택된 요소를 함께 옮길 수 있습니다.</>}</p>
+    <div className="empty-state-actions">{welcome?[demo,open]:[open,demo]}</div>
+    <small>{welcome?'내 PPTX 파일을 이곳에 끌어 놓아도 됩니다.':'파일은 브라우저 안에서 처리됩니다.'}</small>
   </div>;
 }
 

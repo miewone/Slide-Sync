@@ -7,7 +7,7 @@ export class EditorStore {
     this.snapshot = Object.freeze({ready:false, busy:false, hasDeck:false,
       name:'슬라이드 일괄 이동', status:'PPTX 파일을 열어 시작하세요.', notice:'',
       summary:'같은 위치의 요소를 한 번에 선택하세요.', size:'', slides:[], hoveredSlide:null,
-      recentFiles:{files:[],busy:false,error:''},
+      recentFiles:{files:[],busy:false,error:'',loaded:false},
       slideSearch:{query:'',matches:[]},
       elementSearch:{query:'',matches:[],selected:0,slides:0},
       selection:{count:0, slides:0, size:'', rows:[]}, ...initial});
