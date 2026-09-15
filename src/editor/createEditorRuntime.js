@@ -1,3 +1,4 @@
+import {ElementDeletion} from './ElementDeletion.js';
 import {RecentFilesRepository} from '../services/RecentFilesRepository.js';
 import {AppearanceMatcher} from './AppearanceMatcher.js';
 import {ElementSearchIndex} from './ElementSearchIndex.js';
@@ -12,7 +13,7 @@ import {createGuideUI} from './guide-ui.js';
 import {alignSelected,constrainDrag} from './layout.js';
 import {EventScope} from './EventScope.js';
 import {fitCandidates,measureTextBoxes,fitTextBoxes} from './text-fit.js';
-import {tagRenderer,cachePreview,syncPreviewPositions} from './preview-cache.js';
+import {tagRenderer,cachePreview,syncPreviewPositions,syncPreviewPresence} from './preview-cache.js';
 import {PreviewTheme} from './preview-theme.js';
 import {loadDeck,hitTest,corners,moveSelected,movePlans,selectedInSlide,selectionBounds,visualBounds,restore,exportDeck,parseRange,EMU_PER_CM} from './core.js';
 
@@ -57,7 +58,7 @@ const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.class
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
 function status(text){if(!disposed)store.update({status:text});}
 function notice(text){if(!disposed)store.update({notice:text||''});}
-function busy(value){if(disposed)return;state.busy=value;store.update({busy:value});for(const id of ['match-appearance','box-select-mode','move','undo','apply-range','clear-selection','fit-text','fit-scope','layout-target','guide-horizontal','guide-vertical','guide-select','guide-position','guide-apply','guide-delete','guides-visible','guides-edit','guides-snap']){const el=$(id);if(el)el.disabled=value;}for(const el of root.querySelectorAll('.card-head input,[data-layout]'))el.disabled=value;$('only-checked').disabled=value;if(!value)updateInspector();}
+function busy(value){if(disposed)return;state.busy=value;store.update({busy:value});for(const id of ['delete-selection','match-appearance','box-select-mode','move','undo','apply-range','clear-selection','fit-text','fit-scope','layout-target','guide-horizontal','guide-vertical','guide-select','guide-position','guide-apply','guide-delete','guides-visible','guides-edit','guides-snap']){const el=$(id);if(el)el.disabled=value;}for(const el of root.querySelectorAll('.card-head input,[data-layout]'))el.disabled=value;$('only-checked').disabled=value;if(!value)updateInspector();}
 function error(err){notice(err?.message||String(err));status('작업을 완료하지 못했습니다.');}
 function syncSelection(){state.selected=new Map([...state.allSelected].filter(([i,ids])=>state.checked.has(i)&&ids.size));}
 function selectedElements(){if(!state.deck)return [];return [...state.selected].flatMap(([i,ids])=>selectedInSlide(state.deck.slides[i],ids).map(element=>({slide:state.deck.slides[i],element})));}
@@ -113,6 +114,7 @@ function renderBoxSelection(indices) {
 
 function updateInspector(){
   const items=selectedElements(),n=items.length;
+  $('delete-selection').disabled=!n||state.busy;
   $('move').disabled=!n||state.busy;$('undo').disabled=!state.undo.length||state.busy;
   const ref=referenceElements(),bounds=selectionBounds(ref);
   const size=bounds?`${ref.length>1?'선택 영역 · ':''}너비 ${(bounds.w/EMU_PER_CM).toFixed(2)} × 높이 ${(bounds.h/EMU_PER_CM).toFixed(2)} cm`:'';
@@ -595,7 +597,53 @@ async function applyMove(x,y,mode,axis=null,nudge=false){
   finally{busy(false);}
 }
 
-async function undo(){if(!state.undo.length||state.busy)return;cancelActiveDrag?.();nudgeHistory=null;busy(true);try{const snapshots=state.undo.pop();if(snapshots[0]?.type==='guides'){restoreGuides(state.deck,snapshots[0]);guideUI.updateControls();guideUI.render();}else{restore(state.deck,snapshots);updateMovedPreviews(snapshots.map(s=>s.index));}updateSummary();updatePositionFields();status('마지막 변경을 취소했습니다.');}catch(err){error(err);}finally{busy(false);}}
+function refreshDeletedElements(snapshots) {
+  searchIndex=new SlideSearchIndex(state.deck);elementSearchIndex=new ElementSearchIndex(state.deck);elementSearchCache=null;
+  updateSlideSearch(store.getSnapshot().slideSearch.query);renderList();
+  for(const {index} of snapshots) {
+    const slide=state.deck.slides[index];
+    syncPreviewPresence(state.previews.get(index),slide);
+    syncPreviewPresence(viewport.get(index)?.frame?.contentDocument,slide);
+  }
+  syncSelection();updateMovedPreviews(snapshots.map(snapshot=>snapshot.index));updateInspector();
+}
+
+function deleteSelection() {
+  if(disposed||state.busy||!state.deck||!state.selected.size)return;
+  cancelActiveDrag?.();nudgeHistory=null;busy(true);notice('');
+  try {
+    const snapshots=ElementDeletion.apply(state.deck,state.selected);if(!snapshots.length)return;
+    for(const snapshot of snapshots) {
+      snapshot.selection=[...(state.allSelected.get(snapshot.index)||[])];
+      const ids=new Set(snapshot.selection);for(const id of snapshot.ids)ids.delete(id);
+      if(ids.size)state.allSelected.set(snapshot.index,ids);else state.allSelected.delete(snapshot.index);
+    }
+    state.undo.push(snapshots);if(state.undo.length>25)state.undo.shift();
+    state.point=null;refreshDeletedElements(snapshots);updateSummary();updatePositionFields();
+    status(`${snapshots.length}개 슬라이드에서 ${snapshots.reduce((count,snapshot)=>count+snapshot.ids.length,0)}개 요소를 삭제했습니다. 마지막 변경 취소로 복원할 수 있습니다.`);
+  } catch(err){error(err);}finally{busy(false);}
+}
+
+async function undo() {
+  if(!state.undo.length||state.busy)return;
+  cancelActiveDrag?.();nudgeHistory=null;busy(true);
+  try {
+    const snapshots=state.undo.at(-1);
+    if(snapshots[0]?.type==='guides') {
+      restoreGuides(state.deck,snapshots[0]);guideUI.updateControls();guideUI.render();
+    } else {
+      restore(state.deck,snapshots);
+      if(snapshots[0]?.type==='delete') {
+        for(const snapshot of snapshots) {
+          const ids=new Set(snapshot.selection);
+          if(ids.size)state.allSelected.set(snapshot.index,ids);else state.allSelected.delete(snapshot.index);
+        }
+        state.point=null;refreshDeletedElements(snapshots);
+      } else updateMovedPreviews(snapshots.map(s=>s.index));
+    }
+    state.undo.pop();updateSummary();updatePositionFields();status('마지막 변경을 취소했습니다.');
+  } catch(err){error(err);}finally{busy(false);}
+}
 async function download(){if(!state.deck||state.busy)return;busy(true);try{prepareGuideExport(state.deck);const blob=await exportDeck(state.deck,'blob');ensureActive();const link=make('a');const url=URL.createObjectURL(blob);link.href=url;link.download=state.name.replace(/\.pptx$/i,'')+'-edited.pptx';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);status('수정한 PPTX를 다운로드했습니다.');}catch(err){error(err);}finally{busy(false);}}
 $('match-appearance').onchange=()=>{cancelActiveDrag?.();status($('match-appearance').checked?'다음 클릭·영역 선택부터 기준 페이지와 크기·색상·레이아웃이 같은 요소만 선택합니다.':'같은 좌표·영역의 요소를 선택합니다.');};
 $('box-select-mode').onchange=()=>{cancelActiveDrag?.();root.classList.toggle('box-select-mode',$('box-select-mode').checked);};
@@ -604,7 +652,10 @@ $('apply-range').onclick=()=>{if(!state.deck||state.busy)return;try{setChecked(p
 events.on(root,'dragover',event=>{event.preventDefault();$('dropzone')?.classList.add('dragover');});events.on(root,'dragleave',event=>{if(!event.relatedTarget)$('dropzone')?.classList.remove('dragover');});events.on(root,'drop',event=>{event.preventDefault();$('dropzone')?.classList.remove('dragover');if(!state.busy)openFile(event.dataTransfer.files[0]);});events.on(root,'keydown',event=>{
   if(event.key==='Shift')refreshActiveDrag?.(true);if(event.key==='Alt')refreshActiveDrag?.(true,'altKey');
   const target=event.target,editing=target.closest?.('input,textarea,select,[contenteditable="true"]');
-  if(editing)return;
+  if(editing||target.isContentEditable||event.isComposing)return;
+  if(['Delete','Backspace'].includes(event.key)&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&!target.closest?.('.guide-overlay')) {
+    if(state.selected.size&&!state.busy){event.preventDefault();deleteSelection();}return;
+  }
   if((event.ctrlKey||event.metaKey)&&!event.shiftKey&&event.key.toLowerCase()==='z'){event.preventDefault();undo();return;}
   if(event.key==='Escape'&&!state.busy){event.preventDefault();if(cancelActiveDrag)cancelActiveDrag();else resetSelection();return;}
   const surface=target.closest?.('.slide-surface');if(target.closest?.('.guide-overlay'))return;if(!surface||state.busy||!state.deck||cancelActiveDrag)return;
@@ -620,6 +671,7 @@ events.on(root,'keyup',event=>{if(event.key==='Shift')refreshActiveDrag?.(false)
 
 const context=document.modelContext;if(context?.registerTool){const lifecycle=toolLifecycle;events.on(window,'pagehide',()=>lifecycle.abort(),{once:true});const register=tool=>{try{Promise.resolve(context.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{}};register({name:'read_slide_selection',description:'열린 PPTX의 적용 대상과 선택 요소 좌표를 읽습니다.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:true},execute:()=>({file:state.name,slideCount:state.deck?.slides.length||0,checked:[...state.checked].map(i=>i+1),selected:selectedElements().map(({slide,element:e})=>({slide:slide.index+1,id:e.id,name:e.name,xCm:e.g.x/EMU_PER_CM,yCm:e.g.y/EMU_PER_CM}))})});register({name:'select_elements_at_position',description:'적용 대상 슬라이드의 지정 좌표에서 가장 앞에 있는 요소를 선택합니다. 좌표 단위는 cm입니다.',inputSchema:{type:'object',properties:{xCm:{type:'number'},yCm:{type:'number'},selectionMode:{enum:['replace','add','remove']}},required:['xCm','yCm'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute:input=>{if(!state.deck||state.busy)throw Error('먼저 PPTX를 열고 처리가 끝날 때까지 기다리세요.');if(!Number.isFinite(input.xCm)||!Number.isFinite(input.yCm))throw Error('좌표가 유효하지 않습니다.');if(input.selectionMode&&!['replace','add','remove'].includes(input.selectionMode))throw Error('선택 방식이 유효하지 않습니다.');cancelActiveDrag?.();selectAt(input.xCm*EMU_PER_CM,input.yCm*EMU_PER_CM,null,input.selectionMode||'replace');return {selected:selectedElements().length,slides:state.selected.size};}});register({name:'move_selected_elements',description:'선택된 요소를 지정한 절대 위치로 옮기거나 같은 거리만큼 이동합니다. 원본 PPTX 다운로드는 별도입니다.',inputSchema:{type:'object',properties:{xCm:{type:'number'},yCm:{type:'number'},mode:{enum:['absolute','relative']}},required:['xCm','yCm','mode'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},async execute(input){if(state.busy||!state.selected.size)throw Error('먼저 요소를 선택하세요.');if(!['absolute','relative'].includes(input.mode)||![input.xCm,input.yCm].every(Number.isFinite)||Math.abs(input.xCm)>1000||Math.abs(input.yCm)>1000)throw Error('이동 방식과 좌표가 유효하지 않습니다.');cancelActiveDrag?.();const moved=await applyMove(input.xCm*EMU_PER_CM,input.yCm*EMU_PER_CM,input.mode);return {moved};}});}
 
+$('delete-selection').onclick=deleteSelection;
 $('fit-text').onclick=fitText;$('fit-scope').onchange=updateFitControls;events.on(window,'blur',()=>{cancelActiveDrag?.();nudgeHistory=null;});
 $('layout-target').onchange=updateLayoutControls;for(const button of root.querySelectorAll('[data-layout]'))button.onclick=()=>applyLayout(button.dataset.layout);
 

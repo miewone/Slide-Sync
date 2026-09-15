@@ -117,3 +117,20 @@ export function syncPreviewPositions(root, slide, options={}) {
   }
   return changed;
 }
+
+/**
+ * Hide deleted objects in retained preview wrappers and reveal them after undo.
+ * @param {Element|Document|null} root Cached preview or mounted frame document.
+ * @param {object} slide Current slide descriptors; original wrappers retain drawing order and text styling.
+ */
+export function syncPreviewPresence(root,slide) {
+  if(!root)return;
+  const ids=new Set(slide.elements.map(element=>element.id));
+  for(const mover of root.querySelectorAll('[data-pptx-mover]')) {
+    if(!ids.has(mover.dataset.pptxMover)) {
+      mover.dataset.deleted='true';mover.hidden=true;
+    } else if(mover.dataset.deleted==='true') {
+      delete mover.dataset.deleted;mover.hidden=false;
+    }
+  }
+}

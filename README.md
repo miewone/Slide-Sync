@@ -88,3 +88,7 @@ Choose **최근 PPTX** in the header to view locally stored originals, then expl
 - **Edits are not autosaved.** Download edited presentations to keep them. The built-in demo is not remembered.
 - Files stay in this browser’s IndexedDB without server uploads, scoped to the same origin and browser profile.
 - Clearing site data, ending a private browsing session, or browser storage eviction can remove files. Storage failures are reported without deleting older entries or preventing editing.
+
+## Delete selected elements
+
+Select elements, then use **선택 요소 삭제** in the inspector or press Delete/Backspace. Only selected elements on checked slides are removed; groups are deleted as a unit. Undo with **마지막 변경 취소** or Ctrl/Cmd+Z. Typing in a form field never deletes slide elements. Download the edited PPTX to keep the deletion.

@@ -65,3 +65,8 @@
 .developer-email{font-size:11px;line-height:1.4;color:#647188;text-decoration:none}
 .developer-email:hover{color:#3259c9;text-decoration:underline}
 .brand a:focus-visible{outline:3px solid #789df7;outline-offset:3px}
+
+.delete-selection-control{display:flex;align-items:center;gap:8px;margin-top:10px}
+.delete-selection-control>.button{flex:1}
+.button.danger{color:#a63c35;border-color:#deb8b4}
+.button.danger:hover:not(:disabled){background:#fff0ef;border-color:#c36d65}

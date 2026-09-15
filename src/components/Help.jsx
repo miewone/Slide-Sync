@@ -3,6 +3,10 @@ import {createPortal} from 'react-dom';
 
 /** Central catalog for option help. Consumers reference a key instead of duplicating copy. */
 const HELP_TEXT = Object.freeze({
+  'delete-selection': {
+    label:'선택 요소 삭제',
+    text:'적용 대상으로 체크한 슬라이드에서 선택한 요소를 삭제합니다. 그룹은 통째로 삭제됩니다. Delete·Backspace 키로도 삭제할 수 있으며, 마지막 변경 취소 또는 Ctrl·Cmd+Z로 복원할 수 있습니다. 입력란에서 글자를 지울 때는 요소가 삭제되지 않습니다.',
+  },
   'box-select-mode': {
     label:'영역 선택',
     text:'요소 위에서도 드래그로 영역을 그립니다. 영역 안에 완전히 포함된 요소를 적용 대상 슬라이드에서 함께 선택합니다. Ctrl·Shift·Cmd를 누르면 기존 선택에 추가합니다.',
