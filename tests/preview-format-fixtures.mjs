@@ -68,7 +68,7 @@ export class PreviewFormatFixtureBuilder {
     if (entry.kind === 'table') return this.table(entry);
     if (entry.kind === 'placeholder') return this.text(83, 'Body: 14pt bold Arial', {idx:3}) + this.text(85, 'Heading: 13pt regular Arial', {idx:2,y:2600000});
     if (entry.kind === 'default-index') return this.text(89, 'Omitted idx: 11pt', {omitted:true}) + this.text(90, 'Explicit idx=0: 11pt', {idx:0,y:2600000});
-    if (entry.kind === 'fonts') return this.text(83, 'Inherited Arial', {idx:3}) + this.text(85, '', {idx:3,y:2600000,runs:'<a:r><a:rPr><a:ea typeface="Courier New"/></a:rPr><a:t>Explicit Courier New</a:t></a:r>'}) + this.text(89, '', {y:3500000,runs:'<a:r><a:rPr><a:latin typeface="Courier New"/></a:rPr><a:t>Latin-only Courier New</a:t></a:r>'});
+    if (entry.kind === 'fonts') return this.text(83, 'Inherited Arial', {idx:3}) + this.text(85, '', {idx:3,y:2600000,runs:'<a:r><a:rPr><a:ea typeface="Courier New"/></a:rPr><a:t>동아시아글꼴</a:t></a:r>'}) + this.text(89, '', {y:3500000,runs:'<a:r><a:rPr><a:latin typeface="Courier New"/></a:rPr><a:t>Latin-only Courier New</a:t></a:r>'});
     const run = text => `<a:r><a:rPr sz="1800"><a:latin typeface="Arial"/></a:rPr><a:t>${text}</a:t></a:r>`;
     const runs = entry.kind === 'breaks' ? `${run('First')}<a:br/>${run('Second')}<a:br/>${run('Third')}` : `${run('Before')}${run('')}<a:r><a:rPr/><a:t/></a:r><a:r><a:rPr/></a:r>${run('After')}`;
     return this.text(83, '', {runs}) + this.table({widths:[6000000],heights:[1500000],runs});

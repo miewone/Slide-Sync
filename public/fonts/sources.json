@@ -1,0 +1,117 @@
+[
+  {
+    "file": "NanumGothic.otf",
+    "sha256": "7bdf5d68debc8d1c3e682b61410f7c469a707352fc3f784e4da23f1f12370b89",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-gothic.zip"
+  },
+  {
+    "file": "NanumGothicBold.otf",
+    "sha256": "a2b76c0968c5b66a0e4474a83ba8b84c294d8bf0c61f68cff2eaa34851fbb270",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-gothic.zip"
+  },
+  {
+    "file": "NanumGothicExtraBold.otf",
+    "sha256": "a11120e5cc9c2e83b20b6ce3257ee5eaf247f69e01e3a332ae59d1b598920d1c",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-gothic.zip"
+  },
+  {
+    "file": "NanumGothicLight.otf",
+    "sha256": "153161ab882db768c70a753af5e8129852b9c9cae5511a23653beb6414d834a2",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-gothic.zip"
+  },
+  {
+    "file": "NanumMyeongjo.otf",
+    "sha256": "827eca2d2c6b4f086548010ce2a7df1865c739cd5588e01492c3dcf952b83bb2",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-myeongjo.zip"
+  },
+  {
+    "file": "NanumMyeongjoBold.otf",
+    "sha256": "e5bf886823b7608ae3fbc0b94e86c66b4f4f35e9de6b1177a118aeb6389442a0",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-myeongjo.zip"
+  },
+  {
+    "file": "NanumMyeongjoExtraBold.otf",
+    "sha256": "b4afd220800805c3cf84f65423c749614b5cdb9dacec41caa04ff15e025dd4b9",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-myeongjo.zip"
+  },
+  {
+    "file": "NanumBarunGothic.otf",
+    "sha256": "a0a3d5a634330f5e29317bb7cbd1e3bb5ab2a48ba250ec2f267a1a5f9f76797b",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-barun-gothic.zip"
+  },
+  {
+    "file": "NanumBarunGothicBold.otf",
+    "sha256": "3fb03ec3f6c966e8945868485c6cbc8acef190de98a198f6b95b9b0afae7d2af",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-barun-gothic.zip"
+  },
+  {
+    "file": "NanumBarunGothicLight.otf",
+    "sha256": "86acb4ce76d0c7a21b2f996fc4b8a279145a6cd71690f7340e976919a2d6115b",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-barun-gothic.zip"
+  },
+  {
+    "file": "NanumBarunGothicUltraLight.otf",
+    "sha256": "0232b79e85553f8c2ca6cd5beaf56104c49f57cad1be4d2ae1130cf2a86e39c3",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-barun-gothic.zip"
+  },
+  {
+    "file": "NanumSquareB.otf",
+    "sha256": "708ba74b146b52d6b15517cc7306f38b287d86832fcce4d70069b34499b31b07",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-square.zip"
+  },
+  {
+    "file": "NanumSquareEB.otf",
+    "sha256": "73a2e26f81e64dd98f280d9bc24846e5daf2c76e83fd422cddcee9b017f045e9",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-square.zip"
+  },
+  {
+    "file": "NanumSquareL.otf",
+    "sha256": "533a202f020e3ee60106c293079449e72c7c1321a16d0d225c635840c4b433e5",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-square.zip"
+  },
+  {
+    "file": "NanumSquareR.otf",
+    "sha256": "f27ff60a5eb472bb0107ddbe9e564a10efea484ecde3814beacd2fc0a0e2f999",
+    "source": "https://hangeul.naver.com/hangeul_static/webfont/zips/nanum-square.zip"
+  },
+  {
+    "file": "MaruBuri-SemiBold.otf",
+    "sha256": "bc789f10d377e527c006f0ff4619fda40a3419710c8d520cca4d9e5839b16249",
+    "source": "https://campaign-cdn.pstatic.net/0/hangeul/2022/zip_v2/maruburi.zip"
+  },
+  {
+    "file": "MaruBuri-Regular.otf",
+    "sha256": "5a849f92307bc6e705319577f6a6c92ffae04f54277d1eb01a7d52ca7e5e3e6c",
+    "source": "https://campaign-cdn.pstatic.net/0/hangeul/2022/zip_v2/maruburi.zip"
+  },
+  {
+    "file": "MaruBuri-Light.otf",
+    "sha256": "253cb2c1012467eba8dad63e8a02f7a81b61d67e4f06930679d7a638e7049588",
+    "source": "https://campaign-cdn.pstatic.net/0/hangeul/2022/zip_v2/maruburi.zip"
+  },
+  {
+    "file": "MaruBuri-ExtraLight.otf",
+    "sha256": "0ced9901ad4149bd4cc0d2b90636e5ec5a5e6e87d8b207aa75b555015c091618",
+    "source": "https://campaign-cdn.pstatic.net/0/hangeul/2022/zip_v2/maruburi.zip"
+  },
+  {
+    "file": "MaruBuri-Bold.otf",
+    "sha256": "4bd645ece6d1c753591a647d55df92ddd406a71ade66c81cdb86458d525743db",
+    "source": "https://campaign-cdn.pstatic.net/0/hangeul/2022/zip_v2/maruburi.zip"
+  },
+  {
+    "file": "PretendardVariable.woff2",
+    "sha256": "9599f12fd42fc0bce1cd50b47a0c022e108d7aa64dd0d1bb0ed44f3282d900b4",
+    "source": "https://raw.githubusercontent.com/orioncactus/pretendard/main/packages/pretendard/dist/web/variable/woff2/PretendardVariable.woff2"
+  },
+  {
+    "file": "NotoSansKR.ttf",
+    "sha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf"
+  },
+  {
+    "file": "NotoSerifKR.ttf",
+    "sha256": "11f8d5de6f1b79195efba3828aaa2ec95c1178f5ae976fb23c8d53250a9938f3",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifkr/NotoSerifKR%5Bwght%5D.ttf"
+  }
+]

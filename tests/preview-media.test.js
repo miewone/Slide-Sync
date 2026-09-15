@@ -1,3 +1,4 @@
+import {PreviewFontStyle} from '../src/editor/PreviewFontStyle.js';
 import {XmlPartCodec} from '../src/services/XmlPartCodec.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -29,7 +30,7 @@ async function environment() {
   const source=(await readFile(new URL('../src/vendor/pptx-preview.es.js',import.meta.url),'utf8'))
     .replace(/import[^;]+;/g,'').replace('export{xt as init};','globalThis.init=xt;');
   class ScopedMedia extends PreviewMediaResources {constructor(){super(context.URL);}}
-  Object.assign(context,{XmlPartCodec,PreviewMediaResources:ScopedMedia,t:tslib.__assign,e:tslib.__extends,a:tslib.__awaiter,r:tslib.__generator,
+  Object.assign(context,{PreviewFontStyle,XmlPartCodec,PreviewMediaResources:ScopedMedia,t:tslib.__assign,e:tslib.__extends,a:tslib.__awaiter,r:tslib.__generator,
     n:tslib.__spreadArray,o:JSZip,c:context._.get,i:context._.omit,s:randomUUID,h:{}});
   runInNewContext(source,context);
   const {zip}=await makeMediaDeckFixture(JSZip,await readFile(new URL('../public/sample.pptx',import.meta.url)));

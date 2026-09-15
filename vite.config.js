@@ -2,7 +2,6 @@ import {defineConfig, loadEnv} from 'vite';
 import react from '@vitejs/plugin-react';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
-
 import {readdirSync,readFileSync} from 'node:fs';
 
 /** Invalidate persisted HTML when rendering code or bundled resources change. */
@@ -51,7 +50,7 @@ function productionCsp() {
           const analyticsScript = measurementId ? ' https://www.googletagmanager.com' : '';
           const analyticsImages = measurementId ? ' https://*.google-analytics.com https://www.googletagmanager.com' : '';
           const analyticsConnections = measurementId ? ' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com' : '';
-          const policy = `default-src 'self'; script-src 'self'${analyticsScript} ${hashes.join(' ')}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:${analyticsImages}; font-src 'self' data:; frame-src 'self' about:; connect-src 'self'${analyticsConnections}; object-src 'none'; base-uri 'self'; form-action 'none'`;
+          const policy = `default-src 'self'; script-src 'self'${analyticsScript} ${hashes.join(' ')}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:${analyticsImages}; font-src 'self' data: blob:; frame-src 'self' about:; connect-src 'self'${analyticsConnections}; object-src 'none'; base-uri 'self'; form-action 'none'`;
           html = html.replace('<head>', `<head><meta http-equiv="Content-Security-Policy" content="${policy}">`);
           asset.source = html;
         }

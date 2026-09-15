@@ -2,6 +2,7 @@ import {t} from './i18n/I18n.js';
 import {useLanguage} from './hooks/useLanguage.js';
 import {useEffect, useMemo, useRef} from 'react';
 import {EditorStore} from './editor/EditorStore.js';
+import {ActivityLog} from './services/ActivityLog.js';
 import {previewResources} from './services/PreviewResources.js';
 import {EditorContext} from './hooks/useEditor.js';
 import {Header} from './components/Header.jsx';
@@ -17,12 +18,13 @@ export default function App() {
   const root = useRef(null);
   const runtime = useRef(null);
   const services = useMemo(() => {
-    const store = new EditorStore();
+    const store = new EditorStore(),activityLog=new ActivityLog();
     const invoke = name => (...args) => runtime.current?.[name](...args);
-    return {store, commands:{openFile:invoke('openFile'), openDemo:invoke('openDemo'),
+    return {store, activityLog, commands:{openFile:invoke('openFile'), openDemo:invoke('openDemo'),
       refreshRecentFiles:invoke('refreshRecentFiles'), openRecentFile:invoke('openRecentFile'),
       removeRecentFile:invoke('removeRecentFile'), clearRecentFiles:invoke('clearRecentFiles'),
       selectElementName:invoke('selectElementName'), setAppearanceCriterion:invoke('setAppearanceCriterion'),
+      choosePreviewFont:invoke('choosePreviewFont'), uploadPreviewFont:invoke('uploadPreviewFont'), accessLocalFonts:invoke('accessLocalFonts'),
       download:invoke('download'), setElementSearchQuery:invoke('setElementSearchQuery'), applyElementSearch:invoke('applyElementSearch'), setSlideSearchQuery:invoke('setSlideSearchQuery'), applySlideSearch:invoke('applySlideSearch'), setSlideChecked:invoke('setSlideChecked'), selectSlides:invoke('selectSlides'),
       chooseFile:() => root.current?.querySelector('#file').click()}};
   }, []);
@@ -32,10 +34,10 @@ export default function App() {
     services.store.reset();
     import('./editor/createEditorRuntime.js').then(({createEditorRuntime}) => {
       if (cancelled) return;
-      runtime.current = createEditorRuntime(root.current, services.store, previewResources);
+      runtime.current = createEditorRuntime(root.current, services.store, previewResources, services.activityLog);
       services.store.update({ready:true});
     }).catch(error => {
-      if (!cancelled) services.store.update({notice:t('App.1', {p0: error.message})});
+      if (!cancelled) {services.store.update({notice:t('App.1', {p0: error.message})});services.activityLog.record('App.1',{p0:error.message},{level:'error'});}
     });
     return () => {
       cancelled = true;

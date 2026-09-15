@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+
+/** Validate shared log behavior through real actions. @param {object} browser CDP client. @param {string} origin App URL. */
+export async function checkActivityLog(browser,origin) {
+  browser.errors=[];
+  await browser.navigate(origin);
+  await browser.until('!!document.querySelector("#demo") && !document.querySelector("#demo").disabled','activity app ready');
+  assert.equal(await browser.evaluate(`document.querySelector('.language-control').previousElementSibling.classList.contains('activity-log')`),true,'log icon precedes language controls');
+  assert.equal(await browser.evaluate(`!!document.querySelector('.activity-log-count')`),false,'initial count empty');
+  await browser.evaluate(`document.querySelector('#activity-log-trigger').click()`);
+  await browser.until(`document.querySelector('#activity-log-panel').matches(':popover-open')`,'empty history opens');
+  assert.ok(await browser.evaluate(`document.querySelector('.activity-log-empty').textContent.length>0`));
+  await browser.evaluate(`document.querySelector('#activity-log-close').click();document.querySelector('#demo').click()`);
+  await browser.until(`!document.querySelector('#download').disabled && Number(document.querySelector('.activity-log-count')?.textContent)>=2`,'file logged');
+  const originalName=await browser.evaluate(`document.querySelector('#filename').textContent`);
+  const count=await browser.evaluate(`Number(document.querySelector('.activity-log-count').textContent)`);
+  assert.equal(await browser.evaluate(`getComputedStyle(document.querySelector('.activity-log-count')).animationName`),'activity-log-bump');
+  await browser.evaluate(`globalThis.previousLogBadge=document.querySelector('.activity-log-count');globalThis.logFrames=[...document.querySelectorAll('#stage iframe')];document.querySelector('.slide-surface').dispatchEvent(new KeyboardEvent('keydown',{key:'a',ctrlKey:true,bubbles:true}));document.querySelector('#activity-log-trigger').click()`);
+  await browser.until(`document.activeElement?.id==='activity-log-close'`,'history keyboard focus');
+  assert.match(await browser.evaluate(`document.querySelector('#activity-log-list').textContent`),/PPTX 8개 슬라이드/);
+  await browser.send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowDown',code:'ArrowDown',windowsVirtualKeyCode:40});
+  await browser.send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowDown',code:'ArrowDown',windowsVirtualKeyCode:40});
+  assert.equal(await browser.evaluate(`document.querySelector('#undo').disabled`),true,'reading logs never edits slides');
+  await browser.evaluate(`document.querySelector('#language-en').click()`);
+  await browser.until(`document.querySelector('#activity-log-list').textContent.includes('Opened 8 PPTX slides')`,'history translates');
+  assert.equal(await browser.evaluate(`Number(document.querySelector('.activity-log-count').textContent)`),count,'viewing and translation do not create logs');
+  await browser.evaluate(`document.querySelector('#language-ko').click();document.querySelector('#activity-log-close').click();
+    const original=JSZip.loadAsync;JSZip.loadAsync=(...args)=>new Promise(resolve=>{globalThis.releaseLoggedLoad=()=>{JSZip.loadAsync=original;resolve(original.apply(JSZip,args));};});
+    const transfer=new DataTransfer();transfer.items.add(new File([new Uint8Array([1,2,3])],'broken <img src=x>.pptx'));
+    const input=document.querySelector('#file');input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));`);
+  await browser.until(`!!globalThis.releaseLoggedLoad`,'loading suspended');
+  assert.equal(await browser.evaluate(`document.querySelector('#activity-log-trigger').disabled`),false,'logs available while busy');
+  await browser.evaluate(`document.querySelector('#activity-log-trigger').click();releaseLoggedLoad()`);
+  await browser.until(`!document.querySelector('#demo').disabled && !!document.querySelector('#activity-log-list [data-activity-level="error"]')`,'failure logged');
+  assert.equal(await browser.evaluate(`Number(document.querySelector('.activity-log-count').textContent)`),count+2,'start and failure recorded once');
+  assert.equal(await browser.evaluate(`previousLogBadge!==document.querySelector('.activity-log-count')`),true,'new activity restarts animation');
+  assert.equal(await browser.evaluate(`document.querySelector('#filename').textContent`),originalName);
+  assert.equal(await browser.evaluate(`!!document.querySelector('#activity-log-list img')`),false,'HTML in names stays plain text');
+  assert.ok(await browser.evaluate(`document.querySelector('#activity-log-list').textContent.includes('broken <img src=x>.pptx')`));
+  assert.equal(await browser.evaluate(`logFrames.every((frame,index)=>frame===document.querySelectorAll('#stage iframe')[index])`),true,'logs retain preview frames');
+  await browser.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  assert.equal(await browser.evaluate(`getComputedStyle(document.querySelector('.activity-log-count')).animationName`),'none');
+  await browser.send('Emulation.setEmulatedMedia',{features:[]});
+  const shot=await browser.send('Page.captureScreenshot',{format:'png'});await writeFile('artifacts/activity-log.png',Buffer.from(shot.data,'base64'));
+  await browser.send('Emulation.setDeviceMetricsOverride',{width:540,height:800,deviceScaleFactor:1,mobile:false});
+  await browser.until(`(()=>{const r=document.querySelector('#activity-log-panel').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight;})()`,'narrow viewport bounds');
+  await browser.evaluate(`document.querySelector('#activity-log-clear').click()`);
+  await browser.until(`!document.querySelector('.activity-log-count') && !document.querySelector('#activity-log-list li')`,'clear resets history and count');
+  await browser.evaluate(`document.querySelector('#activity-log-close').focus()`);
+  await browser.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await browser.until(`!document.querySelector('#activity-log-panel').matches(':popover-open') && document.activeElement.id==='activity-log-trigger'`,'Escape closes and restores focus');
+  await browser.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  assert.deepEqual(browser.errors,[]);
+  console.log('PASS activity log: position, history, count/animation, live errors, translation, keyboard isolation, responsive bounds and clearing');
+}

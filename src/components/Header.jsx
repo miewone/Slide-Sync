@@ -2,6 +2,7 @@ import {t,i18n} from '../i18n/I18n.js';
 import {useLanguage} from '../hooks/useLanguage.js';
 import {useRef} from 'react';
 import {Button} from './ui.jsx';
+import {ActivityLogPanel} from './ActivityLogPanel.jsx';
 import {RecentFiles} from './RecentFiles.jsx';
 import {useEditor, useEditorValue} from '../hooks/useEditor.js';
 
@@ -25,6 +26,7 @@ export function Header() {
       </div>
     </div>
     <div className="header-actions">
+      <ActivityLogPanel/>
       <div className="language-control" role="group" aria-label={t('language.label')}>
         <button type="button" id="language-ko" lang="ko" aria-pressed={i18n.getLanguage()==='ko'} disabled={!ready||busy}
           onClick={()=>i18n.setLanguage('ko')}>{t('language.korean')}</button>

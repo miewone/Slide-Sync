@@ -1,7 +1,7 @@
 import {checkTextFormat} from './text-format-checks.mjs';
+import {checkPreviewFormatFiles} from './preview-format-files-checks.mjs';
 import {checkPreviewCache} from './preview-cache-checks.mjs';
 import {checkBackgroundPersistence} from './background-persistence-checks.mjs';
-import {checkPreviewFormatFiles} from './preview-format-files-checks.mjs';
 import {checkPreviewFormat} from './preview-format-checks.mjs';
 import {checkPanelLayout} from './panel-layout-checks.mjs';
 import {checkPreviewGrid} from './preview-grid-checks.mjs';
@@ -15,6 +15,8 @@ import {checkStaticMedia} from './media-checks.mjs';
 import {checkMissingDefaultTextStyle} from './default-text-style-checks.mjs';
 import {checkXmlErrors} from './xml-error-checks.mjs';
 import {checkXmlCompatibility} from './xml-compatibility-checks.mjs';
+import {checkPreviewFonts} from './font-checks.mjs';
+import {checkActivityLog} from './activity-log-checks.mjs';
 import {checkRepeatedEdits} from './repeated-edit-checks.mjs';
 import {checkRecentFiles} from './recent-files-checks.mjs';
 import {checkPreviewHover} from './preview-hover-checks.mjs';
@@ -114,7 +116,9 @@ try {
   await browser.send('Emulation.setDeviceMetricsOverride', {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await browser.send('Network.setUserAgentOverride',{userAgent:(await browser.send('Browser.getVersion')).userAgent,acceptLanguage:'ko-KR,ko;q=0.9,en;q=0.8'});
 
-  if(process.argv.includes('--check-background-persistence')) {
+  if(process.argv.includes('--check-activity-log')) {
+    for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkActivityLog(browser,origin);
+  } else if(process.argv.includes('--check-background-persistence')) {
     await checkBackgroundPersistence(browser,'http://127.0.0.1:5179');
   } else if(process.argv.includes('--check-appearance')) {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkRangeSelection(browser,origin,3);
@@ -122,7 +126,8 @@ try {
     await browser.until('document.querySelector("#appearance-panel").matches(":popover-open")','appearance screenshot');
     const screenshot=await browser.send('Page.captureScreenshot',{format:'png'});
     await writeFile(join(artifacts,'appearance-panel.png'),Buffer.from(screenshot.data,'base64'));
-
+  } else if(process.argv.includes('--check-fonts')) {
+    for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkPreviewFonts(browser,origin);
   } else if(process.argv.includes('--benchmark-workflows')) {
     const report=await measureWorkflows(browser,'http://127.0.0.1:4179');
     await writeFile(join(artifacts,'workflow-performance.json'),JSON.stringify(report,null,2)+'\n');
@@ -266,6 +271,8 @@ try {
   await checkMissingDefaultTextStyle(browser,'http://127.0.0.1:4179');
   await checkXmlErrors(browser,'http://127.0.0.1:4179');
   await checkXmlCompatibility(browser,'http://127.0.0.1:5179');
+  await checkPreviewFonts(browser,'http://127.0.0.1:4179');
+  await checkActivityLog(browser,'http://127.0.0.1:4179');
   await checkStaticMedia(browser,'http://127.0.0.1:4189/slides/');
   await checkChartLoading(browser,'http://127.0.0.1:4179');
   const measurements=[];
