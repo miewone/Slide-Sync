@@ -6,7 +6,7 @@ export class ElementSearchIndex {
   constructor(deck=null) {
     this.entries=(deck?.slides || []).flatMap(slide=>slide.elements
       .filter(element=>element.g && !element.hidden)
-      .map(element=>({index:slide.index,id:element.id,text:SearchText.normalize(ElementSearchIndex.text(element))})));
+      .map(element=>({index:slide.index,id:element.id,name:element.name || '',text:SearchText.normalize(ElementSearchIndex.text(element))})));
   }
 
   /** @param {object} element Descriptor. Ignore hidden children when aggregating group text. */
@@ -23,6 +23,17 @@ export class ElementSearchIndex {
     const normalized=SearchText.normalize(query);
     return normalized ? this.entries.filter(entry=>checked.has(entry.index) && entry.text.includes(normalized))
       .map(({index,id})=>({index,id})) : [];
+  }
+
+  /** @param {Set<number>} checked Active slides. Group existing names with element counts and slide indices. */
+  names(checked) {
+    const rows=new Map();
+    for(const entry of this.entries) {
+      if(!checked.has(entry.index) || !entry.name.trim())continue;
+      if(!rows.has(entry.name))rows.set(entry.name,{name:entry.name,count:0,slides:new Set()});
+      const row=rows.get(entry.name);row.count++;row.slides.add(entry.index);
+    }
+    return [...rows.values()].map(row=>({...row,slides:[...row.slides]}));
   }
 
   /** Release text when the editor is disposed. */

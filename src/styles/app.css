@@ -71,6 +71,20 @@
 .button.danger{color:#a63c35;border-color:#deb8b4}
 .button.danger:hover:not(:disabled){background:#fff0ef;border-color:#c36d65}
 
+.element-name-popover{position:fixed;z-index:2000;display:flex;flex-direction:column;background:#fff;border:1px solid #cdd8ee;border-radius:10px;box-shadow:0 8px 30px #26334626;padding:14px;isolation:isolate}
+.element-name-popover[data-side=left]::after{content:"";position:absolute;right:-7px;top:var(--anchor-y);width:12px;height:12px;background:#fff;border-top:1px solid #cdd8ee;border-right:1px solid #cdd8ee;transform:translateY(-50%) rotate(45deg)}
+.element-name-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px}
+.element-name-heading button{border:0;background:transparent;color:#65738a;font-size:22px;padding:0 7px;min-height:28px}
+.element-name-help,.element-name-empty{font-size:12px;color:#69768b;line-height:1.6;margin:8px 0 10px}
+.element-name-popover ul{list-style:none;padding:3px;margin:0;overflow:auto;overscroll-behavior:contain;min-height:0}
+.element-name-popover li+li{margin-top:4px}
+.element-name-item{display:flex;flex-direction:column;gap:5px;width:100%;border:1px solid transparent;background:#f4f6fb;padding:9px 10px;text-align:left;color:#344259}
+.element-name-item:hover{background:#eaf0ff;border-color:#cdd8f8}
+.element-name-label{font-size:13px;font-weight:600;overflow-wrap:anywhere}
+.element-name-meta{font-size:11px;color:#69768b;line-height:1.5;overflow-wrap:anywhere}
+.selection-name-label{position:absolute;z-index:1000;left:var(--selection-label-x);max-width:calc(100% - var(--selection-label-x) - 4px);padding:3px 7px;border-radius:4px;background:#416ae5;color:white;font-size:11px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;box-shadow:0 1px 4px #23314d24}
+.selection-name-label[hidden]{display:none}
+
 .workspace>.empty-state{align-self:center;width:calc(100% - 48px);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:340px}
 .empty-state-actions{display:flex;flex-direction:column;align-items:stretch;gap:10px;width:min(100%,300px);margin-bottom:22px}
 .empty-state-actions .demo-button{margin:0}
@@ -79,6 +93,7 @@
 .welcome-eyebrow{color:#466ce0;font-size:12px;font-weight:650;letter-spacing:.3px;margin-bottom:10px}
 .welcome-state .welcome-demo{min-height:52px;font-size:16px;box-shadow:0 5px 14px #466ce02b}
 @media(max-width:540px){.workspace>.empty-state{width:calc(100% - 28px);margin:14px;padding:30px 16px}.welcome-state h2{font-size:19px}}
+.element-name-more{flex-shrink:0;margin-top:8px;padding:7px;border:1px solid #cdd8ee;background:#fff;color:#416ae5;font-size:12px}
 
 @keyframes welcome-demo-pulse{
   0%,100%{transform:scale(1);box-shadow:0 5px 14px #466ce02b}

@@ -12,6 +12,7 @@ export function ElementSearchPanel() {
       summary={`${search.matches.length}개 요소 · ${search.slides}개 슬라이드 일치 · ${search.selected}개 선택됨`}
       busy={busy} hasSource={hasDeck} onQueryChange={commands.setElementSearchQuery} onApply={commands.applyElementSearch}
       selectId="element-search-select" removeId="element-search-remove"
+      suggestions={search.names} onSuggestionPick={commands.selectElementName}
       help="체크한 슬라이드에서 검색합니다. 그룹은 전체를 선택합니다."/>
   </InspectorSection>;
 }

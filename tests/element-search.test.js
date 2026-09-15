@@ -39,3 +39,17 @@ test('split runs, punctuation, Unicode and multiple table paragraphs use the com
   assert.deepEqual(index.find('[a+b].*',new Set([0])),[{index:0,id:'table'}]);
   assert.deepEqual(index.find('missing',new Set([0])),[]);
 });
+
+test('name catalogue groups duplicates, tracks checked slides, and exposes only editable top-level names',()=>{
+  const group=shape('g','팀 그룹','',{kind:'grpSp',children:[shape('child','내부 이름')]});
+  const index=new ElementSearchIndex({slides:[
+    {index:0,elements:[shape('a','제목'),shape('b','제목'),group,shape('h','숨김','',{hidden:true}),shape('u','위치 없음','',{g:null})]},
+    {index:2,elements:[shape('c','제목'),shape('d','<이미지>','',{kind:'pic'}),shape('e','')]},
+  ]});
+  assert.deepEqual(index.names(new Set([0,2])),[
+    {name:'제목',count:3,slides:[0,2]}, {name:'팀 그룹',count:1,slides:[0]}, {name:'<이미지>',count:1,slides:[2]},
+  ]);
+  assert.deepEqual(index.names(new Set([2])),[{name:'제목',count:1,slides:[2]},{name:'<이미지>',count:1,slides:[2]}]);
+  assert.deepEqual(index.names(new Set()),[]);
+  index.clear();assert.deepEqual(index.names(new Set([0,2])),[]);
+});

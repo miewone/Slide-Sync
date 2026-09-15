@@ -9,7 +9,7 @@ export class EditorStore {
       summary:'같은 위치의 요소를 한 번에 선택하세요.', size:'', slides:[], hoveredSlide:null,
       recentFiles:{files:[],busy:false,error:'',loaded:false},
       slideSearch:{query:'',matches:[]},
-      elementSearch:{query:'',matches:[],selected:0,slides:0},
+      elementSearch:{query:'',matches:[],selected:0,slides:0,names:[]},
       selection:{count:0, slides:0, size:'', rows:[]}, ...initial});
     this.initialSnapshot = this.snapshot;
     this.listeners = new Set();

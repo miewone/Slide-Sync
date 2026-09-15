@@ -1,4 +1,5 @@
 import {ElementDeletion} from './ElementDeletion.js';
+import {SelectionLabel} from './SelectionLabel.js';
 import {RecentFilesRepository} from '../services/RecentFilesRepository.js';
 import {AppearanceMatcher} from './AppearanceMatcher.js';
 import {ElementSearchIndex} from './ElementSearchIndex.js';
@@ -140,13 +141,15 @@ function updateElementSearch(query=store.getSnapshot().elementSearch.query) {
   if(disposed)return;
   // Scope sets are replaced by setChecked; selection/geometry changes can reuse matches.
   if(!elementSearchCache || elementSearchCache.index!==elementSearchIndex || elementSearchCache.query!==query || elementSearchCache.scope!==state.checked) {
-    elementSearchCache={index:elementSearchIndex,query,scope:state.checked,matches:elementSearchIndex.find(query,state.checked)};
+    const names=elementSearchCache?.index===elementSearchIndex && elementSearchCache.scope===state.checked
+      ?elementSearchCache.names:elementSearchIndex.names(state.checked);
+    elementSearchCache={index:elementSearchIndex,query,scope:state.checked,names,matches:elementSearchIndex.find(query,state.checked)};
   }
-  const matches=elementSearchCache.matches,previous=store.getSnapshot().elementSearch;
+  const {matches,names}=elementSearchCache,previous=store.getSnapshot().elementSearch;
   const selected=matches.reduce((count,match)=>count+(state.selected.get(match.index)?.has(match.id)?1:0),0);
   const slides=new Set(matches.map(match=>match.index)).size;
-  if(previous.query===query && previous.matches===matches && previous.selected===selected && previous.slides===slides)return;
-  store.update({elementSearch:{query,matches,selected,slides}});
+  if(previous.query===query && previous.matches===matches && previous.selected===selected && previous.slides===slides && previous.names===names)return;
+  store.update({elementSearch:{query,matches,selected,slides,names}});
 }
 function applyElementSearch(action) {
   if(state.busy || disposed || !state.deck || !['select','remove'].includes(action))return;
@@ -332,6 +335,8 @@ function updateOverlays(indices, guideIndices=indices){
     const elements=selectedInSlide(state.deck.slides[i],state.selected.get(i)),point=state.point&&state.checked.has(i)?state.point:null;
     const geometries=elements.map(e=>{const p=state.drag?.positions.get(`${i}/${e.id}`);return {id:e.id,g:p?{...e.g,x:p.x,y:p.y}:e.g};});
     const key=JSON.stringify([geometries,point,state.drag?.axis,!!state.drag]);if(surface.dataset.overlayKey===key)continue;surface.dataset.overlayKey=key;
+    const bounds=geometries.length?visualBounds(geometries):null;
+    SelectionLabel.update(surface,elements,bounds,state.deck.width,state.deck.height);
     surface.classList.toggle('selected',!!elements.length);surface.classList.toggle('dragging',!!state.drag&&!!elements.length);
     const existing=new Map([...svg.querySelectorAll('[data-selection-id]')].map(n=>[n.dataset.selectionId,n]));
     for(const {id,g}of geometries){
@@ -343,7 +348,7 @@ function updateOverlays(indices, guideIndices=indices){
     for(const node of existing.values())node.remove();
     let outline=svg.querySelector('.selection-bounds');if(!outline){outline=document.createElementNS(svg.namespaceURI,'rect');outline.classList.add('selection-bounds');svg.append(outline);}
     outline.style.display=geometries.length>1?'':'none';
-    if(geometries.length>1){const bounds=visualBounds(geometries);for(const [attr,value]of Object.entries({x:bounds.x,y:bounds.y,width:bounds.w,height:bounds.h}))outline.setAttribute(attr,value);}
+    if(geometries.length>1){for(const [attr,value]of Object.entries({x:bounds.x,y:bounds.y,width:bounds.w,height:bounds.h}))outline.setAttribute(attr,value);}
     let cross=svg.querySelector('.cross');if(!cross){cross=document.createElementNS(svg.namespaceURI,'path');cross.classList.add('cross');svg.append(cross);}
     cross.style.display=point?'':'none';if(point){const {x,y}=point,d=state.deck.width/100;cross.setAttribute('d',`M${x-d},${y}H${x+d}M${x},${y-d}V${y+d}`);}
   }
@@ -683,6 +688,10 @@ return {
   openFile, openDemo, download, applySlideSearch, applyElementSearch,
   refreshRecentFiles, openRecentFile, removeRecentFile, clearRecentFiles,
   setElementSearchQuery(query){if(!state.busy && state.deck && !disposed)updateElementSearch(String(query));},
+  selectElementName(name){
+    if(state.busy || !state.deck || disposed)return;
+    updateElementSearch(String(name));applyElementSearch('select');
+  },
   setSlideSearchQuery(query){if(!state.busy && state.deck && !disposed)updateSlideSearch(String(query));},
   setSlideChecked(index, checked) {
     if(state.busy||disposed||!state.deck)return;

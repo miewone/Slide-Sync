@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {checkElementNames} from './element-name-checks.mjs';
 import {makeDeckFixture} from '../tests/deck-fixtures.mjs';
 import {makeSearchDeck} from './slide-search-checks.mjs';
 
@@ -113,6 +114,10 @@ export async function checkInspector(browser,origin) {
   assert.equal(await browser.evaluate('document.querySelector("#editor-section-search").open'),false,'new file preserves category preference');
   await browser.evaluate("document.querySelector('#editor-section-search>summary').click();");
   await fill('BodyOnlyNeedle');assert.ok(await browser.evaluate('document.querySelector("#element-search-count").textContent.includes("0개 요소")'),'new file has no stale element matches');
+  await browser.evaluate("openInspectorFile(inspectorFixture,'name-catalogue.pptx')");
+  await browser.until('document.querySelector("#filename").textContent==="name-catalogue.pptx" && !document.querySelector("#download").disabled','catalogue fixture reset');
+  await browser.until('[...document.querySelectorAll("#stage iframe")].every(frame=>frame.contentDocument?.querySelector("[data-pptx-mover]"))','catalogue previews');
+  await checkElementNames(browser);
   assert.deepEqual(browser.errors,[],'inspector errors');
   console.log('PASS inspector: scoped text/name search, groups, add/remove, keyboard/IME, independent category toggles, persistent drafts, undo, lifecycle and frame/ZIP reuse');
 }
