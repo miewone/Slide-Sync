@@ -10,17 +10,19 @@ import {NativeSlidesDocument} from '../editor/google/NativeSlidesDocument.js';
 import {NativeSlidesEditor} from './NativeSlidesEditor.jsx';
 import {DriveSaveDialog} from './DriveSaveDialog.jsx';
 import {DriveLoadingDialog} from './DriveLoadingDialog.jsx';
+import {DownloadOptionsDialog} from './DownloadOptionsDialog.jsx';
 import {Button} from './ui.jsx';
 
-/** Drive entry point, consent and presentation routing. Native Slides data stays in memory; PPTX retains the existing preview cache. @param {object} props Optional renderTrigger receives openDrive, openRecentDrive, openSettings and disabled to reuse this session from a custom entry point. openSettings accepts an optional callback for returning to the source chooser on close. */
+/** Drive entry point, consent and presentation routing. Native Slides data stays in memory; PPTX retains the existing preview cache. @param {object} props Optional renderTrigger receives openDrive, openRecentDrive, openSettings, openDownload and disabled to reuse this session from a custom entry point. openSettings accepts an optional callback for returning to the source chooser on close. */
 export function GoogleDriveControls({renderTrigger}={}){
   useLanguage();
   const {commands}=useEditor(),busy=useEditorValue('busy'),ready=useEditorValue('ready'),hasDeck=useEditorValue('hasDeck'),source=useEditorValue('driveSource'),title=useEditorValue('name');
   const [session,setSession]=useState(()=>new GoogleSession());
   const repository=useMemo(()=>new GoogleSettingsRepository(),[]);
-  const pendingOpen=useRef(false),pendingFile=useRef(null),returnToChooser=useRef(null);
+  const pendingOpen=useRef(false),pendingSave=useRef(false),saveOrigin=useRef('settings'),pendingFile=useRef(null),returnToChooser=useRef(null);
   const [notice,setNotice]=useState(false);
   const [loadingFile,setLoadingFile]=useState(null);
+  const [downloadOptions,setDownloadOptions]=useState(null);
   const [loaded,setLoaded]=useState(false),[editing,setEditing]=useState(false);
   const files=useMemo(()=>new GoogleFiles(session),[session]);
   const dialog=useRef(null),mounted=useRef(true),[prepared,setPrepared]=useState(false),[connected,setConnected]=useState(false),[working,setWorking]=useState(false),[error,setError]=useState(''),[save,setSave]=useState(false),[native,setNative]=useState(null),[result,setResult]=useState(null);
@@ -45,10 +47,12 @@ export function GoogleDriveControls({renderTrigger}={}){
     finally{if(mounted.current){setLoadingFile(null);setNotice(false);}pendingOpen.current=false;pendingFile.current=null;}
   };
   const close=()=>{
-    pendingOpen.current=false;pendingFile.current=null;setNotice(false);dialog.current.close();
+    pendingOpen.current=false;pendingSave.current=false;pendingFile.current=null;setNotice(false);dialog.current.close();
     const onReturn=returnToChooser.current;returnToChooser.current=null;onReturn?.();
   };
-  const show=(openFile=false,onReturn=null,file=null)=>{
+  const beginSave=()=>{pendingSave.current=false;setError('');setSave(true);dialog.current.close();};
+  const show=(openFile=false,onReturn=null,file=null,saveFile=false)=>{
+    pendingSave.current=saveFile;saveOrigin.current=saveFile?'download':'settings';
     pendingFile.current=file;
     returnToChooser.current=onReturn;
     pendingOpen.current=openFile;setNotice(openFile);
@@ -61,11 +65,27 @@ export function GoogleDriveControls({renderTrigger}={}){
       }
       if(!current.configured){setEditing(true);return;}
       await prepare(current);
-      if(openFile){
+      if(openFile||saveFile){
         let authorized=false;try{current.token();authorized=true;}catch{}
-        if(authorized)await selectFile(current);
+        if(authorized){if(saveFile)beginSave();else await selectFile(current);}
       }
     });
+  };
+  const openDownload=()=>run(async()=>{
+    setResult(null);
+    let config;
+    try{config=await repository.get();}
+    catch(err){setDownloadOptions({canDrive:false,error:err.message});return;}
+    if(!config){await commands.download();return;}
+    if(['clientId','apiKey','appId'].some(key=>session[key]!==config[key])){
+      setSession(new GoogleSession(config));setPrepared(false);setConnected(false);
+    }
+    setLoaded(true);setDownloadOptions({canDrive:true});
+  });
+  const returnFromSave=()=>{
+    setSave(false);
+    if(saveOrigin.current==='download'){returnToChooser.current=null;setDownloadOptions({canDrive:true});}
+    else dialog.current.showModal();
   };
   const saveSettings=value=>run(async()=>{
     const config=await repository.save(value);
@@ -78,7 +98,7 @@ export function GoogleDriveControls({renderTrigger}={}){
     setConnected(false);setPrepared(false);setResult(null);setEditing(true);
   });
   return <>
-    {renderTrigger?renderTrigger({openDrive:()=>show(true),openRecentDrive:file=>show(true,null,{id:file.driveFileId,name:file.name}),openSettings:onReturn=>show(false,onReturn),disabled:!ready||busy||working}):<Button id="drive-open" disabled={!ready||busy||working} onClick={()=>show(true)}>Google Drive</Button>}
+    {renderTrigger?renderTrigger({openDrive:()=>show(true),openRecentDrive:file=>show(true,null,{id:file.driveFileId,name:file.name}),openSettings:onReturn=>show(false,onReturn),openDownload,disabled:!ready||busy||working}):<Button id="drive-open" disabled={!ready||busy||working} onClick={()=>show(true)}>Google Drive</Button>}
     {notice&&<div className="drive-open-notice" role="status">{t('drive.editingNotice')}</div>}
     <dialog ref={dialog} className="drive-dialog" id="drive-dialog" aria-labelledby="drive-title" onCancel={e=>{e.preventDefault();if(!working)close();}} onKeyDownCapture={e=>e.stopPropagation()}>
       <h2 id="drive-title">Google Drive</h2>{notice&&<p role="status">{t('drive.editingNotice')}</p>}<p>{t('drive.privacy')}</p>
@@ -88,17 +108,21 @@ export function GoogleDriveControls({renderTrigger}={}){
         onCancel={session.configured?()=>setEditing(false):null} onRemove={session.configured?removeSettings:null}/>}
       <div className="drive-actions">
         {!editing&&<Button id="drive-settings-edit" disabled={working} onClick={()=>{setError('');setEditing(true);}}>{t('drive.settingsTitle')}</Button>}
-        <Button id="drive-connect" disabled={!prepared||working||editing} onClick={()=>run(async()=>{await session.authorize();setConnected(true);if(pendingOpen.current)await selectFile();})}>{t('drive.connect')}</Button>
+        <Button id="drive-connect" disabled={!prepared||working||editing} onClick={()=>run(async()=>{await session.authorize();setConnected(true);if(pendingOpen.current)await selectFile();else if(pendingSave.current)beginSave();})}>{t('drive.connect')}</Button>
         <Button id="drive-select" disabled={!connected||working||editing} onClick={()=>run(()=>selectFile())}>{t('drive.open')}</Button>
-        <Button id="drive-save-local" disabled={!connected||!hasDeck||working||editing} onClick={()=>{setError('');setSave(true);dialog.current.close();}}>{t('drive.savePptx')}</Button>
+        <Button id="drive-save-local" disabled={!connected||!hasDeck||working||editing} onClick={beginSave}>{t('drive.savePptx')}</Button>
         <Button disabled={!connected||working||editing} id="drive-disconnect" onClick={()=>{session.disconnect();setConnected(false);}}>{t('drive.disconnect')}</Button>
         <Button id="drive-close" disabled={working} onClick={close}>{t('drive.close')}</Button>
       </div>
     </dialog>
     {save&&<DriveSaveDialog source={source} title={source?.name||title} session={session} busy={working||busy} error={error}
-      onClose={()=>{setSave(false);dialog.current.showModal();}} onSave={options=>run(async()=>{
-        const target=await commands.saveDrivePptx(files,options);if(target){setResult(target);setSave(false);dialog.current.showModal();}
+      onClose={returnFromSave} onSave={options=>run(async()=>{
+        const target=await commands.saveDrivePptx(files,options);if(target){setResult(target);returnFromSave();}
       })}/>}
+    {downloadOptions&&<DownloadOptionsDialog {...downloadOptions} result={result}
+      onClose={()=>{setDownloadOptions(null);document.querySelector('#download')?.focus();}}
+      onLocal={()=>{setDownloadOptions(null);commands.download();}}
+      onDrive={()=>{setDownloadOptions(null);show(false,()=>setDownloadOptions({canDrive:true}),null,true);}}/>}
     {loadingFile&&<DriveLoadingDialog fileName={loadingFile.name}/>}
     {native&&<NativeSlidesEditor document={native.model} source={native.source} files={files} session={session} onClose={()=>setNative(null)}/>}
   </>;

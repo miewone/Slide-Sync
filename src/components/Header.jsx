@@ -36,11 +36,11 @@ export function Header() {
         <button type="button" id="language-en" lang="en" aria-pressed={i18n.getLanguage()==='en'} disabled={!ready||busy}
           onClick={()=>i18n.setLanguage('en')}>{t('language.english')}</button>
       </div>
-      <GoogleDriveControls renderTrigger={({openDrive,openRecentDrive,openSettings,disabled:driveDisabled})=><>
+      <GoogleDriveControls renderTrigger={({openDrive,openRecentDrive,openSettings,openDownload,disabled:driveDisabled})=><>
         <FileOpenChooser disabled={!ready||busy||driveDisabled} driveDisabled={driveDisabled} onLocalOpen={()=>input.current.click()} onDriveOpen={openDrive} onDriveSettings={openSettings}/>
         <RecentFiles onDriveOpen={openRecentDrive} disabled={driveDisabled}/>
+        <Button id="download" variant="primary" disabled={!hasDeck||busy||driveDisabled} onClick={openDownload}>{t('Header.6')}<span>↓</span></Button>
       </>}/>
-      <Button id="download" variant="primary" disabled={!hasDeck || busy} onClick={commands.download}>{t('Header.6')}<span>↓</span></Button>
     </div>
     <input ref={input} id="file" type="file" accept=".pptx" hidden onChange={event => {
       const file = event.target.files[0];event.target.value = '';commands.openFile(file);
