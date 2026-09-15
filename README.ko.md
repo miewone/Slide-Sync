@@ -72,3 +72,9 @@ npm run dev
 - [성능 측정과 검증](docs/performance.md)
 - [이전 버전 기록](docs/legacy-v5.md)
 - [서드파티 라이선스](public/vendor/NOTICE.txt)
+
+## 라이선스
+
+Slide Sync의 자체 작성 코드는 [MIT 라이선스](LICENSE)로 제공됩니다. Copyright (c) 2026 wongyun.park.
+
+포함된 외부 라이브러리에는 각 라이브러리의 기존 라이선스가 적용됩니다. [서드파티 고지](public/vendor/NOTICE.txt)와 함께 제공되는 라이선스 파일을 확인하세요.

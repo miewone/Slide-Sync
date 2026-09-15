@@ -73,3 +73,9 @@ Open the URL shown in the terminal. See [development](docs/development.md) for b
 - [Performance and verification](docs/performance.md)
 - [Earlier version notes](docs/legacy-v5.md)
 - [Third-party licenses](public/vendor/NOTICE.txt)
+
+## License
+
+Slide Sync’s original code is licensed under the [MIT License](LICENSE). Copyright (c) 2026 wongyun.park.
+
+Third-party libraries retain their respective licenses. See the [third-party notices](public/vendor/NOTICE.txt) and accompanying license files.
