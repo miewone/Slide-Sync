@@ -71,6 +71,7 @@ Open the URL shown in the terminal. See [development](docs/development.md) for b
 
 - [Editor architecture](docs/architecture.md)
 - [Performance and verification](docs/performance.md)
+- [10/100-slide rendering, editing and export timings](docs/workflow-performance.md)
 - [Earlier version notes](docs/legacy-v5.md)
 - [Third-party licenses](public/vendor/NOTICE.txt)
 

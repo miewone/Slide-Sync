@@ -1,0 +1,397 @@
+{
+  "measuredAt": "2026-09-15T04:10:44.058Z",
+  "revision": "1c228eae3e15cbd96090473b8e332439e0208987",
+  "worktree": [
+    "M scripts/browser-test.mjs",
+    "?? scripts/workflow-performance.mjs"
+  ],
+  "environment": {
+    "browser": "Chrome/150.0.7871.46",
+    "v8": "15.0.245.13",
+    "node": "v22.19.0",
+    "os": "linux 6.6.87.2-microsoft-standard-WSL2",
+    "cpu": "AMD Ryzen 5 7600 6-Core Processor",
+    "logicalCpus": 12,
+    "availableParallelism": 12,
+    "hostMemoryGiB": 15.182815551757812,
+    "viewport": {
+      "width": 1440,
+      "height": 1000,
+      "deviceScaleFactor": 1
+    },
+    "headless": true,
+    "gpuDisabled": true,
+    "server": "Vite production preview on localhost",
+    "throttling": "No simulated CPU/network throttling; machine is not isolated from other workloads"
+  },
+  "methodology": {
+    "repetitions": 3,
+    "slideCounts": [
+      10,
+      100
+    ],
+    "order": "10 then 100, repeated three times",
+    "fixture": "Shipped sample first slide repeated; ZIP dates fixed at 2020-01-01; DEFLATE level 6; no charts added",
+    "cache": "Fresh page each trial in one browser/profile; HTTP cache retained; JSZip and fixture loaded before timer; renderer modules load during file open",
+    "timing": "performance.now() in page; MutationObserver completion (not screenshot/physical paint); original file reads, parsing and preview cache included",
+    "persistence": "Recent-file DB cleared before each trial; original is saved as part of editor readiness",
+    "output": "Edited PPTX Blob generation and UI readiness; OS disk-write/save-dialog time excluded",
+    "workflow": "Each measured edit is undone before the next; final all-object move +0.1cm is exported and all slide XML coordinates verified"
+  },
+  "runs": [
+    {
+      "slides": 10,
+      "repeat": 1,
+      "fixture": {
+        "bytes": 38149,
+        "sourceSha256": "e231d0925b98482d0ed25517a392dda2e03d3728c504d24a7ee562a5b44e18bf",
+        "elementsPerSlide": 12,
+        "sha256": "9f3af827af8c3d5c4448f6069b7f13f2f822b11209f569f29423f840c43a7037"
+      },
+      "firstPreviewMs": 122.40000000037253,
+      "renderReadyMs": 205.09999999962747,
+      "openReadyMs": 220.2000000011176,
+      "frames": 8,
+      "selectAllMs": 3.699999999254942,
+      "selectedElements": 120,
+      "moveMs": 7.899999998509884,
+      "undoMoveMs": 15.400000000372529,
+      "alignMs": 6.300000000745058,
+      "undoAlignMs": 14.199999999254942,
+      "textBoxes": 100,
+      "fitMs": 37.899999998509884,
+      "fitStatus": "100개 텍스트 상자의 높이를 내용에 맞췄습니다.",
+      "undoFitMs": 12.599999999627471,
+      "deleteMs": 4.600000001490116,
+      "undoDeleteMs": 15.800000000745058,
+      "exportMs": 23.5,
+      "output": {
+        "bytes": 37829,
+        "verifiedSlides": 10,
+        "verifiedElements": 120
+      },
+      "reopenMs": 152.7999999988824
+    },
+    {
+      "slides": 100,
+      "repeat": 1,
+      "fixture": {
+        "bytes": 237955,
+        "sourceSha256": "e231d0925b98482d0ed25517a392dda2e03d3728c504d24a7ee562a5b44e18bf",
+        "elementsPerSlide": 12,
+        "sha256": "4d6f69b08d2b048df8975b7f4b7ba33d18f79be1c7e4c70aff02a99ec9d1f7f1"
+      },
+      "firstPreviewMs": 255.19999999925494,
+      "renderReadyMs": 1166.4000000003725,
+      "openReadyMs": 1187.0999999996275,
+      "frames": 8,
+      "selectAllMs": 4.099999999627471,
+      "selectedElements": 1200,
+      "moveMs": 30.199999999254942,
+      "undoMoveMs": 87.69999999925494,
+      "alignMs": 28.59999999962747,
+      "undoAlignMs": 88,
+      "textBoxes": 1000,
+      "fitMs": 288.5,
+      "fitStatus": "1000개 텍스트 상자의 높이를 내용에 맞췄습니다.",
+      "undoFitMs": 76.19999999925494,
+      "deleteMs": 28,
+      "undoDeleteMs": 91.90000000037253,
+      "exportMs": 75.19999999925494,
+      "output": {
+        "bytes": 234755,
+        "verifiedSlides": 100,
+        "verifiedElements": 1200
+      },
+      "reopenMs": 1160
+    },
+    {
+      "slides": 10,
+      "repeat": 2,
+      "fixture": {
+        "bytes": 38149,
+        "sourceSha256": "e231d0925b98482d0ed25517a392dda2e03d3728c504d24a7ee562a5b44e18bf",
+        "elementsPerSlide": 12,
+        "sha256": "9f3af827af8c3d5c4448f6069b7f13f2f822b11209f569f29423f840c43a7037"
+      },
+      "firstPreviewMs": 75.5,
+      "renderReadyMs": 151.30000000074506,
+      "openReadyMs": 157.30000000074506,
+      "frames": 8,
+      "selectAllMs": 2.199999999254942,
+      "selectedElements": 120,
+      "moveMs": 5,
+      "undoMoveMs": 11.099999999627471,
+      "alignMs": 5.200000001117587,
+      "undoAlignMs": 11.700000001117587,
+      "textBoxes": 100,
+      "fitMs": 33.90000000037253,
+      "fitStatus": "100개 텍스트 상자의 높이를 내용에 맞췄습니다.",
+      "undoFitMs": 11.399999998509884,
+      "deleteMs": 3.900000000372529,
+      "undoDeleteMs": 13.300000000745058,
+      "exportMs": 16.700000001117587,
+      "output": {
+        "bytes": 37829,
+        "verifiedSlides": 10,
+        "verifiedElements": 120
+      },
+      "reopenMs": 149
+    },
+    {
+      "slides": 100,
+      "repeat": 2,
+      "fixture": {
+        "bytes": 237955,
+        "sourceSha256": "e231d0925b98482d0ed25517a392dda2e03d3728c504d24a7ee562a5b44e18bf",
+        "elementsPerSlide": 12,
+        "sha256": "4d6f69b08d2b048df8975b7f4b7ba33d18f79be1c7e4c70aff02a99ec9d1f7f1"
+      },
+      "firstPreviewMs": 235.59999999962747,
+      "renderReadyMs": 1115.199999999255,
+      "openReadyMs": 1129.7999999988824,
+      "frames": 8,
+      "selectAllMs": 3.800000000745058,
+      "selectedElements": 1200,
+      "moveMs": 32.59999999962747,
+      "undoMoveMs": 73.09999999962747,
+      "alignMs": 28.5,
+      "undoAlignMs": 74.59999999962747,
+      "textBoxes": 1000,
+      "fitMs": 257.40000000037253,
+      "fitStatus": "1000개 텍스트 상자의 높이를 내용에 맞췄습니다.",
+      "undoFitMs": 74.69999999925494,
+      "deleteMs": 24.300000000745058,
+      "undoDeleteMs": 99.20000000111759,
+      "exportMs": 69.30000000074506,
+      "output": {
+        "bytes": 234755,
+        "verifiedSlides": 100,
+        "verifiedElements": 1200
+      },
+      "reopenMs": 1147.300000000745
+    },
+    {
+      "slides": 10,
+      "repeat": 3,
+      "fixture": {
+        "bytes": 38149,
+        "sourceSha256": "e231d0925b98482d0ed25517a392dda2e03d3728c504d24a7ee562a5b44e18bf",
+        "elementsPerSlide": 12,
+        "sha256": "9f3af827af8c3d5c4448f6069b7f13f2f822b11209f569f29423f840c43a7037"
+      },
+      "firstPreviewMs": 81,
+      "renderReadyMs": 167.90000000037253,
+      "openReadyMs": 173.5,
+      "frames": 8,
+      "selectAllMs": 2.399999998509884,
+      "selectedElements": 120,
+      "moveMs": 4.5,
+      "undoMoveMs": 11.199999999254942,
+      "alignMs": 5.099999999627471,
+      "undoAlignMs": 11.199999999254942,
+      "textBoxes": 100,
+      "fitMs": 33.80000000074506,
+      "fitStatus": "100개 텍스트 상자의 높이를 내용에 맞췄습니다.",
+      "undoFitMs": 11.200000001117587,
+      "deleteMs": 4,
+      "undoDeleteMs": 13,
+      "exportMs": 15.800000000745058,
+      "output": {
+        "bytes": 37829,
+        "verifiedSlides": 10,
+        "verifiedElements": 120
+      },
+      "reopenMs": 152.69999999925494
+    },
+    {
+      "slides": 100,
+      "repeat": 3,
+      "fixture": {
+        "bytes": 237955,
+        "sourceSha256": "e231d0925b98482d0ed25517a392dda2e03d3728c504d24a7ee562a5b44e18bf",
+        "elementsPerSlide": 12,
+        "sha256": "4d6f69b08d2b048df8975b7f4b7ba33d18f79be1c7e4c70aff02a99ec9d1f7f1"
+      },
+      "firstPreviewMs": 244.80000000074506,
+      "renderReadyMs": 1147.7000000011176,
+      "openReadyMs": 1162.1000000014901,
+      "frames": 8,
+      "selectAllMs": 3.5,
+      "selectedElements": 1200,
+      "moveMs": 29.699999999254942,
+      "undoMoveMs": 75.20000000111759,
+      "alignMs": 31,
+      "undoAlignMs": 74.19999999925494,
+      "textBoxes": 1000,
+      "fitMs": 269.2999999988824,
+      "fitStatus": "1000개 텍스트 상자의 높이를 내용에 맞췄습니다.",
+      "undoFitMs": 71.59999999962747,
+      "deleteMs": 24.200000001117587,
+      "undoDeleteMs": 96.5,
+      "exportMs": 71.90000000037253,
+      "output": {
+        "bytes": 234755,
+        "verifiedSlides": 100,
+        "verifiedElements": 1200
+      },
+      "reopenMs": 1112
+    }
+  ],
+  "summary": [
+    {
+      "slides": 10,
+      "elements": 120,
+      "textBoxes": 100,
+      "metrics": {
+        "firstPreviewMs": {
+          "median": 81,
+          "min": 75.5,
+          "max": 122.40000000037253
+        },
+        "renderReadyMs": {
+          "median": 167.90000000037253,
+          "min": 151.30000000074506,
+          "max": 205.09999999962747
+        },
+        "openReadyMs": {
+          "median": 173.5,
+          "min": 157.30000000074506,
+          "max": 220.2000000011176
+        },
+        "selectAllMs": {
+          "median": 2.399999998509884,
+          "min": 2.199999999254942,
+          "max": 3.699999999254942
+        },
+        "moveMs": {
+          "median": 5,
+          "min": 4.5,
+          "max": 7.899999998509884
+        },
+        "undoMoveMs": {
+          "median": 11.199999999254942,
+          "min": 11.099999999627471,
+          "max": 15.400000000372529
+        },
+        "alignMs": {
+          "median": 5.200000001117587,
+          "min": 5.099999999627471,
+          "max": 6.300000000745058
+        },
+        "undoAlignMs": {
+          "median": 11.700000001117587,
+          "min": 11.199999999254942,
+          "max": 14.199999999254942
+        },
+        "fitMs": {
+          "median": 33.90000000037253,
+          "min": 33.80000000074506,
+          "max": 37.899999998509884
+        },
+        "undoFitMs": {
+          "median": 11.399999998509884,
+          "min": 11.200000001117587,
+          "max": 12.599999999627471
+        },
+        "deleteMs": {
+          "median": 4,
+          "min": 3.900000000372529,
+          "max": 4.600000001490116
+        },
+        "undoDeleteMs": {
+          "median": 13.300000000745058,
+          "min": 13,
+          "max": 15.800000000745058
+        },
+        "exportMs": {
+          "median": 16.700000001117587,
+          "min": 15.800000000745058,
+          "max": 23.5
+        },
+        "reopenMs": {
+          "median": 152.69999999925494,
+          "min": 149,
+          "max": 152.7999999988824
+        }
+      }
+    },
+    {
+      "slides": 100,
+      "elements": 1200,
+      "textBoxes": 1000,
+      "metrics": {
+        "firstPreviewMs": {
+          "median": 244.80000000074506,
+          "min": 235.59999999962747,
+          "max": 255.19999999925494
+        },
+        "renderReadyMs": {
+          "median": 1147.7000000011176,
+          "min": 1115.199999999255,
+          "max": 1166.4000000003725
+        },
+        "openReadyMs": {
+          "median": 1162.1000000014901,
+          "min": 1129.7999999988824,
+          "max": 1187.0999999996275
+        },
+        "selectAllMs": {
+          "median": 3.800000000745058,
+          "min": 3.5,
+          "max": 4.099999999627471
+        },
+        "moveMs": {
+          "median": 30.199999999254942,
+          "min": 29.699999999254942,
+          "max": 32.59999999962747
+        },
+        "undoMoveMs": {
+          "median": 75.20000000111759,
+          "min": 73.09999999962747,
+          "max": 87.69999999925494
+        },
+        "alignMs": {
+          "median": 28.59999999962747,
+          "min": 28.5,
+          "max": 31
+        },
+        "undoAlignMs": {
+          "median": 74.59999999962747,
+          "min": 74.19999999925494,
+          "max": 88
+        },
+        "fitMs": {
+          "median": 269.2999999988824,
+          "min": 257.40000000037253,
+          "max": 288.5
+        },
+        "undoFitMs": {
+          "median": 74.69999999925494,
+          "min": 71.59999999962747,
+          "max": 76.19999999925494
+        },
+        "deleteMs": {
+          "median": 24.300000000745058,
+          "min": 24.200000001117587,
+          "max": 28
+        },
+        "undoDeleteMs": {
+          "median": 96.5,
+          "min": 91.90000000037253,
+          "max": 99.20000000111759
+        },
+        "exportMs": {
+          "median": 71.90000000037253,
+          "min": 69.30000000074506,
+          "max": 75.19999999925494
+        },
+        "reopenMs": {
+          "median": 1147.300000000745,
+          "min": 1112,
+          "max": 1160
+        }
+      }
+    }
+  ]
+}

@@ -58,3 +58,14 @@ The source bundle originally shipped as v5; historical behavior and validation n
 ## Editing pipeline regression checks
 
 The browser suite also covers cached package reads, position-only preview synchronization, held-arrow snapshot reuse, fresh text-fit state after undo, and static-media loading with poster/export preservation. See [editing optimization notes](editing-optimization.md). The vendored renderer has a small `staticPreview`/media-lifecycle patch; retain its tests when upgrading it.
+
+## 10/100-slide workflow benchmark
+
+```sh
+npm run build
+npm run test:browser -- --benchmark-workflows
+```
+
+This mode uses the existing production-preview/Chrome runner and measures 10 and 100 slides three times each. It records load, selection, move/alignment/text-fit/deletion and undo, edited PPTX creation, and reopen durations. Each exported slide's element IDs and changed coordinates are checked. Fixture generation is excluded; file-open readiness includes recent-file storage. Output excludes OS disk-write time.
+
+Results are written to `artifacts/workflow-performance.json` and `artifacts/workflow-performance.md`. The checked-in measurement snapshot and environment are documented in [workflow performance](workflow-performance.md). Running this mode does not run the full regression suite; use `npm run test:browser` for that suite.

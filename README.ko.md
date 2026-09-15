@@ -71,6 +71,7 @@ npm run dev
 
 - [편집기 구조](docs/architecture.md)
 - [성능 측정과 검증](docs/performance.md)
+- [10장·100장 렌더링·편집·출력 실측](docs/workflow-performance.md)
 - [이전 버전 기록](docs/legacy-v5.md)
 - [서드파티 라이선스](public/vendor/NOTICE.txt)
 
