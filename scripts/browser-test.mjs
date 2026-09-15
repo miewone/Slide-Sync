@@ -1,3 +1,5 @@
+import {checkPreviewFormatFiles} from './preview-format-files-checks.mjs';
+import {checkPreviewFormat} from './preview-format-checks.mjs';
 import {checkPanelLayout} from './panel-layout-checks.mjs';
 import {checkPreviewGrid} from './preview-grid-checks.mjs';
 import {checkSelectionVisibility} from './selection-visibility-checks.mjs';
@@ -114,6 +116,15 @@ try {
     await writeFile(join(artifacts,'workflow-performance.json'),JSON.stringify(report,null,2)+'\n');
     await writeFile(join(artifacts,'workflow-performance.md'),workflowMarkdown(report));
     console.log('PASS workflow benchmark: 10/100 slides, three repeats, edited PPTX validation');
+  } else if(process.argv.includes('--check-preview-format-files')) {
+    await checkPreviewFormatFiles(browser,'http://127.0.0.1:5179');
+  } else if(process.argv.includes('--check-preview-format')) {
+    await checkPreviewFormat(browser,'http://127.0.0.1:5179');
+    if(process.env.PREVIEW_FORMAT_SOURCE){
+      await checkPreviewFormat(browser,'http://127.0.0.1:5179',process.env.PREVIEW_FORMAT_SOURCE);
+      const screenshot=await browser.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
+      await writeFile(join(artifacts,'preview-format.png'),Buffer.from(screenshot.data,'base64'));
+    }
   } else if(process.argv.includes('--check-preview-grid')) {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkPreviewGrid(browser,origin);
   } else {
@@ -171,6 +182,8 @@ try {
     console.log(`PASS ${mode}: ${count} previews, lazy loading, selection, move/undo, scope, guides, frame/ZIP reuse, export/reimport, no browser errors`);
   }
   browser.errors = [];
+  await checkPreviewFormatFiles(browser,'http://127.0.0.1:5179');
+  await checkPreviewFormat(browser,'http://127.0.0.1:5179');
   await browser.navigate('http://127.0.0.1:5179/tests/preview-theme.html');
   await browser.until('document.querySelector("#result")?.textContent !== "RUNNING" && !!document.querySelector("#result")', 'theme fixture');
   const theme = await browser.evaluate('document.querySelector("#result").textContent');

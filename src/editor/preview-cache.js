@@ -1,5 +1,6 @@
 import {textBoxInfo,captureTextStyles,scaleTextPreview} from './text-fit.js';
 import {serialize} from './core.js';
+import {PreviewTable} from './PreviewTable.js';
 const moverIndexes=new WeakMap(),elementIndexes=new WeakMap();
 
 /** Index descriptors for one immutable descriptor-array generation. */
@@ -32,6 +33,7 @@ export function tagRenderer(renderer) {
   const renderNode = renderer._renderNode;
   renderer._renderNode = function (node) {
     const element = renderNode.call(this, node);
+    PreviewTable.apply(node, element);
     const id = sourceId(node);
     if (element && id !== null) element.dataset.pptxElement = id;
     return element;

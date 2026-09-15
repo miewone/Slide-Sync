@@ -1,0 +1,93 @@
+import {previewResources} from '../src/services/PreviewResources.js';
+import {tagRenderer, cachePreview, syncPreviewPositions} from '../src/editor/preview-cache.js';
+import {loadDeck, setPosition, serialize} from '../src/editor/core.js';
+
+const assert = (value, message) => { if (!value) throw Error(message); };
+try {
+  const JSZip = await previewResources.loadZip();
+  const {init} = await previewResources.loadRenderer();
+  const source = new URLSearchParams(location.search).get('source');
+  const zip = await JSZip.loadAsync(await (await fetch(source || '/sample.pptx')).arrayBuffer());
+  if (!source) {
+    const placeholder = (id, index, size, bold, text) => `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="Text ${id}"/><p:cNvSpPr txBox="1"/><p:nvPr><p:ph type="ctrTitle" idx="${index}"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="6000000" cy="500000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr/><a:lstStyle>${size ? `<a:lvl1pPr><a:defRPr sz="${size}" b="${bold}"><a:ea typeface="Arial"/></a:defRPr></a:lvl1pPr>` : ''}</a:lstStyle><a:p><a:r><a:rPr/><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
+    const cell = (text, attrs = '') => `<a:tc ${attrs}><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr sz="900"/><a:t>${text}</a:t></a:r></a:p></a:txBody><a:tcPr/></a:tc>`;
+    const table = `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="86" name="Table"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="127000" y="1500000"/><a:ext cx="3000000" cy="3000000"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr/><a:tblGrid><a:gridCol w="1000000"/><a:gridCol w="2000000"/><a:gridCol w="3000000"/></a:tblGrid><a:tr h="300000">${cell('Merged', 'gridSpan="2"')}${cell('', 'hMerge="1"')}${cell('IP')}</a:tr><a:tr h="300000">${cell('dmz')}${cell('172.17.20.0/24')}${cell('Yes')}</a:tr></a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
+    const slidePath = 'ppt/slides/slide1.xml';
+    const slide = await zip.file(slidePath).async('string');
+    zip.file(slidePath, slide.replace(/<p:spTree>.*?<\/p:spTree>/s, `<p:spTree>${placeholder(83, 3, null, null, 'Body')}${placeholder(85, 2, null, null, 'Heading')}${table}</p:spTree>`));
+    const doc = new DOMParser().parseFromString(await zip.file(slidePath).async('string'), 'application/xml');
+    const originalTable = doc.getElementsByTagNameNS('*', 'graphicFrame')[0];
+    const single = originalTable.cloneNode(true);
+    single.getElementsByTagNameNS('*', 'cNvPr')[0].setAttribute('id', '87');
+    const singleGrid = single.getElementsByTagNameNS('*', 'tblGrid')[0];
+    while (singleGrid.children.length > 1) singleGrid.lastElementChild.remove();
+    const singleTable = single.getElementsByTagNameNS('*', 'tbl')[0];
+    singleTable.lastElementChild.remove();
+    const singleRow = single.getElementsByTagNameNS('*', 'tr')[0];
+    while (singleRow.children.length > 1) singleRow.lastElementChild.remove();
+    singleRow.firstElementChild.removeAttribute('gridSpan');
+    const paragraph = single.getElementsByTagNameNS('*', 'p')[0];
+    paragraph.insertAdjacentHTML('beforeend', '<a:br xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/><a:r xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:t/></a:r>');
+    originalTable.parentNode.append(single);
+    const vertical = originalTable.cloneNode(true);
+    vertical.getElementsByTagNameNS('*', 'cNvPr')[0].setAttribute('id', '88');
+    const rows = vertical.getElementsByTagNameNS('*', 'tr');
+    rows[0].children[2].setAttribute('rowSpan', '2');
+    rows[1].children[2].setAttribute('vMerge', 'true');
+    rows[0].children[1].setAttribute('hMerge', 'true');
+    originalTable.parentNode.append(vertical);
+    const defaultPlaceholder = doc.getElementsByTagNameNS('*', 'sp')[0].cloneNode(true);
+    defaultPlaceholder.getElementsByTagNameNS('*', 'cNvPr')[0].setAttribute('id', '89');
+    defaultPlaceholder.getElementsByTagNameNS('*', 'ph')[0].removeAttribute('idx');
+    originalTable.parentNode.append(defaultPlaceholder);
+    zip.file(slidePath, new XMLSerializer().serializeToString(doc));
+    const layoutPath = 'ppt/slideLayouts/slideLayout1.xml';
+    const layout = await zip.file(layoutPath).async('string');
+    zip.file(layoutPath, layout.replace(/<p:spTree>.*?<\/p:spTree>/s, `<p:spTree>${placeholder(10, 1, 1800, 1, '')}${placeholder(11, 2, 1300, 0, '')}${placeholder(12, 3, 1400, 1, '')}${placeholder(13, 0, 1100, 0, '')}</p:spTree>`));
+  }
+  const buffer = await zip.generateAsync({type:'arraybuffer'});
+  const deck = await loadDeck(buffer, JSZip);
+  const preview = init(document.querySelector('#preview'), {width:1440, mode:'list'});
+  await preview.load(buffer);
+  tagRenderer(preview.htmlRender);
+  const index = source ? 1 : 0;
+  preview.htmlRender.renderSlide(index);
+  const slide = deck.slides[index];
+  const root = cachePreview(preview.wrapper.firstElementChild, slide);
+  const tableElement = slide.elements.find(element => element.id === '86');
+  const table = root.querySelector('[data-pptx-element="86"] table');
+  assert(Math.abs(parseFloat(table.parentElement.style.width) - tableElement.g.w / 12700) < 0.01, 'table preview and selection use the same grid width');
+  assert(tableElement.g.w > 3000000 && tableElement.g.h < 3000000, 'grid overrides stale frame dimensions');
+  assert(Math.abs(table.offsetWidth - tableElement.g.w / 12700) < 2, 'browser retains full table width');
+  assert(table.querySelector('colgroup').children.length === (source ? 9 : 3), 'all grid columns retained');
+  const body = root.querySelector('[data-pptx-element="83"] .text-wrapper span');
+  const heading = root.querySelector('[data-pptx-element="85"] .text-wrapper span');
+  assert(body.style.fontSize === '14px', 'body inherits its own placeholder font size');
+  assert(heading.style.fontSize === '13px' && heading.style.fontWeight !== 'bold', 'heading inherits its own placeholder size and weight');
+  assert(body.style.fontFamily.includes(source ? 'Nanum Gothic' : 'Arial'), 'run without font retains inherited typeface');
+  if (!source) {
+    assert(root.querySelector('[data-pptx-element="89"] .text-wrapper span').style.fontSize === '11px', 'omitted idx matches explicit zero');
+    const single = root.querySelector('[data-pptx-element="87"] table');
+    assert(single.rows.length === 1 && single.rows[0].cells.length === 1, 'single row/column table');
+    assert(single.querySelector('colgroup').children.length === 1 && single.offsetWidth > 70, 'single column has its original width');
+    assert(single.querySelectorAll('br').length === 1, 'explicit line break stays a line break');
+    assert(!/undefined|\[object Object\]/.test(single.textContent), 'empty text run stays empty');
+    const merged = root.querySelector('[data-pptx-element="88"] table');
+    assert(merged.rows[0].cells.length === 2 && merged.rows[1].cells.length === 2, 'true merge flags hide covered cells');
+    assert(merged.rows[0].cells[0].colSpan === 2 && merged.rows[0].cells[1].rowSpan === 2, 'horizontal and vertical spans');
+    const widths = Array.from(table.rows[1].cells, cell => cell.getBoundingClientRect().width);
+    assert(Math.abs(widths[1] / widths[0] - 2) < 0.05 && Math.abs(widths[2] / widths[0] - 3) < 0.05, 'merged header preserves unequal column ratios');
+  }
+  const before = serialize(slide.doc);
+  const original = {...tableElement.g};
+  setPosition(tableElement, original.x + 12700, original.y);
+  syncPreviewPositions(root, slide);
+  assert(root.querySelector('[data-pptx-mover="86"]').style.transform === 'translate(1px, 0px)', 'table movement');
+  setPosition(tableElement, original.x, original.y);
+  syncPreviewPositions(root, slide);
+  assert(serialize(slide.doc) === before, 'movement and undo preserve original table XML and stale extents');
+  assert(await zip.file(slide.path).async('string') === slide.originalXml, 'preview leaves package XML unchanged');
+  document.querySelector('#result').textContent = 'PASS: table grid, merged columns, selection bounds, placeholder styles, inherited font, move/undo and XML preservation';
+} catch (error) {
+  document.querySelector('#result').textContent = 'FAIL: ' + error.stack;
+}
