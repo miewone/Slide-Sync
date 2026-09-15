@@ -6,7 +6,7 @@ export class EditorStore {
   /** @param {object} initial Optional initial presentation state for embedding/tests. */
   constructor(initial = {}) {
     this.snapshot = Object.freeze({ready:false, busy:false, hasDeck:false, backgroundSaving:0,
-      name:t('EditorStore.1'), status:t('EditorStore.2'), notice:'',
+      driveSource:null, name:t('EditorStore.1'), status:t('EditorStore.2'), notice:'',
       summary:t('EditorStore.3'), size:'', slides:[], hoveredSlide:null,
       recentFiles:{files:[],busy:false,error:'',loaded:false},
       fonts:{rows:[],error:''},

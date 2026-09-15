@@ -1,3 +1,4 @@
+import {checkGoogleDrive} from './google-drive-checks.mjs';
 import {checkTextFormat} from './text-format-checks.mjs';
 import {checkPreviewFormatFiles} from './preview-format-files-checks.mjs';
 import {checkPreviewCache} from './preview-cache-checks.mjs';
@@ -116,7 +117,9 @@ try {
   await browser.send('Emulation.setDeviceMetricsOverride', {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await browser.send('Network.setUserAgentOverride',{userAgent:(await browser.send('Browser.getVersion')).userAgent,acceptLanguage:'ko-KR,ko;q=0.9,en;q=0.8'});
 
-  if(process.argv.includes('--check-activity-log')) {
+  if(process.argv.includes('--check-google-drive')) {
+    await checkGoogleDrive(browser,'http://127.0.0.1:5179');
+  } else if(process.argv.includes('--check-activity-log')) {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkActivityLog(browser,origin);
   } else if(process.argv.includes('--check-background-persistence')) {
     await checkBackgroundPersistence(browser,'http://127.0.0.1:5179');
@@ -248,6 +251,7 @@ try {
   await checkPanelLayout(browser,'http://127.0.0.1:5179');
   await checkPanelLayout(browser,'http://127.0.0.1:4179');
   await checkPanelLayout(browser,'http://127.0.0.1:4189/slides/');
+  await checkGoogleDrive(browser,'http://127.0.0.1:5179');
   await checkRecentFiles(browser,'http://127.0.0.1:5179');
   await checkRecentFiles(browser,'http://127.0.0.1:4179');
   await checkRecentFiles(browser,'http://127.0.0.1:4189/slides/');

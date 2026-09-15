@@ -1,0 +1,8 @@
+/** Native Slides fixture with inherited formatting, media and a rotated group. */
+export function nativeSlidesFixture(){
+  const shape=(objectId,x,y)=>({objectId,title:objectId,size:{width:{magnitude:100,unit:'PT'},height:{magnitude:40,unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:x,translateY:y,unit:'PT'},shape:{shapeType:'RECTANGLE',text:{textElements:[{textRun:{content:'Search '+objectId,style:{bold:true,fontFamily:'Arial'}}}]},shapeProperties:{shapeBackgroundFill:{solidFill:{color:{rgbColor:{red:1}}}}}}});
+  return {presentationId:'presentation_1',revisionId:'revision_1',title:'Native deck',pageSize:{width:{magnitude:720,unit:'PT'},height:{magnitude:405,unit:'PT'}},
+    masters:[{objectId:'master_1',pageProperties:{colorScheme:{colors:[]}}}],layouts:[{objectId:'layout_1'}],
+    slides:[{objectId:'slide_1',slideProperties:{layoutObjectId:'layout_1',masterObjectId:'master_1',notesPage:{objectId:'notes_1'}},pageElements:[shape('shape_1',10,20),shape('shape_2',160,100),shape('shape_3',350,200),{objectId:'group_1',transform:{scaleX:0,scaleY:0,shearX:-1,shearY:1,translateX:600,translateY:10,unit:'PT'},elementGroup:{children:[shape('child_1',10,0),{objectId:'chart_1',size:{width:{magnitude:50,unit:'PT'},height:{magnitude:30,unit:'PT'}},transform:{scaleX:1,scaleY:1,unit:'PT'},sheetsChart:{spreadsheetId:'sheet_1',chartId:12}}]}}]},
+      {objectId:'slide_2',pageElements:[shape('shape_4',25,30),{objectId:'image_1',size:{width:{magnitude:1270000,unit:'EMU'},height:{magnitude:508000,unit:'EMU'}},transform:{scaleX:1,scaleY:1,translateX:127000,translateY:254000,unit:'EMU'},image:{contentUrl:'https://lh3.googleusercontent.com/transient',sourceUrl:'https://example.com/image.png'}}]}]};
+}

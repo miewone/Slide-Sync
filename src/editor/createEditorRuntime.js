@@ -636,7 +636,7 @@ async function renderDeck() {
   if(state.failed.size)notice(()=>(t('createEditorRuntime.50', {p0: state.failed.size})));
   else {const unresolved=d.slides.reduce((n,s)=>n+s.elements.filter(e=>!e.g).length,0);notice(()=>(unresolved?t('createEditorRuntime.51', {p0: unresolved}):''));}
 }
-async function openBuffer(buffer, name, {keepBusy=false}={}) {
+async function openBuffer(buffer, name, {keepBusy=false,driveSource=null}={}) {
   if((state.busy&&!keepBusy) || disposed)return false;
   log('activity.opening',{},'info',name);
   cancelActiveDrag?.();busy(true);notice(()=>(''));
@@ -670,6 +670,7 @@ async function openBuffer(buffer, name, {keepBusy=false}={}) {
       log(failed?'activity.fontFailed':'activity.fontUnavailable',{font:row.family,reason:failed?.detail||''},failed?'error':'warning');
     }
     if(state.failed.size)log('activity.previewFallback',{slides:state.failed.size},'warning');
+    store.update({driveSource});
     return true;
   } catch(err) {
     if(state.fonts!==previous.fonts)state.fonts?.dispose();
@@ -807,6 +808,25 @@ async function restoreHistory(direction) {
   } catch(err){error(err);}finally{busy(false);}
 }
 const undo=()=>restoreHistory('undo'),redo=()=>restoreHistory('redo');
+/** @param {GoogleFiles} files Drive transport. @param {string} fileId User-selected PPTX ID. */
+async function openDrivePptx(files,fileId){
+  if(state.busy||disposed)return false;
+  cancelActiveDrag?.();busy(true);
+  try{
+    const {source,buffer}=await files.openPptx(fileId);ensureActive();
+    return await openBuffer(buffer,source.name,{keepBusy:true,driveSource:source});
+  }finally{if(!disposed)busy(false);}
+}
+/** @param {GoogleFiles} files Drive transport. @param {object} options Explicit destination choice. */
+async function saveDrivePptx(files,options){
+  if(!state.deck||state.busy||disposed)return null;
+  cancelActiveDrag?.();busy(true);
+  try{
+    prepareGuideExport(state.deck);const blob=await exportDeck(state.deck,'blob');ensureActive();
+    const target=await files.savePptx(blob,{...options,source:store.getSnapshot().driveSource});ensureActive();
+    store.update({driveSource:target});return target;
+  }finally{if(!disposed)busy(false);}
+}
 async function download(){
   if(!state.deck||state.busy)return;
   busy(true);
@@ -896,7 +916,7 @@ return {
   choosePreviewFont(key,choice){return fontAction(fonts=>fonts.choose(key,choice),key);},
   uploadPreviewFont(key,file){return fontAction(fonts=>fonts.upload(key,file),key);},
   accessLocalFonts(){return fontAction(fonts=>fonts.accessLocal());},
-  openFile, openDemo, download, applySlideSearch, applyElementSearch,
+  openFile, openDemo, download, openDrivePptx, saveDrivePptx, applySlideSearch, applyElementSearch,
   refreshRecentFiles, openRecentFile, removeRecentFile, clearRecentFiles,
   setElementSearchQuery(query){if(!state.busy && state.deck && !disposed)updateElementSearch(String(query));},
   selectElementName(name){

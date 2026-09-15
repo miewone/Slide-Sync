@@ -3,6 +3,7 @@ import {useLanguage} from '../hooks/useLanguage.js';
 import {useRef} from 'react';
 import {Button} from './ui.jsx';
 import {ActivityLogPanel} from './ActivityLogPanel.jsx';
+import {GoogleDriveControls} from './GoogleDriveControls.jsx';
 import {RecentFiles} from './RecentFiles.jsx';
 import {useEditor, useEditorValue} from '../hooks/useEditor.js';
 
@@ -36,6 +37,7 @@ export function Header() {
       </div>
       <Button id="open" disabled={!ready || busy} onClick={() => input.current.click()}>{t('Header.5')}</Button>
       <RecentFiles/>
+      <GoogleDriveControls/>
       <Button id="download" variant="primary" disabled={!hasDeck || busy} onClick={commands.download}>{t('Header.6')}<span>↓</span></Button>
     </div>
     <input ref={input} id="file" type="file" accept=".pptx" hidden onChange={event => {

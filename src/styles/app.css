@@ -235,3 +235,30 @@
 .font-apply{flex-shrink:0;min-height:32px;padding:6px 9px;font-size:12px;white-space:nowrap}
 .font-pending-choice{width:100%;color:#315eba;font-size:11px}
 .activity-log{display:inline-flex;align-items:center}.activity-log-trigger{position:relative;display:grid;place-items:center;width:36px;height:36px;padding:7px;border:1px solid transparent;border-radius:8px;background:transparent;color:#526780;cursor:pointer;flex-shrink:0}.activity-log-trigger:hover,.activity-log-trigger[aria-expanded=true]{background:#eaf0ff;color:#3656c2;border-color:#d2ddf6}.activity-log-count{position:absolute;top:-5px;right:-5px;width:23px;height:23px;border:2px solid #fff;border-radius:50%;display:grid;place-items:center;background:#4263df;color:white;font-size:10px;font-weight:750;line-height:1;animation:activity-log-bump .55s ease-out}.activity-log-count::after{content:'';position:absolute;inset:-3px;border:2px solid #6886ed;border-radius:50%;animation:activity-log-ring .7s ease-out forwards;pointer-events:none}.activity-log-panel{position:fixed;inset:auto;margin:0;width:min(440px,calc(100vw - 24px));max-height:min(560px,calc(100dvh - 24px));padding:0;border:1px solid #d4ddec;border-radius:12px;background:#fff;box-shadow:0 14px 42px #172b4d2b;color:#263346;font-size:13px;overflow:hidden}.activity-log-panel:popover-open{display:flex;flex-direction:column}.activity-log-panel>header{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid #edf0f4;flex-shrink:0}.activity-log-panel h2{font-size:15px;margin:0}.activity-log-panel>header>span{font-size:12px;color:#697b91}.activity-log-panel>header>button{margin-left:auto;background:none;border:0;color:#697b91;font-size:23px;line-height:1;padding:0 4px}.activity-log-help{font-size:11px;line-height:1.5;color:#718198;margin:10px 15px}.activity-log-panel ol{list-style:none;margin:0;padding:0 15px;overflow:auto;min-height:0;overscroll-behavior:contain}.activity-log-panel li{padding:11px 0;border-bottom:1px solid #edf0f4;overflow-wrap:anywhere}.activity-log-panel li p{margin:6px 0 3px;line-height:1.55;white-space:pre-wrap}.activity-log-panel li small{font-size:11px;color:#718198}.activity-log-meta{display:flex;justify-content:space-between;align-items:center;gap:10px}.activity-log-meta time{font-size:11px;color:#718198;font-variant-numeric:tabular-nums}.activity-log-level{font-size:10px;padding:2px 6px;border-radius:4px;background:#edf1f7;color:#526780}.activity-log-level.success{background:#eaf8ef;color:#197343}.activity-log-level.warning{background:#fff3db;color:#8c600d}.activity-log-level.error{background:#fff0ed;color:#b33926}.activity-log-empty{padding:28px 16px;text-align:center;color:#718198}.activity-log-panel>footer{padding:10px 15px;border-top:1px solid #edf0f4;display:flex;justify-content:flex-end;flex-shrink:0}.activity-log-panel>footer button{font:inherit;font-size:12px;border:1px solid #d4ddec;border-radius:6px;background:white;padding:6px 10px;color:#526780}@keyframes activity-log-bump{0%{transform:scale(.65)}45%{transform:scale(1.25)}75%{transform:scale(.95)}100%{transform:scale(1)}}@keyframes activity-log-ring{from{transform:scale(.8);opacity:.8}to{transform:scale(1.7);opacity:0}}@media(prefers-reduced-motion:reduce){.activity-log-count,.activity-log-count::after{animation:none}.activity-log-count::after{display:none}}
+
+/* Google Drive dialogs and native Slides draft workspace. */
+.drive-dialog{width:min(560px,calc(100vw - 32px));max-height:85vh;overflow:auto;border:1px solid var(--line,#d8dee8);border-radius:16px;padding:24px;color:var(--text,#243047);background:var(--panel,#fff)}
+.drive-dialog::backdrop{background:#15243b80}
+.drive-dialog fieldset,.native-tools fieldset{border:0;padding:0;min-width:0;display:grid;gap:12px}
+.drive-dialog label{display:block;margin:8px 0}
+.drive-dialog input[type=radio]{width:16px;height:16px;min-height:16px;padding:0;margin:0 8px 0 0;accent-color:#466ce0}
+.drive-dialog label:has(input[type=radio]){display:flex;align-items:center;gap:4px}
+.drive-dialog input:not([type=radio]){width:100%}
+.drive-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.drive-dialog [role=alert],.native-slides-editor [role=alert]{color:#a02828;overflow-wrap:anywhere}
+.native-slides-editor{position:fixed;inset:0;z-index:1500;padding:20px;background:#f5f7fb;color:#243047;overflow:auto}
+.native-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.native-heading h2{margin:0;overflow-wrap:anywhere}.native-heading small{font-size:13px;font-weight:400}
+.native-help{max-width:1000px;color:#56637a}
+.native-columns{display:grid;grid-template-columns:210px minmax(280px,1fr) 310px;gap:20px;margin-top:16px}
+.native-pages,.native-tools,.native-preview{min-width:0;background:#fff;border:1px solid #d8dee8;border-radius:12px;padding:14px}
+.native-page-row{display:flex;gap:8px;margin-top:8px;align-items:center}.native-page-row button{overflow:hidden;text-overflow:ellipsis;text-align:left;white-space:nowrap;flex:1}
+.native-page-row [aria-current=page]{border-color:#7145c5;background:#f0e9ff}
+.native-preview{display:block;height:auto;align-self:start}
+.native-thumbnail,.native-layout{width:100%;display:block;border:1px solid #ccd4e0}
+.native-layout-object{cursor:pointer}.native-elements{max-height:260px;overflow:auto;border-block:1px solid #e2e7ee;padding:8px 0}
+.native-elements label{display:flex;gap:8px;padding:5px;overflow-wrap:anywhere;align-items:flex-start}.native-elements small{color:#667085}
+.native-deleted{text-decoration:line-through;opacity:.6}.native-coordinates{display:flex;gap:10px}.native-coordinates input{width:100%;min-width:0}.native-coordinates label{min-width:0}
+.native-slides-editor h3{font-size:14px;margin:8px 0}.native-preview p{font-size:12px;color:#59677b}
+@media(max-width:1050px){.native-columns{grid-template-columns:180px minmax(250px,1fr)}.native-tools{grid-column:1/-1}}
+@media(max-width:600px){.native-slides-editor{padding:10px}.native-columns{grid-template-columns:1fr}.native-tools{grid-column:auto}.native-pages{max-height:220px;overflow:auto}}

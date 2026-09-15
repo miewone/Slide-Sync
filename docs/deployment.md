@@ -59,3 +59,45 @@ Cloudflare가 의존성을 설치하고 빌드합니다. 대시보드에 `NODE_V
 Wrangler나 추가 라이브러리 없이 연결할 수 있습니다. PPTX 처리는 계속 브라우저 안에서 수행하며, 빌드 결과에는 기존 CSP와 로컬 렌더링 라이브러리가 포함됩니다. 배포 후 예제 열기, PPTX 편집 및 다운로드를 확인하세요.
 
 공식 안내: [Vite 배포](https://developers.cloudflare.com/pages/framework-guides/deploy-a-vite3-project/), [빌드 환경과 Node 버전](https://developers.cloudflare.com/pages/configuration/build-image/).
+
+## Google Drive · Google Slides 연동
+
+Picker의 API 키에서 애플리케이션 제한을 **웹사이트**로 설정한 경우, 허용 목록에 `http://localhost:5173/*`, `https://slide-sync.dlsrk489.workers.dev/*`, **`https://docs.google.com/*`**를 등록합니다. Picker는 docs.google.com의 iframe에서 실행되므로 이 주소를 빠뜨리면 “API 개발자 키가 잘못되었습니다” 오류가 발생할 수 있습니다. API 제한에는 Google Picker API를 포함합니다. 이는 OAuth의 승인된 JavaScript 원본과 별도 설정입니다. [Google 공식 안내](https://developers.google.com/workspace/drive/picker/guides/web-picker#create_an_api_key)
+
+
+Drive 버튼은 PPTX와 Google Slides를 열고 저장합니다. 실제 연동에는 같은 Google Cloud 프로젝트의 다음 빌드 환경 변수가 필요합니다.
+
+| 변수 | 값 |
+| --- | --- |
+| `VITE_GOOGLE_CLIENT_ID` | 웹 애플리케이션 OAuth 클라이언트 ID (`…apps.googleusercontent.com`) |
+| `VITE_GOOGLE_API_KEY` | Google Picker용 브라우저 API 키 |
+| `VITE_GOOGLE_APP_ID` | Google Cloud **프로젝트 번호** (프로젝트 이름/문자열 ID가 아님) |
+
+1. Google Cloud에서 **Google Drive API, Google Slides API, Google Picker API**를 활성화합니다.
+2. Google Auth Platform의 동의 화면을 설정합니다. 개발 중에는 테스트 사용자를 등록합니다. 앱은 사용자가 선택하거나 앱에서 만든 파일에 접근하는 `https://www.googleapis.com/auth/drive.file` 권한을 요청합니다.
+3. 웹 OAuth 클라이언트의 승인된 JavaScript 원본에 실제 사이트 원본을 등록합니다. 개발용으로는 `http://localhost:5173`처럼 Google이 허용하는 localhost 원본을 등록하고 해당 주소로 접속합니다. 포트도 일치해야 합니다.
+4. API 키에는 HTTP 리퍼러 제한(운영 도메인 및 개발 주소)과 필요한 API 제한을 적용합니다. **OAuth 클라이언트 비밀키는 프런트엔드에 넣지 않습니다.** 위 세 값은 브라우저에 노출되는 공개 식별자입니다.
+5. 로컬에서는 `.env.local`, Cloudflare에서는 빌드 환경 변수에 값을 설정하고 다시 빌드합니다. Worker 런타임 변수만 변경하면 반영되지 않습니다.
+6. 앱의 **Google Drive → Google 연결 → Drive에서 열기**로 파일을 선택합니다. 저장 시 원본/새 파일을 선택하며, 새 파일은 이름과 폴더를 지정합니다. 폴더를 지정하지 않으면 내 드라이브 최상위에 저장합니다.
+
+변수가 모두 설정된 빌드에만 Google 인증·Picker·API·Slides 이미지 출처를 CSP에 추가합니다. 실제 라이브러리는 사용자가 Drive 창을 열 때 로드합니다. 토큰은 메모리에만 보관하고 만료 시 사용자가 다시 연결합니다. 연결 해제는 현재 탭의 토큰을 삭제하며 Google 계정의 앱 권한을 취소하지는 않습니다. 서버 저장소나 클라이언트 비밀키는 사용하지 않습니다. 기존 PPTX 미리보기의 스크립트 차단 CSP는 유지합니다.
+
+Slides는 `presentations.get`으로 읽고 객체 이동/삭제 요청만 `batchUpdate`로 저장합니다. PPTX로 변환하거나 문서 전체를 교체하지 않습니다. 새 Slides 문서는 Drive `files.copy`로 원본 구조를 복사한 뒤 수정합니다. 편집 권한이 있으면 원본 저장, 복사 권한이 있으면 새 문서 저장을 사용할 수 있습니다. 원본 버전이 바뀌었거나 복사본 구조가 예상과 다르면 변경 적용을 중단합니다. 복사 후 적용 실패 시 생성된 문서 링크를 표시하며, 자동 삭제·재시도는 하지 않습니다.
+
+PPTX 원본 저장은 파일 버전 확인과 ETag 조건부 업로드를 사용합니다. 응답에서 ETag를 읽을 수 없는 환경에서는 원본 저장을 거부하고 새 파일 저장을 안내합니다. 네트워크 오류로 저장 결과를 확인할 수 없다면 Google Drive에서 결과를 확인한 뒤 재시도합니다.
+
+### 검증 범위
+
+`npm test`에는 네이티브 구조·그룹·서식 보존, 범위·실행 취소, 원본/복사본 요청, 충돌, 업로드 제한 검증이 포함됩니다. `npm run test:browser -- --check-google-drive`는 Google 응답을 모의한 UI/REST 통합 검증이며 Google 계정에 접근하지 않습니다. 배포 후 실제 계정에서 OAuth 팝업, Picker 파일/폴더 선택, 토큰 만료 후 재연결, Slides 원본/복사본 저장, PPTX 원본/새 파일 저장과 CSP를 확인해야 합니다. Google Cloud 설정이 없는 로컬 테스트는 실제 계정 연동 성공을 보장하지 않습니다.
+
+공식 문서: [Picker](https://developers.google.com/workspace/drive/picker/guides/web-picker-sample), [Google 인증](https://developers.google.com/identity/oauth2/web/guides/use-token-model), [Slides 객체 수정](https://developers.google.com/workspace/slides/api/guides/transform), [Slides 버전 제어](https://developers.google.com/workspace/slides/api/reference/rest/v1/presentations/batchUpdate).
+
+### API 사용 비용 (2026-09-15 확인)
+
+Google Slides API의 표준 사용은 추가 비용이 없으며, Drive API도 일일 기준 사용량 이하는 무료입니다. Google은 2026년 중 기준 초과 사용량에 대한 과금을 예고하고 있으며, 시행 전 최소 90일 안내를 예정하고 있습니다. 운영 시 Cloud 프로젝트의 할당량과 과금 공지를 확인하세요. 이 앱은 편집 중 변경을 메모리에 모으고 저장 시 일괄 요청하며, API 쓰기를 자동 재시도하지 않습니다.
+
+출처: [Slides 가격](https://developers.google.com/workspace/slides/api/limits#pricing), [Drive 일일 기준](https://developers.google.com/workspace/drive/api/guides/limits#daily_billing_threshold), [Workspace API 과금 변경 안내](https://developers.google.com/workspace/tools-safety).
+
+### 파일 선택 후 연결 실패
+
+Picker에서 파일을 선택한 뒤 “Google에 연결하지 못했습니다”가 나타나고 API 요청이 Network에 없다면, 오래된 빌드의 `fetch` 호출 오류일 수 있습니다. `GoogleFiles`의 브라우저 전송은 함수 호출 형태로 실행해야 합니다. 객체 메서드로 호출하면 Chrome에서 `Illegal invocation`이 발생합니다. 수정 소스로 개발 서버를 재시작하거나 다시 빌드·배포하세요. Drive 브라우저 테스트는 모의 Google 응답 적용 전에 실제 `Window.fetch`로 로컬 파일을 요청해 이 오류를 검증합니다.
