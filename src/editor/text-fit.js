@@ -1,4 +1,5 @@
 import {NS, child, children, descendants, serialize, setPosition,selectedIds} from './core.js';
+const candidateCache=new WeakMap();
 
 export function textBoxInfo(element) {
   if(!element)return null;
@@ -17,12 +18,17 @@ export function textBoxInfo(element) {
   return {body,props,unsupported:!!unsupported,fontScale:fontScale>0?fontScale:1,lineScale:lineScale>0?lineScale:1};
 }
 
+/** Return eligible descriptors; descriptor-array replacement (including undo) invalidates eligibility. */
 export function fitCandidates(deck,checked,selection,scope) {
   const result=[];
   if(!deck)return result;
-  for(const i of checked){const slide=deck.slides[i];for(const element of slide.elements){
-    if(scope==='selected'&&!selectedIds(selection.get(i)).includes(element.id))continue;
-    const info=textBoxInfo(element);if(info)result.push({slide,element,info});
+  for(const i of checked){const slide=deck.slides[i];
+    let candidates=candidateCache.get(slide.elements);
+    if(!candidates){candidates=slide.elements.flatMap(element=>{const info=textBoxInfo(element);return info?[{element,info}]:[];});candidateCache.set(slide.elements,candidates);}
+    const value=selection.get(i),ids=scope==='selected'?(value instanceof Set?value:new Set(selectedIds(value))):null;
+    for(const {element,info} of candidates){
+    if(ids&&!ids.has(element.id))continue;
+    result.push({slide,element,info});
   }}
   return result;
 }
@@ -57,10 +63,13 @@ export async function measureTextBoxes(candidates,previews,document) {
   reset.textContent=':host{font-family:Arial,"Noto Sans KR",sans-serif;font-size:16px;line-height:normal}*{box-sizing:border-box}';
   shadow.append(reset);
   const prepared=[],skipped=[];
+  const moverIndexes=new Map();
   try {
     for(const candidate of candidates){
-      const {element,slide,info}=candidate;
-      const mover=Array.from(previews.get(slide.index)?.querySelectorAll('[data-pptx-mover]')||[]).find(n=>n.dataset.pptxMover===element.id);
+      const {element,slide}=candidate,info=textBoxInfo(element);
+      if(!info||info.unsupported){skipped.push(candidate);continue;}
+      if(!moverIndexes.has(slide.index))moverIndexes.set(slide.index,new Map(Array.from(previews.get(slide.index)?.querySelectorAll('[data-pptx-mover]')||[],node=>[node.dataset.pptxMover,node])));
+      const mover=moverIndexes.get(slide.index).get(element.id);
       const text=mover?.firstElementChild?.querySelector('.text-wrapper');
       if(info.unsupported||!text){skipped.push(candidate);continue;}
       const clone=text.cloneNode(true);
@@ -86,8 +95,11 @@ export async function measureTextBoxes(candidates,previews,document) {
 }
 
 export function fitTextBoxes(deck,changes) {
+  const elementIndexes=new Map();
   const plans=changes.map(change=>{
-    const slide=deck.slides[change.index],element=slide?.elements.find(e=>e.id===change.id),info=element&&textBoxInfo(element);
+    const slide=deck.slides[change.index];
+    if(slide&&!elementIndexes.has(slide))elementIndexes.set(slide,new Map(slide.elements.map(element=>[element.id,element])));
+    const element=elementIndexes.get(slide)?.get(change.id),info=element&&textBoxInfo(element);
     if(!info||info.unsupported||!Number.isFinite(change.height)||change.height<=0||change.height>360000000)throw Error('텍스트 상자 높이를 계산할 수 없습니다.');
     return {...change,height:Math.round(change.height),slide,element,info};
   });

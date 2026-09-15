@@ -307,12 +307,13 @@ function updateScope() {
   if($('no-visible-slides')) $('no-visible-slides').hidden=!only||state.checked.size>0;
 }
 
-function updateMovedPreviews(indices) {
+function updateMovedPreviews(indices,{positionOnly=false,idsBySlide}={}) {
   for (const i of indices) {
     const slide=state.deck.slides[i];
-    syncPreviewPositions(state.previews.get(i),slide);
+    const options={positionOnly,ids:idsBySlide?.get(i)};
+    syncPreviewPositions(state.previews.get(i),slide,options);
     const frame=viewport.get(i)?.frame;
-    if(frame) syncPreviewPositions(frame.contentDocument,slide);
+    if(frame) syncPreviewPositions(frame.contentDocument,slide,options);
     const badge=viewport.get(i)?.badge;
     if(badge) badge.textContent=slide.dirty?'수정됨':state.checked.has(i)?'적용 대상':'';
   }
@@ -419,18 +420,31 @@ function bindPointer(surface,index){
   for(const type of ['pointercancel','lostpointercapture'])surface.addEventListener(type,event=>{if(start&&event.pointerId===start.pointerId)clearDraft(true);});
 }
 
-function recordEdit(snapshots,coalesce=false){
+function recordEdit(snapshots,coalesce=false,{positionOnly=false}={}) {
   if(!snapshots.length)return;
   if(snapshots[0]?.type==='guides'){nudgeHistory=null;state.undo.push(snapshots);if(state.undo.length>25)state.undo.shift();guideUI.updateControls();guideUI.render();updateSummary();updateInspector();return;}
-  if(coalesce&&nudgeHistory&&state.undo.at(-1)===nudgeHistory){for(const item of snapshots)if(!nudgeHistory.some(s=>s.index===item.index))nudgeHistory.push(item);}
-  else{state.undo.push(snapshots);if(state.undo.length>25)state.undo.shift();nudgeHistory=coalesce?snapshots:null;}
-  updateMovedPreviews(snapshots.map(s=>s.index));updateSummary();
+  if(coalesce && nudgeHistory && state.undo.at(-1)===nudgeHistory.history) {
+    const recorded=new Set(nudgeHistory.history.map(item=>item.index));
+    for(const item of snapshots)if(!recorded.has(item.index)){
+      nudgeHistory.history.push(item);recorded.add(item.index);
+    }
+  } else {
+    state.undo.push(snapshots);if(state.undo.length>25)state.undo.shift();
+    nudgeHistory=coalesce?{history:snapshots,snapshots:new Map(snapshots.map(item=>[item.index,item]))}:null;
+  }
+  const idsBySlide=new Map();
+  for(const {index,id} of snapshots.changes || []) {
+    if(!idsBySlide.has(index))idsBySlide.set(index,new Set());
+    idsBySlide.get(index).add(id);
+  }
+  const indices=snapshots.changes?[...idsBySlide.keys()]:snapshots.map(item=>item.index);
+  updateMovedPreviews(indices,{positionOnly,idsBySlide:snapshots.changes?idsBySlide:undefined});updateSummary();
 }
 
 async function applyLayout(action){
   if(state.busy||!state.selected.size)return;
   cancelActiveDrag?.();nudgeHistory=null;busy(true);notice('');
-  try{const snapshots=alignSelected(state.deck,state.selected,action,$('layout-target').value);recordEdit(snapshots);updatePositionFields();status(snapshots.length?`${snapshots.length}개 슬라이드의 선택 요소를 정렬했습니다. (${layoutActionLabel(action)})`:'이미 해당 위치에 정렬되어 있습니다.');}
+  try{const snapshots=alignSelected(state.deck,state.selected,action,$('layout-target').value);recordEdit(snapshots,false,{positionOnly:true});updatePositionFields();status(snapshots.length?`${snapshots.length}개 슬라이드의 선택 요소를 정렬했습니다. (${layoutActionLabel(action)})`:'이미 해당 위치에 정렬되어 있습니다.');}
   catch(err){error(err);}finally{busy(false);}
 }
 function updateFitControls() {
@@ -442,7 +456,7 @@ function updateFitControls() {
 
 async function fitText() {
   if(!state.deck||state.busy)return;
-  cancelActiveDrag?.();
+  cancelActiveDrag?.();nudgeHistory=null;
   const candidates=fitCandidates(state.deck,state.checked,state.selected,$('fit-scope').value);
   if(!candidates.length)return;
   busy(true);notice('');status('텍스트 줄바꿈과 높이를 계산하고 있습니다…');
@@ -474,7 +488,7 @@ async function renderDeck() {
   try {
     previewer?.destroy();renderHost.replaceChildren();
     const {init}=await resources.loadRenderer({charts:deckHasCharts(d)});ensureActive();
-    previewer=init(renderHost,{width:960,height:960*d.height/d.width,mode:'list'});
+    previewer=init(renderHost,{width:960,height:960*d.height/d.width,mode:'list',staticPreview:true});
     // File loading is the only place that parses and renders the whole PPTX.
     // ZIP encoding is reserved for the download action.
     await previewer.load(d.original);ensureActive();
@@ -570,9 +584,17 @@ async function applyMove(x,y,mode,axis=null,nudge=false){
   if(state.busy||!state.selected.size)return 0;
   if(!nudge)nudgeHistory=null;
   busy(true);notice('');
-  try{const snapshots=moveSelected(state.deck,state.selected,x,y,mode,axis);recordEdit(snapshots,nudge);updatePositionFields();const n=snapshots.length?selectedElements().length:0;if(n)status(`${state.selected.size}개 슬라이드의 ${n}개 요소를 간격을 유지하며 옮겼습니다.`);return n;}
-  catch(err){error(err);return 0;}finally{busy(false);}
+  try {
+    const snapshotsCache=nudge && nudgeHistory && state.undo.at(-1)===nudgeHistory.history?nudgeHistory.snapshots:undefined;
+    const snapshots=moveSelected(state.deck,state.selected,x,y,mode,axis,{snapshots:snapshotsCache});
+    recordEdit(snapshots,nudge,{positionOnly:true});updatePositionFields();
+    const n=snapshots.length?selectedElements().length:0;
+    if(n)status(`${state.selected.size}개 슬라이드의 ${n}개 요소를 간격을 유지하며 옮겼습니다.`);
+    return n;
+  } catch(err){nudgeHistory=null;error(err);return 0;}
+  finally{busy(false);}
 }
+
 async function undo(){if(!state.undo.length||state.busy)return;cancelActiveDrag?.();nudgeHistory=null;busy(true);try{const snapshots=state.undo.pop();if(snapshots[0]?.type==='guides'){restoreGuides(state.deck,snapshots[0]);guideUI.updateControls();guideUI.render();}else{restore(state.deck,snapshots);updateMovedPreviews(snapshots.map(s=>s.index));}updateSummary();updatePositionFields();status('마지막 변경을 취소했습니다.');}catch(err){error(err);}finally{busy(false);}}
 async function download(){if(!state.deck||state.busy)return;busy(true);try{prepareGuideExport(state.deck);const blob=await exportDeck(state.deck,'blob');ensureActive();const link=make('a');const url=URL.createObjectURL(blob);link.href=url;link.download=state.name.replace(/\.pptx$/i,'')+'-edited.pptx';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);status('수정한 PPTX를 다운로드했습니다.');}catch(err){error(err);}finally{busy(false);}}
 $('match-appearance').onchange=()=>{cancelActiveDrag?.();status($('match-appearance').checked?'다음 클릭·영역 선택부터 기준 페이지와 크기·색상·레이아웃이 같은 요소만 선택합니다.':'같은 좌표·영역의 요소를 선택합니다.');};

@@ -1,5 +1,23 @@
 import {textBoxInfo,captureTextStyles,scaleTextPreview} from './text-fit.js';
 import {serialize} from './core.js';
+const moverIndexes=new WeakMap(),elementIndexes=new WeakMap();
+
+/** Index descriptors for one immutable descriptor-array generation. */
+function elementsById(elements) {
+  if(!elementIndexes.has(elements))elementIndexes.set(elements,new Map(elements.map(element=>[element.id,element])));
+  return elementIndexes.get(elements);
+}
+
+/** Rebuild on full synchronization or replacement of the preview layer/document. */
+function moversById(root,rebuild=false) {
+  const layer=root.matches?.('.slide-wrapper')?root:root.querySelector('.slide-wrapper');
+  let cached=moverIndexes.get(root);
+  if(rebuild||!cached||cached.layer!==layer){
+    cached={layer,movers:new Map([...root.querySelectorAll('[data-pptx-mover]')].map(mover=>[mover.dataset.pptxMover,mover]))};
+    moverIndexes.set(root,cached);
+  }
+  return cached.movers;
+}
 // Preview geometry is captured once. Subsequent edits translate existing
 // wrappers in both the detached cache and the script-disabled preview frame.
 export function sourceId(node) {
@@ -21,6 +39,7 @@ export function tagRenderer(renderer) {
 }
 
 export function cachePreview(root, slide, unitsPerPixel = 12700) {
+  moverIndexes.delete(root);
   const layer = root.matches?.('.slide-wrapper') ? root : root.querySelector('.slide-wrapper');
   if (!layer) return root;
   const elements = new Map(slide.elements.map(e => [e.id, e]));
@@ -56,11 +75,19 @@ export function cachePreview(root, slide, unitsPerPixel = 12700) {
   return root;
 }
 
-export function syncPreviewPositions(root, slide) {
+/**
+ * Synchronize a cached or mounted preview with current geometry.
+ * @param {Element|Document|null} root Preview root; replaced layers rebuild its index.
+ * @param {object} slide Current slide descriptor.
+ * @param {object} options positionOnly skips text work; ids optionally limits movers.
+ */
+export function syncPreviewPositions(root, slide, options={}) {
   if (!root) return 0;
-  const elements = new Map(slide.elements.map(e => [e.id, e]));
+  const elements = elementsById(slide.elements);
+  const movers=moversById(root,!options.positionOnly);
+  const targets=options.ids===undefined?movers.values():Array.from(new Set(options.ids),id=>movers.get(id)).filter(Boolean);
   let changed = 0;
-  for (const mover of root.querySelectorAll('[data-pptx-mover]')) {
+  for (const mover of targets) {
     const element=elements.get(mover.dataset.pptxMover),g = element?.g;
     if (!g) continue;
     const units = Number(mover.dataset.unitsPerPixel);
@@ -71,6 +98,7 @@ export function syncPreviewPositions(root, slide) {
       mover.style.transform = transform;
       changed++;
     }
+    if(options.positionOnly)continue;
     const info=textBoxInfo(element),shape=mover.firstElementChild;
     if(info&&shape){
       shape.style.height=`${g.h/units}px`;

@@ -53,3 +53,8 @@ Production CSP restricts scripts to local assets; preview iframe scripts remain 
 This is not a complete PowerPoint rendering engine. Fonts, effects, custom geometry, SmartArt and unsupported media may differ. Grouped chart drawing remains a limitation of the existing vendor renderer; chart-reference detection still includes groups. Native PowerPoint comparison is unverified; the test machine lacks Korean fonts, limiting screenshot typography checks. Existing input limits remain 50 MiB compressed, 300 MiB declared decompressed, 120 slides and 25 undo operations.
 
 The source bundle originally shipped as v5; historical behavior and validation notes are preserved in [legacy-v5.md](legacy-v5.md). Third-party notices are in `public/vendor/NOTICE.txt`; React runtime license files are also included there and copied into the distribution.
+
+
+## Editing pipeline regression checks
+
+The browser suite also covers cached package reads, position-only preview synchronization, held-arrow snapshot reuse, fresh text-fit state after undo, and static-media loading with poster/export preservation. See [editing optimization notes](editing-optimization.md). The vendored renderer has a small `staticPreview`/media-lifecycle patch; retain its tests when upgrading it.

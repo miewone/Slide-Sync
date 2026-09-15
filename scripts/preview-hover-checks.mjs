@@ -21,7 +21,7 @@ export async function checkPreviewHover(browser,origin) {
   assert.equal(await browser.evaluate('(()=>{const row=document.querySelector(".slide-item[data-slide-index=\\\"29\\\"]").getBoundingClientRect(),sidebar=document.querySelector(".sidebar").getBoundingClientRect();return row.top>sidebar.bottom})()'),true,'corresponding sidebar row starts out of view');
   await browser.evaluate(`document.querySelector('#slide-search-query').focus({preventScroll:true});
     globalThis.hoverFrameDocs=[...document.querySelectorAll('#stage iframe')].map(frame=>({frame,doc:frame.contentDocument}));
-    globalThis.hoverStageTop=document.querySelector('#stage').scrollTop;globalThis.hoverPageTop=window.scrollY;globalThis.hoverInput=document.activeElement;`);
+    globalThis.hoverStageTop=document.querySelector('#stage').scrollTop;globalThis.hoverPageTop=window.scrollY;globalThis.hoverInput=document.activeElement;void 0;`);
   const move=async index=>{
     const position=await browser.evaluate(`(()=>{const r=document.querySelector('#slide-${index} .slide-surface').getBoundingClientRect();return {x:r.left+r.width*.6,y:r.top+r.height*.4}})()`);
     await browser.send('Input.dispatchMouseEvent',{type:'mouseMoved',...position});

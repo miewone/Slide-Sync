@@ -124,3 +124,8 @@ React UI → 안정적인 commands → 편집 런타임 → PPTX 도메인 모�
 ## 미리보기 호버와 왼쪽 목록 연결
 
 카드의 pointerenter/pointerleave는 별도의 `hoveredSlide` 표시 상태만 갱신합니다. React 목록 행은 해당 인덱스만 강조하고, `scrollSidebarRow`가 사이드바 내부의 스크롤 컨테이너만 조절해 행을 드러냅니다. 미리보기·페이지 스크롤, 키보드 포커스, 체크 범위와 편집 기준 슬라이드는 변경하지 않습니다. 포인터가 떠나거나 덱을 교체하면 호버 상태를 해제합니다. 터치 접촉은 호버로 취급하지 않습니다.
+
+
+## 반복 편집과 파일 로딩 비용
+
+파일 로딩 범위의 `PackageReader`, 이동 전용 `syncPreviewPositions` 옵션, 연속 방향키 스냅샷 Map, descriptor/mover ID 인덱스, 인스턴스별 `PreviewMediaResources`를 추가했습니다. 텍스트 맞춤·실행 취소·늦은 iframe 생성에는 전체 동기화를 유지합니다. 상세한 수명주기와 검증 조건은 [반복 편집 최적화](editing-optimization.md)를 참고하세요.

@@ -1,3 +1,4 @@
+import {PackageReader} from './PackageReader.js';
 export const NS = {p:'http://schemas.openxmlformats.org/presentationml/2006/main',a:'http://schemas.openxmlformats.org/drawingml/2006/main',r:'http://schemas.openxmlformats.org/officeDocument/2006/relationships'};
 export const EMU_PER_CM=360000;
 const kinds=new Set(['sp','pic','graphicFrame','cxnSp','grpSp']);
@@ -19,8 +20,8 @@ const pick=(arr,tag,key,def)=>{for(const x of arr){const value=num(tag?child(x,t
 export function readGeometry(node,inherited=[]){const xs=[node,...inherited].map(xfrm).filter(Boolean);if(!xs.length)return null;const g={x:pick(xs,'off','x',NaN),y:pick(xs,'off','y',NaN),w:pick(xs,'ext','cx',NaN),h:pick(xs,'ext','cy',NaN),rot:pick(xs,null,'rot',0)/60000,flipH:pick(xs,null,'flipH',0)===1,flipV:pick(xs,null,'flipV',0)===1};if(![g.x,g.y,g.w,g.h,g.rot].every(Number.isFinite))return null;g.chX=pick(xs,'chOff','x',0);g.chY=pick(xs,'chOff','y',0);g.chW=pick(xs,'chExt','cx',g.w);g.chH=pick(xs,'chExt','cy',g.h);return g;}
 function descriptor(node,index,inherited=[]){const props=descendants(node,'cNvPr')[0];const g=readGeometry(node,inherited);return {node,inherited,id:props?.getAttribute('id')||String(index),name:props?.getAttribute('name')||'이름 없는 요소',kind:node.localName,index,g,hidden:['1','true'].includes(props?.getAttribute('hidden')),text:descendants(node,'t').map(n=>n.textContent).join(' ').slice(0,80),children:node.localName==='grpSp'?shapeNodes(node).map((n,i)=>descriptor(n,i)):[]};}
 export function refreshSlide(slide){const layout=shapeNodes(shapeTree(slide.layout)),master=shapeNodes(shapeTree(slide.master));slide.elements=shapeNodes(shapeTree(slide.doc)).map((node,i)=>{const l=matchPlaceholder(node,layout),m=matchPlaceholder(l||node,master);return descriptor(node,i,[l,m].filter(Boolean));});slide.title=slide.elements.find(e=>ph(e.node)&&['title','ctrTitle'].includes(ph(e.node).getAttribute('type')))?.text||slide.elements.find(e=>e.text)?.text||`슬라이드 ${slide.index+1}`;}
-export async function loadDeck(buffer,JSZip){const zip=await JSZip.loadAsync(buffer);if(Object.keys(zip.files).length>15000)throw Error('구성 파일이 너무 많은 PPTX입니다.');let total=0;for(const f of Object.values(zip.files))total+=f._data?.uncompressedSize||0;if(total>300*1024*1024)throw Error('압축 해제 크기가 300MB를 넘습니다. 파일을 나누어 열어주세요.');const presentation=zip.file('ppt/presentation.xml');if(!presentation)throw Error('일반 PPTX 파일을 선택하세요. 암호가 설정된 파일은 지원하지 않습니다.');const doc=parseXml(await presentation.async('string')),size=descendants(doc,'sldSz')[0];const width=num(size,'cx'),height=num(size,'cy');if(!(width>0&&height>0))throw Error('슬라이드 크기를 읽을 수 없습니다.');const relationships=await rels(zip,'ppt/presentation.xml');const ids=descendants(child(doc.documentElement,'sldIdLst'),'sldId');if(!ids.length)throw Error('슬라이드가 없는 파일입니다.');if(ids.length>120)throw Error('한 번에 최대 120개 슬라이드를 지원합니다.');const cache=new Map();async function readDoc(path){if(!path||!zip.file(path))return null;if(!cache.has(path))cache.set(path,parseXml(await zip.file(path).async('string')));return cache.get(path);}
- const slides=[];for(const [index,id] of ids.entries()){const rel=relationships.get(id.getAttributeNS(NS.r,'id')||id.getAttribute('r:id'));if(!rel||rel.external)throw Error('슬라이드 연결 정보를 읽을 수 없습니다.');const path=rel.path,doc=await readDoc(path);if(!doc)throw Error(`슬라이드 ${index+1}의 원본을 찾지 못했습니다.`);const slideRelationships=await rels(zip,path);const lr=Array.from(slideRelationships.values()).find(r=>r.type.endsWith('/slideLayout')&&!r.external),layout=await readDoc(lr?.path);const mr=lr?Array.from((await rels(zip,lr.path)).values()).find(r=>r.type.endsWith('/slideMaster')&&!r.external):null;const master=await readDoc(mr?.path);const themeRel=mr?Array.from((await rels(zip,mr.path)).values()).find(r=>r.type.endsWith('/theme')&&!r.external):null;const slide={index,path,doc,layout,master,relationships:slideRelationships,themePath:themeRel?.path,originalXml:await zip.file(path).async('string'),dirty:false};refreshSlide(slide);slides.push(slide);}return {zip,width,height,slides,original:buffer};}
+export async function loadDeck(buffer,JSZip){const zip=await JSZip.loadAsync(buffer);if(Object.keys(zip.files).length>15000)throw Error('구성 파일이 너무 많은 PPTX입니다.');let total=0;for(const f of Object.values(zip.files))total+=f._data?.uncompressedSize||0;if(total>300*1024*1024)throw Error('압축 해제 크기가 300MB를 넘습니다. 파일을 나누어 열어주세요.');const presentation=zip.file('ppt/presentation.xml');if(!presentation)throw Error('일반 PPTX 파일을 선택하세요. 암호가 설정된 파일은 지원하지 않습니다.');const reader=new PackageReader(zip,{parseXml,resolvePath});const doc=await reader.readDoc('ppt/presentation.xml'),size=descendants(doc,'sldSz')[0];const width=num(size,'cx'),height=num(size,'cy');if(!(width>0&&height>0))throw Error('슬라이드 크기를 읽을 수 없습니다.');const relationships=await reader.readRelationships('ppt/presentation.xml');const ids=descendants(child(doc.documentElement,'sldIdLst'),'sldId');if(!ids.length)throw Error('슬라이드가 없는 파일입니다.');if(ids.length>120)throw Error('한 번에 최대 120개 슬라이드를 지원합니다.');
+ const slides=[];for(const [index,id] of ids.entries()){const rel=relationships.get(id.getAttributeNS(NS.r,'id')||id.getAttribute('r:id'));if(!rel||rel.external)throw Error('슬라이드 연결 정보를 읽을 수 없습니다.');const path=rel.path,doc=await reader.readDoc(path);if(!doc)throw Error(`슬라이드 ${index+1}의 원본을 찾지 못했습니다.`);const slideRelationships=await reader.readRelationships(path);const lr=Array.from(slideRelationships.values()).find(r=>r.type.endsWith('/slideLayout')&&!r.external),layout=await reader.readDoc(lr?.path);const mr=lr?Array.from((await reader.readRelationships(lr.path)).values()).find(r=>r.type.endsWith('/slideMaster')&&!r.external):null;const master=await reader.readDoc(mr?.path);const themeRel=mr?Array.from((await reader.readRelationships(mr.path)).values()).find(r=>r.type.endsWith('/theme')&&!r.external):null;const slide={index,path,doc,layout,master,relationships:slideRelationships,themePath:themeRel?.path,originalXml:await reader.readText(path),dirty:false};refreshSlide(slide);slides.push(slide);}return {zip,width,height,slides,original:buffer};}
 export function localPoint(g,x,y){const cx=g.x+g.w/2,cy=g.y+g.h/2,r=-g.rot*Math.PI/180,dx=x-cx,dy=y-cy;let lx=dx*Math.cos(r)-dy*Math.sin(r)+g.w/2,ly=dx*Math.sin(r)+dy*Math.cos(r)+g.h/2;if(g.flipH)lx=g.w-lx;if(g.flipV)ly=g.h-ly;return {x:lx,y:ly};}
 export function contains(e,x,y,tolerance=25000){const g=e.g;if(!g||e.hidden)return false;const p=localPoint(g,x,y);if(e.kind==='grpSp'){if(!g.w||!g.h)return false;const gx=g.chX+p.x*g.chW/g.w,gy=g.chY+p.y*g.chH/g.h;return e.children.some(c=>contains(c,gx,gy,tolerance*Math.max(g.chW/g.w,g.chH/g.h)));}if(e.kind==='cxnSp'||Math.min(g.w,g.h)<1){const dx=g.w,dy=g.h,t=Math.max(0,Math.min(1,(p.x*dx+p.y*dy)/(dx*dx+dy*dy||1)));return Math.hypot(p.x-dx*t,p.y-dy*t)<=tolerance;}return p.x>=0&&p.y>=0&&p.x<=g.w&&p.y<=g.h;}
 export function hitTest(slide,x,y){for(let i=slide.elements.length-1;i>=0;i--)if(contains(slide.elements[i],x,y))return slide.elements[i];return null;}
@@ -45,18 +46,39 @@ export function movePlans(deck,selection,x,y,mode='absolute',axis=null){
   }
   return plans;
 }
-export function commitPositions(deck,plans){
-  // Validate the complete batch before changing any slide, then snapshot once.
-  const prepared=plans.map(p=>{const slide=deck.slides[p.index],element=slide?.elements.find(e=>e.id===p.id);if(!element?.g||![p.x,p.y].every(Number.isFinite)||Math.abs(p.x)>360000000||Math.abs(p.y)>360000000)throw Error('이동할 위치가 유효하지 않습니다.');return {...p,x:Math.round(p.x),y:Math.round(p.y),slide,element};});
-  const snapshots=new Map();
-  for(const {index,x,y,slide,element}of prepared){
+/**
+ * Apply a validated position batch, capturing each changed slide before its first edit.
+ * @param {object} deck Editable deck.
+ * @param {Array<object>} plans Target element IDs and coordinates.
+ * @param {object} options Optional snapshots Map shared by one undo gesture.
+ * @returns {Array<object>} Snapshots for changed slides, with changes containing changed index/ID pairs.
+ */
+export function commitPositions(deck,plans,{snapshots:retained=new Map()}={}){
+  const elementMaps=new Map();
+  // Validate the complete batch before changing either slides or retained snapshots.
+  const prepared=plans.map(p=>{
+    const slide=deck.slides[p.index];
+    if(slide&&!elementMaps.has(p.index)){
+      const elements=new Map();
+      for(const e of slide.elements)if(!elements.has(e.id))elements.set(e.id,e);
+      elementMaps.set(p.index,elements);
+    }
+    const element=elementMaps.get(p.index)?.get(p.id);
+    if(!element?.g||![p.x,p.y].every(Number.isFinite)||Math.abs(p.x)>360000000||Math.abs(p.y)>360000000)throw Error('이동할 위치가 유효하지 않습니다.');
+    return {...p,x:Math.round(p.x),y:Math.round(p.y),slide,element};
+  });
+  const snapshots=new Map(),changes=[];
+  for(const {index,id,x,y,slide,element}of prepared){
     if(element.g.x===x&&element.g.y===y)continue;
-    if(!snapshots.has(index))snapshots.set(index,{index,xml:serialize(slide.doc),dirty:slide.dirty});
-    setPosition(element,x,y);slide.dirty=true;
+    if(!retained.has(index))retained.set(index,{index,xml:serialize(slide.doc),dirty:slide.dirty});
+    snapshots.set(index,retained.get(index));
+    setPosition(element,x,y);slide.dirty=true;changes.push({index,id});
   }
-  return [...snapshots.values()];
+  const result=[...snapshots.values()];result.changes=changes;
+  return result;
 }
-export function moveSelected(deck,selection,x,y,mode='absolute',axis=null){return commitPositions(deck,movePlans(deck,selection,x,y,mode,axis));}
+/** @param {object} deck Deck. @param {Map} selection Selected IDs by slide. @param {number} x X coordinate. @param {number} y Y coordinate. @param {string} mode Absolute or relative. @param {string|null} axis Axis restriction. @param {object} options Optional gesture snapshots passed to commitPositions. */
+export function moveSelected(deck,selection,x,y,mode='absolute',axis=null,options){return commitPositions(deck,movePlans(deck,selection,x,y,mode,axis),options);}
 export function restore(deck,snapshots){for(const {index,xml,dirty} of snapshots){const s=deck.slides[index];s.doc=parseXml(xml);s.dirty=dirty;refreshSlide(s);}}
 export async function exportDeck(deck,type='arraybuffer'){for(const s of deck.slides)deck.zip.file(s.path,s.dirty?serialize(s.doc):s.originalXml);return deck.zip.generateAsync({type,compression:'DEFLATE',compressionOptions:{level:6}});}
 export function parseRange(value,count){const text=value.trim().replace(/[–—]/g,'-');if(!text)return new Set();const result=new Set();for(const token of text.split(',')){const m=token.trim().match(/^(\d+)(?:\s*-\s*(\d+))?$/);if(!m)throw Error('번호는 1, 3-5 형식으로 입력하세요.');const start=Number(m[1]),end=Number(m[2]||m[1]);if(start<1||end<start||end>count)throw Error(`1부터 ${count}까지의 번호를 입력하세요.`);for(let i=start;i<=end;i++)result.add(i-1);}return result;}

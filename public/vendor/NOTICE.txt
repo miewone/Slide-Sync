@@ -8,3 +8,9 @@ pptx-preview 1.0.7, by hit757 / 501351981. Published npm package is free for per
 react 19.3.0, MIT (see react-LICENSE.txt).
 react-dom 19.3.0, MIT (see react-dom-LICENSE.txt).
 scheduler 0.28.0, MIT (see scheduler-LICENSE.txt).
+
+Local integration changes to pptx-preview 1.0.7:
+- Optional staticPreview mode skips playable audio/video decoding while retaining images.
+- Per-presentation PreviewMediaResources owns media Blob URLs and releases them on replacement, failure and destroy.
+- The original package media parts and renderer image behavior are retained.
+See docs/editing-optimization.md in the source distribution for regression coverage.

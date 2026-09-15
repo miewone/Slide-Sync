@@ -1,3 +1,7 @@
+import {checkCorePerformance} from './core-performance-checks.mjs';
+import {checkPreviewFit} from './preview-fit-checks.mjs';
+import {checkStaticMedia} from './media-checks.mjs';
+import {checkRepeatedEdits} from './repeated-edit-checks.mjs';
 import {checkRecentFiles} from './recent-files-checks.mjs';
 import {checkPreviewHover} from './preview-hover-checks.mjs';
 import {checkPreviewActivation} from './activation-checks.mjs';
@@ -186,6 +190,13 @@ try {
   await checkInspector(browser,'http://127.0.0.1:5179');
   await checkInspector(browser,'http://127.0.0.1:4179');
   await checkInspector(browser,'http://127.0.0.1:4189/slides/');
+  await checkCorePerformance(browser,'http://127.0.0.1:5179');
+  await checkPreviewFit(browser,'http://127.0.0.1:5179');
+  await checkRepeatedEdits(browser,'http://127.0.0.1:5179');
+  await checkRepeatedEdits(browser,'http://127.0.0.1:4179');
+  await checkRepeatedEdits(browser,'http://127.0.0.1:4189/slides/');
+  await checkStaticMedia(browser,'http://127.0.0.1:4179');
+  await checkStaticMedia(browser,'http://127.0.0.1:4189/slides/');
   await checkChartLoading(browser,'http://127.0.0.1:4179');
   const measurements=[];
   if(baseline)measurements.push(...await checkLargeDecks(browser,'http://127.0.0.1:4190',{baseline:true}));
