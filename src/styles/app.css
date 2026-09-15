@@ -179,3 +179,24 @@
 @media(max-width:850px){.stage.preview-grid{flex:none;height:70dvh;min-height:320px}}
 @media(max-width:850px){.preview-grid-control{right:18px}}
 @media(max-width:540px){.stage.preview-grid{gap:10px}}
+
+/* Compact scrollbars for the workspace and nested panel lists. */
+*{scrollbar-width:thin;scrollbar-color:#b4c1d5 transparent}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#b4c1d5;border-radius:999px}
+::-webkit-scrollbar-thumb:hover{background:#8c9fbf}
+
+.editor-layout{position:relative}
+.panel-resizer{display:none;touch-action:none;cursor:col-resize;position:relative;background:#e8edf5;z-index:2}
+.panel-resizer span{position:absolute;top:50%;left:1px;right:1px;height:38px;transform:translateY(-50%);border-radius:4px;background:#b8c6dd}
+.panel-resizer:hover,.panel-resizer:focus-visible{background:#dbe6ff;outline:none}
+.panel-resizer:hover span,.panel-resizer:focus-visible span{background:#466ce0}
+.panel-resizer[aria-disabled=true]{cursor:default;opacity:.45}
+.layout-resizing{user-select:none;cursor:col-resize}
+.layout-resizing .slide-surface{pointer-events:none}
+.layout-save-warning{position:absolute;z-index:10;bottom:12px;left:50%;transform:translateX(-50%);max-width:80%;background:#fff4de;color:#856123;border:1px solid #e3c994;border-radius:7px;padding:9px 13px;font-size:12px}
+@media(min-width:851px){.editor-layout{grid-template-columns:var(--sidebar-width) 6px minmax(300px,1fr) 6px var(--inspector-width)}.panel-resizer{display:block}.editor-layout>.sidebar,.editor-layout>.inspector{min-width:0}}
+.editor-layout .workspace-bar{flex-wrap:wrap}
+.editor-layout .workspace-bar>div{min-width:0;max-width:100%}
+.editor-layout .workspace-options{justify-content:flex-start}

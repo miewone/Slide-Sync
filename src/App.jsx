@@ -8,6 +8,7 @@ import {Header} from './components/Header.jsx';
 import {Sidebar} from './components/Sidebar.jsx';
 import {Workspace} from './components/Workspace.jsx';
 import {Inspector} from './components/Inspector.jsx';
+import {ResizableLayout} from './components/ResizableLayout.jsx';
 
 /** A self-contained editor instance with a lazy engine and stable command facade. */
 export default function App() {
@@ -44,6 +45,6 @@ export default function App() {
   }, [services]);
 
   return <EditorContext.Provider value={services}>
-    <div id="app" ref={root}><Header/><main><Sidebar/><Workspace/><Inspector/></main></div>
+    <div id="app" ref={root}><Header/><ResizableLayout left={<Sidebar/>} center={<Workspace/>} right={<Inspector/>}/></div>
   </EditorContext.Provider>;
 }

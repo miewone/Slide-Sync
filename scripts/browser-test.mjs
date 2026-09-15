@@ -1,3 +1,4 @@
+import {checkPanelLayout} from './panel-layout-checks.mjs';
 import {checkPreviewGrid} from './preview-grid-checks.mjs';
 import {checkSelectionVisibility} from './selection-visibility-checks.mjs';
 import {checkLocalization} from './localization-checks.mjs';
@@ -204,6 +205,9 @@ try {
   await checkSelectionVisibility(browser,'http://127.0.0.1:5179');
   await checkSelectionVisibility(browser,'http://127.0.0.1:4179');
   await checkSelectionVisibility(browser,'http://127.0.0.1:4189/slides/');
+  await checkPanelLayout(browser,'http://127.0.0.1:5179');
+  await checkPanelLayout(browser,'http://127.0.0.1:4179');
+  await checkPanelLayout(browser,'http://127.0.0.1:4189/slides/');
   await checkRecentFiles(browser,'http://127.0.0.1:5179');
   await checkRecentFiles(browser,'http://127.0.0.1:4179');
   await checkRecentFiles(browser,'http://127.0.0.1:4189/slides/');

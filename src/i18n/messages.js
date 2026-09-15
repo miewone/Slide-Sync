@@ -1134,3 +1134,10 @@ Object.assign(messages, {
   'previewGrid.columns': {ko:'가로 칸 수 (1–8)',en:'Columns (1–8)'},
   'previewGrid.rows': {ko:'세로 칸 수 (1–8)',en:'Rows (1–8)'}
 });
+
+Object.assign(messages, {
+  'layout.resize.left': {ko:'왼쪽 패널 너비 조절',en:'Resize the left panel'},
+  'layout.resize.right': {ko:'오른쪽 패널 너비 조절',en:'Resize the right panel'},
+  'layout.resize.help': {ko:'드래그하거나 좌우 방향키로 너비를 조절합니다. 두 번 클릭 또는 Home으로 기본 너비를 복원합니다.',en:'Drag or use Left/Right arrow keys to resize. Double-click or press Home to restore the default width.'},
+  'layout.resize.saveFailed': {ko:'너비는 적용했지만 브라우저에 저장하지 못했습니다. 브라우저 저장소 설정을 확인하세요.',en:'The widths were applied but could not be saved. Check your browser storage settings.'}
+});
