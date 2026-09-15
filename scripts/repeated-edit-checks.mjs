@@ -6,9 +6,9 @@ export async function checkRepeatedEdits(browser,origin) {
   await browser.navigate(origin);
   await browser.until('!!document.querySelector("#demo") && !document.querySelector("#demo").disabled','repeated edit editor');
   await browser.evaluate('document.querySelector("#demo").click()');
-  await browser.until('!document.querySelector("#download").disabled && document.querySelectorAll("#stage iframe").length===3','repeated edit sample');
+  await browser.until('!document.querySelector("#download").disabled && document.querySelectorAll("#stage iframe").length===8','repeated edit sample');
   await browser.until('[...document.querySelectorAll("#stage iframe")].every(f=>f.contentDocument?.querySelector("[data-pptx-mover]"))','repeated edit previews');
-  await browser.evaluate(`document.querySelector('.slide-surface').focus();document.querySelector('.slide-surface').dispatchEvent(new KeyboardEvent('keydown',{key:'a',ctrlKey:true,bubbles:true}));`);
+  await browser.evaluate(`document.querySelector('#range').value='1-3';document.querySelector('#apply-range').click();document.querySelector('.slide-surface').focus();document.querySelector('.slide-surface').dispatchEvent(new KeyboardEvent('keydown',{key:'a',ctrlKey:true,bubbles:true}));`);
   await browser.until('Number(document.querySelector(".selection-number").textContent)>0','selected editable objects');
   await browser.evaluate(`globalThis.editFrames=[...document.querySelectorAll('#stage iframe')].map(frame=>({frame,doc:frame.contentDocument}));
     globalThis.editCounts={slideXml:0,textXml:0,textQueries:0,zip:0};

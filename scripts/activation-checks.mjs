@@ -6,7 +6,7 @@ export async function checkPreviewActivation(browser,origin) {
   await browser.navigate(origin);
   await browser.until('!!document.querySelector("#demo") && !document.querySelector("#demo").disabled','activation app ready');
   await browser.evaluate('document.querySelector("#demo").click()');
-  await browser.until('!document.querySelector("#download").disabled && document.querySelectorAll("#stage iframe").length===3','activation sample');
+  await browser.until('!document.querySelector("#download").disabled && document.querySelectorAll("#stage iframe").length===8','activation sample');
   await browser.until('[...document.querySelectorAll("#stage iframe")].every(frame=>frame.contentDocument?.querySelector("[data-pptx-mover]"))','activation frame content');
   await browser.evaluate(`globalThis.activationFrames=[...document.querySelectorAll('#stage iframe')].map(frame=>({frame,doc:frame.contentDocument}));
     globalThis.activationEncodes=0;const encode=JSZip.prototype.generateAsync;JSZip.prototype.generateAsync=function(...args){activationEncodes++;return encode.apply(this,args)};
@@ -80,7 +80,7 @@ export async function checkPreviewActivation(browser,origin) {
   assert.deepEqual(await checked(),[],'busy preview cannot activate');
   await browser.evaluate('resumeActivationLoad()');
   await browser.until('!document.querySelector("#download").disabled','resumed load');
-  assert.deepEqual(await checked(),[0,1,2],'file loading completes normally');
+  assert.deepEqual(await checked(),[0,1,2,3,4,5,6,7],'file loading completes normally');
   assert.deepEqual(browser.errors,[],'preview activation browser errors');
   console.log('PASS preview activation: additive scope, remembered selection, first-click-only, checkbox, keyboard, guide/busy guards and frame/ZIP reuse');
 }

@@ -42,8 +42,8 @@ export async function checkPreviewHover(browser,origin) {
   // Replacement must clear old row indices, including those outside the next deck's range.
   await move(29);
   await browser.evaluate('document.querySelector("#demo").click()');
-  await browser.until('document.querySelectorAll(".slide-card").length===3 && !document.querySelector("#download").disabled','replacement deck');
-  assert.equal(await browser.evaluate('[...document.querySelectorAll(".slide-item.preview-hover")].every(row=>Number(row.dataset.slideIndex)<3)'),true,'replacement has no stale hovered index');
+  await browser.until('document.querySelectorAll(".slide-card").length===8 && !document.querySelector("#download").disabled','replacement deck');
+  assert.equal(await browser.evaluate('[...document.querySelectorAll(".slide-item.preview-hover")].every(row=>Number(row.dataset.slideIndex)<8)'),true,'replacement has no stale hovered index');
   assert.deepEqual(browser.errors,[],'preview hover browser errors');
   console.log('PASS preview hover: sidebar highlight/reveal, pointer leave, no scope/selection/focus changes, no preview/page scroll and frame reuse');
 }

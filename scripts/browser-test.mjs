@@ -170,7 +170,7 @@ try {
   assert.equal(await browser.evaluate('document.querySelectorAll("#stage iframe").length'), 0, 'disposed load cannot attach previews');
   await browser.evaluate('document.querySelector("#demo").click()');
   await browser.until('!document.querySelector("#download").disabled', 'remounted editor loads sample');
-  assert.equal(await browser.evaluate('document.querySelectorAll("#stage iframe").length'), 3, 'single runtime after remount');
+  assert.equal(await browser.evaluate('document.querySelectorAll("#stage iframe").length'), 8, 'single runtime after remount');
   assert.deepEqual(browser.errors, [], 'lifecycle has no async unmount exceptions');
   console.log('PASS lifecycle: StrictMode, unmount during async loading, remount and reopen');
   await checkPreviewHover(browser,'http://127.0.0.1:5179');
