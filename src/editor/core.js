@@ -1,16 +1,31 @@
 import {t,localizedError} from '../i18n/I18n.js';
 import {PackageReader} from './PackageReader.js';
+import {XmlPartCodec} from '../services/XmlPartCodec.js';
 export const NS = {p:'http://schemas.openxmlformats.org/presentationml/2006/main',a:'http://schemas.openxmlformats.org/drawingml/2006/main',r:'http://schemas.openxmlformats.org/officeDocument/2006/relationships'};
 export const EMU_PER_CM=360000;
 const kinds=new Set(['sp','pic','graphicFrame','cxnSp','grpSp']);
 export const children=n=>Array.from(n?.childNodes||[]).filter(x=>x.nodeType===1);
 export const child=(n,name)=>children(n).find(x=>x.localName===name);
 export const descendants=(n,name)=>Array.from(n?.getElementsByTagNameNS?.('*',name)||[]);
-export function parseXml(text){if(/<!DOCTYPE|<!ENTITY/i.test(text))throw localizedError('core.1');const d=new DOMParser().parseFromString(text,'application/xml');if(descendants(d,'parsererror').length)throw localizedError('core.2');return d;}
-export const serialize=doc=>new XMLSerializer().serializeToString(doc);
+/** Parse package XML after removing leading BOMs, including their Latin-1 misdecoded form.
+ * Keep the stored package bytes unchanged and reject other XML syntax errors and external entities.
+ * @param {string} text XML source.
+ * @param {string} path Optional package part path for error diagnosis.
+ */
+export function parseXml(text,path=''){
+ if(/<!DOCTYPE|<!ENTITY/i.test(text))throw localizedError('core.1');
+ const source=XmlPartCodec.normalize(text);
+ const d=new DOMParser().parseFromString(source,'application/xml'),failure=descendants(d,'parsererror').find(node=>['http://www.w3.org/1999/xhtml','http://www.mozilla.org/newlayout/xml/parsererror.xml'].includes(node.namespaceURI));
+ if(failure){
+  const detail=(failure.textContent||'').replace(/\s+/g,' ').trim().slice(0,300);
+  throw localizedError('core.xmlParseError',{path:path||t('core.xmlUnknownPart'),detail});
+ }
+ return d;
+}
+export const serialize=doc=>XmlPartCodec.forUtf8(new XMLSerializer().serializeToString(doc));
 export function resolvePath(base,target){if(!target||/^[a-z]+:/i.test(target))return null;const result=target.startsWith('/')?[]:base.split('/').slice(0,-1);for(const part of target.split('/')){if(part==='..')result.pop();else if(part&&part!=='.')result.push(part);}return result.join('/');}
 const relPath=p=>p.slice(0,p.lastIndexOf('/')+1)+'_rels/'+p.slice(p.lastIndexOf('/')+1)+'.rels';
-export async function rels(zip,path){const f=zip.file(relPath(path));if(!f)return new Map();const d=parseXml(await f.async('string'));return new Map(descendants(d,'Relationship').map(e=>[e.getAttribute('Id'),{type:e.getAttribute('Type'),external:e.getAttribute('TargetMode')==='External',path:resolvePath(path,e.getAttribute('Target'))}]));}
+export async function rels(zip,path){const f=zip.file(relPath(path));if(!f)return new Map();const d=parseXml(await XmlPartCodec.read(f),relPath(path));return new Map(descendants(d,'Relationship').map(e=>[e.getAttribute('Id'),{type:e.getAttribute('Type'),external:e.getAttribute('TargetMode')==='External',path:resolvePath(path,e.getAttribute('Target'))}]));}
 const shapeTree=doc=>descendants(doc,'spTree')[0];
 function shapeNodes(tree){return children(tree).flatMap(n=>kinds.has(n.localName)?[n]:n.localName==='AlternateContent'?shapeNodes(child(n,'Fallback')||child(n,'Choice')):[]);}
 const ph=n=>descendants(n,'ph')[0];
@@ -22,7 +37,7 @@ export function readGeometry(node,inherited=[]){const xs=[node,...inherited].map
 function descriptor(node,index,inherited=[]){const props=descendants(node,'cNvPr')[0];const g=readGeometry(node,inherited);return {node,inherited,id:props?.getAttribute('id')||String(index),name:props?.getAttribute('name')||t('core.3'),kind:node.localName,index,g,hidden:['1','true'].includes(props?.getAttribute('hidden')),text:descendants(node,'t').map(n=>n.textContent).join(' ').slice(0,80),children:node.localName==='grpSp'?shapeNodes(node).map((n,i)=>descriptor(n,i)):[]};}
 export function refreshSlide(slide){const layout=shapeNodes(shapeTree(slide.layout)),master=shapeNodes(shapeTree(slide.master));slide.elements=shapeNodes(shapeTree(slide.doc)).map((node,i)=>{const l=matchPlaceholder(node,layout),m=matchPlaceholder(l||node,master);return descriptor(node,i,[l,m].filter(Boolean));});slide.title=slide.elements.find(e=>ph(e.node)&&['title','ctrTitle'].includes(ph(e.node).getAttribute('type')))?.text||slide.elements.find(e=>e.text)?.text||t('ElementNamePopover.5', {p0: slide.index+1});}
 export async function loadDeck(buffer,JSZip){const zip=await JSZip.loadAsync(buffer);if(Object.keys(zip.files).length>15000)throw localizedError('core.4');let total=0;for(const f of Object.values(zip.files))total+=f._data?.uncompressedSize||0;if(total>300*1024*1024)throw localizedError('core.5');const presentation=zip.file('ppt/presentation.xml');if(!presentation)throw localizedError('core.6');const reader=new PackageReader(zip,{parseXml,resolvePath});const doc=await reader.readDoc('ppt/presentation.xml'),size=descendants(doc,'sldSz')[0];const width=num(size,'cx'),height=num(size,'cy');if(!(width>0&&height>0))throw localizedError('core.7');const relationships=await reader.readRelationships('ppt/presentation.xml');const ids=descendants(child(doc.documentElement,'sldIdLst'),'sldId');if(!ids.length)throw localizedError('core.8');if(ids.length>120)throw localizedError('core.9');
- const slides=[];for(const [index,id] of ids.entries()){const rel=relationships.get(id.getAttributeNS(NS.r,'id')||id.getAttribute('r:id'));if(!rel||rel.external)throw localizedError('core.10');const path=rel.path,doc=await reader.readDoc(path);if(!doc)throw localizedError('core.11', {p0: index+1});const slideRelationships=await reader.readRelationships(path);const lr=Array.from(slideRelationships.values()).find(r=>r.type.endsWith('/slideLayout')&&!r.external),layout=await reader.readDoc(lr?.path);const mr=lr?Array.from((await reader.readRelationships(lr.path)).values()).find(r=>r.type.endsWith('/slideMaster')&&!r.external):null;const master=await reader.readDoc(mr?.path);const themeRel=mr?Array.from((await reader.readRelationships(mr.path)).values()).find(r=>r.type.endsWith('/theme')&&!r.external):null;const slide={index,path,doc,layout,master,relationships:slideRelationships,themePath:themeRel?.path,originalXml:await reader.readText(path),dirty:false};refreshSlide(slide);slides.push(slide);}return {zip,width,height,slides,original:buffer};}
+ const slides=[];for(const [index,id] of ids.entries()){const rel=relationships.get(id.getAttributeNS(NS.r,'id')||id.getAttribute('r:id'));if(!rel||rel.external)throw localizedError('core.10');const path=rel.path,doc=await reader.readDoc(path);if(!doc)throw localizedError('core.11', {p0: index+1});const slideRelationships=await reader.readRelationships(path);const lr=Array.from(slideRelationships.values()).find(r=>r.type.endsWith('/slideLayout')&&!r.external),layout=await reader.readDoc(lr?.path);const mr=lr?Array.from((await reader.readRelationships(lr.path)).values()).find(r=>r.type.endsWith('/slideMaster')&&!r.external):null;const master=await reader.readDoc(mr?.path);const themeRel=mr?Array.from((await reader.readRelationships(mr.path)).values()).find(r=>r.type.endsWith('/theme')&&!r.external):null;const slide={index,path,doc,layout,master,relationships:slideRelationships,themePath:themeRel?.path,originalXml:await reader.readText(path),originalBytes:await reader.readBytes(path),dirty:false};refreshSlide(slide);slides.push(slide);}return {zip,width,height,slides,original:buffer};}
 export function localPoint(g,x,y){const cx=g.x+g.w/2,cy=g.y+g.h/2,r=-g.rot*Math.PI/180,dx=x-cx,dy=y-cy;let lx=dx*Math.cos(r)-dy*Math.sin(r)+g.w/2,ly=dx*Math.sin(r)+dy*Math.cos(r)+g.h/2;if(g.flipH)lx=g.w-lx;if(g.flipV)ly=g.h-ly;return {x:lx,y:ly};}
 export function contains(e,x,y,tolerance=25000){const g=e.g;if(!g||e.hidden)return false;const p=localPoint(g,x,y);if(e.kind==='grpSp'){if(!g.w||!g.h)return false;const gx=g.chX+p.x*g.chW/g.w,gy=g.chY+p.y*g.chH/g.h;return e.children.some(c=>contains(c,gx,gy,tolerance*Math.max(g.chW/g.w,g.chH/g.h)));}if(e.kind==='cxnSp'||Math.min(g.w,g.h)<1){const dx=g.w,dy=g.h,t=Math.max(0,Math.min(1,(p.x*dx+p.y*dy)/(dx*dx+dy*dy||1)));return Math.hypot(p.x-dx*t,p.y-dy*t)<=tolerance;}return p.x>=0&&p.y>=0&&p.x<=g.w&&p.y<=g.h;}
 export function hitTest(slide,x,y){for(let i=slide.elements.length-1;i>=0;i--)if(contains(slide.elements[i],x,y))return slide.elements[i];return null;}
@@ -81,5 +96,5 @@ export function commitPositions(deck,plans,{snapshots:retained=new Map()}={}){
 /** @param {object} deck Deck. @param {Map} selection Selected IDs by slide. @param {number} x X coordinate. @param {number} y Y coordinate. @param {string} mode Absolute or relative. @param {string|null} axis Axis restriction. @param {object} options Optional gesture snapshots passed to commitPositions. */
 export function moveSelected(deck,selection,x,y,mode='absolute',axis=null,options){return commitPositions(deck,movePlans(deck,selection,x,y,mode,axis),options);}
 export function restore(deck,snapshots){for(const {index,xml,dirty} of snapshots){const s=deck.slides[index];s.doc=parseXml(xml);s.dirty=dirty;refreshSlide(s);}}
-export async function exportDeck(deck,type='arraybuffer'){for(const s of deck.slides)deck.zip.file(s.path,s.dirty?serialize(s.doc):s.originalXml);return deck.zip.generateAsync({type,compression:'DEFLATE',compressionOptions:{level:6}});}
+export async function exportDeck(deck,type='arraybuffer'){for(const s of deck.slides)deck.zip.file(s.path,s.dirty?serialize(s.doc):(s.originalBytes??s.originalXml));return deck.zip.generateAsync({type,compression:'DEFLATE',compressionOptions:{level:6}});}
 export function parseRange(value,count){const text=value.trim().replace(/[–—]/g,'-');if(!text)return new Set();const result=new Set();for(const token of text.split(',')){const m=token.trim().match(/^(\d+)(?:\s*-\s*(\d+))?$/);if(!m)throw localizedError('core.15');const start=Number(m[1]),end=Number(m[2]||m[1]);if(start<1||end<start||end>count)throw localizedError('core.16', {p0: count});for(let i=start;i<=end;i++)result.add(i-1);}return result;}

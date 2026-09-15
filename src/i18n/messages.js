@@ -576,6 +576,26 @@ export const messages = {
     "ko": "PPTX의 XML을 읽을 수 없습니다.",
     "en": "Could not read the PPTX XML."
   },
+  "core.xmlParseError": {
+    "ko": "PPTX의 XML을 읽을 수 없습니다. 내부 파일: {path} · 상세: {detail}",
+    "en": "Could not read the PPTX XML. Package part: {path} · Details: {detail}"
+  },
+  "core.xmlUnknownPart": {
+    "ko": "경로 정보 없음",
+    "en": "Path unavailable"
+  },
+  "core.xmlEncoding": {
+    "ko": "지원하지 않는 XML 인코딩입니다. 내부 파일: {path} · 인코딩: {encoding}",
+    "en": "Unsupported XML encoding. Package part: {path} · Encoding: {encoding}"
+  },
+  "core.xmlEncodingMismatch": {
+    "ko": "XML 인코딩 선언과 바이트 형식이 다릅니다. 내부 파일: {path} · 선언: {encoding} · 감지: {detected}",
+    "en": "XML encoding declaration conflicts with its bytes. Package part: {path} · Declared: {encoding} · Detected: {detected}"
+  },
+  "core.xmlInvalidBytes": {
+    "ko": "XML에 올바르지 않은 인코딩 바이트가 있습니다. 내부 파일: {path} · 인코딩: {encoding}",
+    "en": "Invalid encoded bytes in XML. Package part: {path} · Encoding: {encoding}"
+  },
   "core.3": {
     "ko": "이름 없는 요소",
     "en": "Unnamed element"

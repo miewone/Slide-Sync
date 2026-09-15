@@ -1,19 +1,27 @@
+import {XmlPartCodec} from '../services/XmlPartCodec.js';
+
 /** Caches immutable package reads for one deck-loading operation. */
 export class PackageReader {
   /** @param {object} zip Loaded ZIP. @param {object} parsers XML parser and relationship path resolver. */
   constructor(zip, {parseXml, resolvePath}) {
     this.zip=zip;this.parseXml=parseXml;this.resolvePath=resolvePath;
-    this.texts=new Map();this.documents=new Map();this.relationships=new Map();
+    this.bytes=new Map();this.texts=new Map();this.documents=new Map();this.relationships=new Map();
+  }
+  /** @param {string} path Package part path. Retain original bytes for lossless export. */
+  async readBytes(path) {
+    if(!path)return null;
+    if(!this.bytes.has(path))this.bytes.set(path,this.zip.file(path)?.async('uint8array')??Promise.resolve(null));
+    return this.bytes.get(path);
   }
   /** @param {string} path Package part path. Return its original text, or null when absent. */
   async readText(path) {
     if(!path)return null;
-    if(!this.texts.has(path))this.texts.set(path,this.zip.file(path)?.async('string')??Promise.resolve(null));
+    if(!this.texts.has(path))this.texts.set(path,this.readBytes(path).then(bytes=>bytes===null?null:XmlPartCodec.decode(bytes,path)));
     return this.texts.get(path);
   }
   /** @param {string} path Package part path. Return its parsed XML document, or null. */
   async readDoc(path) {
-    if(!this.documents.has(path))this.documents.set(path,this.readText(path).then(text=>text===null?null:this.parseXml(text)));
+    if(!this.documents.has(path))this.documents.set(path,this.readText(path).then(text=>text===null?null:this.parseXml(text,path)));
     return this.documents.get(path);
   }
   /** @param {string} path Owning part path. Return its shared, read-only relationship map. */

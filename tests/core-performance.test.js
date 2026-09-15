@@ -10,7 +10,7 @@ const element=id=>{
 
 test('package reads and relationship parsing are shared, including concurrent requests',async()=>{
   const calls=new Map();let parses=0;
-  const zip={file(path){return {async:async()=>{calls.set(path,(calls.get(path)||0)+1);return path;}};}};
+  const zip={file(path){return {async:async()=>{calls.set(path,(calls.get(path)||0)+1);return new TextEncoder().encode(path);}};}};
   const reader=new PackageReader(zip,{parseXml(text){parses++;return {text,getElementsByTagNameNS:()=>[{getAttribute:key=>({Id:'rId1',Type:'layout',Target:'target.xml'}[key]??null)}]};},resolvePath:(_,target)=>target});
   const [a,b]=await Promise.all([reader.readDoc('slide.xml'),reader.readDoc('slide.xml')]);
   assert.equal(a,b);assert.equal(await reader.readText('slide.xml'),'slide.xml');

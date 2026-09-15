@@ -1,3 +1,4 @@
+import {XmlPartCodec} from '../services/XmlPartCodec.js';
 import {t,localizedError} from '../i18n/I18n.js';
 import {NS,child,children,descendants,parseXml,serialize,rels,resolvePath} from './core.js';
 
@@ -29,10 +30,10 @@ export async function loadGuides(deck){
   const relationships=await rels(deck.zip,'ppt/presentation.xml');
   const relationship=[...relationships.values()].find(r=>r.type.endsWith('/viewProps')&&!r.external);
   const path=relationship?.path||'ppt/viewProps.xml';
-  const originals=new Map();
-  for(const file of [path,'ppt/presentation.xml',RELS_PATH,TYPES_PATH])originals.set(file,deck.zip.file(file)?await deck.zip.file(file).async('string'):null);
-  const view=originals.get(path)?parseXml(originals.get(path)):null;
-  const presentation=parseXml(originals.get('ppt/presentation.xml'));
+  const originals=new Map(),originalBytes=new Map();
+  for(const file of [path,'ppt/presentation.xml',RELS_PATH,TYPES_PATH]){const bytes=deck.zip.file(file)?await deck.zip.file(file).async('uint8array'):null;originalBytes.set(file,bytes);originals.set(file,bytes===null?null:XmlPartCodec.decode(bytes,file));}
+  const view=originals.get(path)?parseXml(originals.get(path),path):null;
+  const presentation=parseXml(originals.get('ppt/presentation.xml'),'ppt/presentation.xml');
   const presentationLists=extendedLists(presentation),ext=presentationLists.length?presentationLists:extendedLists(view),classic=child(child(child(view?.documentElement,'slideViewPr'),'cSldViewPr'),'guideLst');
   const global=ext.length?ext.flatMap((list,i)=>readList(list,'global',`global:${i}`)):readList(classic,'global','global:legacy');
   const inherited=new Map(),cache=new Map();
@@ -45,7 +46,7 @@ export async function loadGuides(deck){
     }
     inherited.set(slide.index,all);
   }
-  deck.guides={global,inherited,path,originals,dirty:false,written:false,nextId:1,originalSignature:signature(global)};
+  deck.guides={global,inherited,path,originals,originalBytes,dirty:false,written:false,nextId:1,originalSignature:signature(global)};
   return deck.guides;
 }
 
@@ -111,7 +112,7 @@ function rewriteList(list,guides,extended){
 export function prepareGuideExport(deck){
   const state=deck.guides;if(!state)return;
   if(!state.dirty){
-    if(state.written){for(const [path,xml]of state.originals)xml===null?deck.zip.remove(path):deck.zip.file(path,xml);state.written=false;}
+    if(state.written){for(const [path,xml]of state.originals)xml===null?deck.zip.remove(path):deck.zip.file(path,state.originalBytes.get(path));state.written=false;}
     return;
   }
   const original=state.originals.get(state.path),view=original?parseXml(original):parseXml(`<p:viewPr xmlns:p="${NS.p}" xmlns:a="${NS.a}" xmlns:r="${NS.r}"/>`);

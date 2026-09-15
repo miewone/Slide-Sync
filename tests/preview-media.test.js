@@ -1,3 +1,4 @@
+import {XmlPartCodec} from '../src/services/XmlPartCodec.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -28,7 +29,7 @@ async function environment() {
   const source=(await readFile(new URL('../src/vendor/pptx-preview.es.js',import.meta.url),'utf8'))
     .replace(/import[^;]+;/g,'').replace('export{xt as init};','globalThis.init=xt;');
   class ScopedMedia extends PreviewMediaResources {constructor(){super(context.URL);}}
-  Object.assign(context,{PreviewMediaResources:ScopedMedia,t:tslib.__assign,e:tslib.__extends,a:tslib.__awaiter,r:tslib.__generator,
+  Object.assign(context,{XmlPartCodec,PreviewMediaResources:ScopedMedia,t:tslib.__assign,e:tslib.__extends,a:tslib.__awaiter,r:tslib.__generator,
     n:tslib.__spreadArray,o:JSZip,c:context._.get,i:context._.omit,s:randomUUID,h:{}});
   runInNewContext(source,context);
   const {zip}=await makeMediaDeckFixture(JSZip,await readFile(new URL('../public/sample.pptx',import.meta.url)));
@@ -114,4 +115,47 @@ test('a later ZIP media decoding failure releases URLs already created by the sa
   await assert.rejects(preview.load(env.buffer),/media decode failed/);
   assert.equal(env.created.length,1);
   assert.deepEqual(env.revoked,env.created);
+});
+
+test('master XML decoding errors reject the preview load and release its media',async()=>{
+  const env=await environment(),preview=env.init();
+  const zip=await env.JSZip.loadAsync(env.buffer);
+  const path=Object.keys(zip.files).find(path=>/^ppt\/slideMasters\/_rels\/.*\.rels$/.test(path));
+  assert.ok(path);
+  zip.file(path,new Uint8Array([0xFF]));
+  await assert.rejects(preview.load(await zip.generateAsync({type:'nodebuffer'})),error=>error.message.includes(path));
+  assert.equal(env.created.length,2);
+  assert.deepEqual(env.revoked,env.created);
+});
+
+test('master initialization finishes before preview load resolves',async()=>{
+  const env=await environment(),preview=env.init({staticPreview:true});
+  const load=env.JSZip.prototype.loadAsync;
+  let release,started;
+  const suspended=new Promise(resolve=>{started=resolve;});
+  env.JSZip.prototype.loadAsync=async function(...args){
+    const zip=await load.apply(this,args);
+    const path=Object.keys(zip.files).find(path=>/^ppt\/slideMasters\/_rels\/.*\.rels$/.test(path));
+    const entry=zip.file(path),read=entry.async;
+    entry.async=async function(type){started();await new Promise(resolve=>{release=resolve;});return read.call(this,type);};
+    return zip;
+  };
+  let resolved=false;
+  const loading=preview.load(env.buffer).then(deck=>{resolved=true;return deck;});
+  await suspended;await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(resolved,false);
+  release();const deck=await loading;
+  assert.equal(deck.slides.length,8);
+  preview.destroy();
+});
+
+test('a singleton content-type override is processed as a list',async()=>{
+  const env=await environment(),preview=env.init({staticPreview:true});
+  const zip=await env.JSZip.loadAsync(env.buffer);
+  const types=await zip.file('[Content_Types].xml').async('string');
+  const theme=types.match(/<Override\b[^>]*ContentType="application\/vnd.openxmlformats-officedocument.theme\+xml"[^>]*\/>/)[0];
+  zip.file('[Content_Types].xml',`<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">${theme}</Types>`);
+  const deck=await preview.load(await zip.generateAsync({type:'nodebuffer'}));
+  assert.equal(deck.themes.length,1);
+  preview.destroy();
 });
