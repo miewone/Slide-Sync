@@ -54,7 +54,7 @@ export async function checkGoogleDrive(browser,origin){
     };
   `});
   const click=selector=>browser.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
-  const openDrive=async()=>{await click('#open');await click('#file-open-drive');};
+  const openDrive=async()=>{await click('#open');await click('#file-open-drive-settings');};
   const ready=()=>browser.until('!!document.querySelector("#open")&&!document.querySelector("#open").disabled','Drive ready');
   const prepareMocks=()=>browser.evaluate(`(async()=>{
       const {GoogleSettingsRepository}=await import('/src/services/google/GoogleSettingsRepository.js');
@@ -74,9 +74,7 @@ export async function checkGoogleDrive(browser,origin){
     await prepareMocks();
     await openDrive();await browser.until('!document.querySelector("#drive-connect").disabled','consent ready');
     await click('#drive-connect');await browser.until('!document.querySelector("#drive-select").disabled','connected');
-    await browser.navigate(origin);await ready();await prepareMocks();await openDrive();
-    await browser.until('!document.querySelector("#drive-select").disabled','reload restores Google connection without another authorization');
-    await click('#drive-select');await browser.until('!!document.querySelector("#native-slides-title")','native document opens');
+    await browser.navigate(origin);await ready();await prepareMocks();await click('#open');await click('#file-open-drive');await browser.until('!!document.querySelector("#native-slides-title")','native document opens');
     assert.equal(await browser.evaluate('document.querySelector("#app").inert'),true,'underlying PPTX UI is inert');
     await click('#native-select-matches');
     await browser.evaluate(`document.querySelectorAll('.native-page-row input')[1].click();document.querySelector('#native-x').value='2.54';document.querySelector('#native-x').dispatchEvent(new Event('input',{bubbles:true}));`);

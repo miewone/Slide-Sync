@@ -5,8 +5,8 @@ export async function checkGoogleSettings(browser,origin){
   browser.errors=[];
   const ready=()=>browser.until('!!document.querySelector("#open")&&!document.querySelector("#open").disabled','settings ready');
   const click=selector=>browser.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
-  const open=async()=>{await click('#open');await click('#file-open-drive');};
-  const patch=()=>browser.evaluate(`(async()=>{const {GoogleSession}=await import('/src/services/google/GoogleSession.js');GoogleSession.prototype.prepare=async function(){window.google={accounts:{oauth2:{hasGrantedAllScopes:()=>true}}};this.client={requestAccessToken:()=>this.client.callback({access_token:'test-settings-token',expires_in:3600})};};})()`);
+  const open=async()=>{await click('#open');await click('#file-open-drive-settings');};
+  const patch=()=>browser.evaluate(`(async()=>{const {GoogleSession}=await import('/src/services/google/GoogleSession.js');GoogleSession.prototype.pick=async()=>{window.settingsPickCount=(window.settingsPickCount||0)+1;return null;};GoogleSession.prototype.prepare=async function(){window.google={accounts:{oauth2:{hasGrantedAllScopes:()=>true}}};this.client={requestAccessToken:()=>this.client.callback({access_token:'test-settings-token',expires_in:3600})};};})()`);
   const set=(selector,value)=>browser.evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await browser.navigate(origin);await ready();
   await browser.evaluate(`(async()=>{const {GoogleSettingsRepository}=await import('/src/services/google/GoogleSettingsRepository.js');await new GoogleSettingsRepository().clear();})()`);
@@ -26,7 +26,12 @@ export async function checkGoogleSettings(browser,origin){
   await set('#drive-client-id','123-settings.apps.googleusercontent.com');await set('#drive-api-key','AIza'+'z'.repeat(30));await set('#drive-app-id','456');await click('#drive-settings-save');
   await browser.until('document.querySelector("#drive-dialog [role=alert]")?.textContent.includes("프로젝트")','mismatched project rejected');
   await set('#drive-app-id','123');await click('#drive-settings-save');await browser.until('!document.querySelector("#drive-settings")&&!document.querySelector("#drive-connect").disabled','valid settings saved');
-  await click('#drive-connect');await browser.until('!document.querySelector("#drive-select").disabled','saved configuration connects');
+  await browser.evaluate('document.querySelector("#drive-dialog").close()');
+  await click('#open');await click('#file-open-drive');
+  await browser.until('!document.querySelector("#drive-connect").disabled','direct open requests connection');
+  await click('#drive-connect');
+  await browser.until('window.settingsPickCount===1&&!document.querySelector("#drive-dialog").open','connection opens picker automatically and cancellation closes flow');
+  assert.equal(await browser.evaluate('!!document.querySelector(".drive-open-notice")'),false,'picker cancellation clears notice');
   await browser.navigate(origin);await ready();await patch();await open();await browser.until('!document.querySelector("#drive-select").disabled','settings and unexpired connection restore after reload');
   await click('#drive-settings-edit');assert.equal(await browser.evaluate('document.querySelector("#drive-client-id").value'),'123-settings.apps.googleusercontent.com');
   await click('#drive-settings-remove');await browser.until('document.querySelector("#drive-client-id")?.value===""&&!document.querySelector("#drive-settings fieldset").disabled','settings removal clears form');

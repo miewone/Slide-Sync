@@ -36,6 +36,7 @@ export const messages = {
   'fileOpen.local': {ko:'내 컴퓨터',en:'My computer'},
   'fileOpen.localHelp': {ko:'폴더에서 PPTX 파일 선택',en:'Choose a PPTX from a folder'},
   'fileOpen.driveHelp': {ko:'PPTX · Google Slides 선택',en:'Choose PPTX or Google Slides'},
+  'drive.editingNotice': {ko:'현재는 Google Slides 선택 시 편집이 어렵습니다.',en:'Editing is currently difficult when selecting Google Slides.'},
   'drive.typeError': {ko:'PPTX 또는 Google Slides 파일을 선택해 주세요.',en:'Choose a PPTX or Google Slides file.'},
   "drive.configMissing": {"ko": "내 Google API 설정에서 클라이언트 ID, API 키, 프로젝트 번호를 입력해 주세요.", "en": "Enter your client ID, API key and project number in My Google API settings."},
   "drive.libraryError": {"ko": "Google 라이브러리를 불러오지 못했습니다. 연결을 확인하고 다시 열어 주세요.", "en": "Could not load Google libraries. Check your connection and reopen this dialog."},

@@ -12,6 +12,7 @@ export async function checkFileOpen(browser,origin){
   assert.equal(await browser.evaluate('document.querySelector("#file-open-dialog").open'),true);
   assert.equal(await browser.evaluate('localOpenCount'),0,'opening the chooser never opens the OS dialog');
   assert.equal(await browser.evaluate('document.querySelectorAll(".file-open-option svg").length'),2,'both sources have icons');
+  assert.equal(await browser.evaluate('(()=>{const local=document.querySelector("#file-open-local strong").getBoundingClientRect();const drive=document.querySelector("#file-open-drive strong").getBoundingClientRect();return Math.abs(local.top-drive.top)<1;})()'),true,'settings overlay preserves card text alignment');
   await click('#file-open-close');
   await browser.until('document.activeElement.id==="open"','close restores focus');
   assert.equal(await browser.evaluate('localOpenCount'),0,'cancel opens neither source');
@@ -27,7 +28,21 @@ export async function checkFileOpen(browser,origin){
     await browser.until('document.querySelector("#drive-dialog").open&&!!document.querySelector("#drive-settings")','Drive choice opens user configuration');
     assert.equal(await browser.evaluate('document.querySelector("#file-open-dialog").open'),false,'chooser closes before the Drive dialog');
     assert.equal(await browser.evaluate('localOpenCount'),1,'Drive choice never opens the local file input');
-    await browser.evaluate('document.querySelector("#drive-dialog").close()');
+    assert.ok((await browser.evaluate('document.querySelector("#drive-dialog [role=status]").textContent')).includes('Google Slides'),'Drive click shows editing limitation');
+    await browser.until('!document.querySelector("#drive-close").disabled','Drive dialog ready to close');
+    await click('#drive-close');
+    assert.equal(await browser.evaluate('document.querySelector("#file-open-dialog").open'),false,'direct Drive entry does not return to settings parent');
+    await click('#open');await click('#file-open-drive-settings');
+    await browser.until('document.querySelector("#drive-dialog").open&&!document.querySelector("#drive-close").disabled','settings ready');
+    await click('#drive-close');
+    await browser.until('document.querySelector("#file-open-dialog").open&&document.activeElement.id==="file-open-drive-settings"','settings close restores chooser and gear focus');
+    await click('#file-open-drive-settings');
+    await browser.until('document.querySelector("#drive-dialog").open&&!document.querySelector("#drive-close").disabled','settings reopened');
+    await browser.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+    await browser.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+    await browser.until('!document.querySelector("#drive-dialog").open&&document.querySelector("#file-open-dialog").open','Escape closes only settings');
+    await click('#file-open-local');
+    assert.equal(await browser.evaluate('localOpenCount'),2,'restored chooser can open a local file');
   }
   await click('#open');
   await browser.send('Emulation.setDeviceMetricsOverride',{width:375,height:812,deviceScaleFactor:1,mobile:false});
