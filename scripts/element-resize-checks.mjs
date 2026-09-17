@@ -1,3 +1,4 @@
+import {checkPreviewZoom} from './preview-zoom-checks.mjs';
 import {writeFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
@@ -57,6 +58,7 @@ export async function checkResizeControls(browser,rectangle){
   const dragged=await read();dragged.forEach((b,i)=>{assert.ok(b.w>before[i].w);assert.equal(b.h,before[i].h);assert.ok(Math.abs(b.x+b.w/2-before[i].x-before[i].w/2)<2);});
   const screenshot=await browser.send('Page.captureScreenshot',{format:'png'});await writeFile('artifacts/resize-handles.png',Buffer.from(screenshot.data,'base64'));
   await browser.evaluate(`document.querySelector('#undo').click()`);assert.deepEqual(await read(),before,'one undo reverses entire gesture');
+  if(browser.checkZoom)await checkPreviewZoom(browser);
   await browser.evaluate(`document.querySelector('#clear-selection').click()`);
 }
 
@@ -76,5 +78,6 @@ export async function checkNativeResize(browser){
     if(cancel)assert.deepEqual(await read(),before);else (await read()).forEach((b,i)=>{assert.ok(b.w>before[i].w);assert.ok(Math.abs(b.x+b.w/2-before[i].x-before[i].w/2)<1e-6);assert.equal(b.h,before[i].h);});
   }
   await browser.evaluate(`document.querySelector('#native-undo').click()`);assert.deepEqual(await read(),before);
+  if(browser.checkZoom)await checkPreviewZoom(browser,true);
   await browser.evaluate(`document.querySelector('#native-clear-selection').click()`);
 }

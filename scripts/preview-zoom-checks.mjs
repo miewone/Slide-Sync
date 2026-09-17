@@ -1,0 +1,70 @@
+import {checkFocusedEditScope} from './focused-edit-scope-checks.mjs';
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+
+/** Verify zoomed editing, wheel interception, grid compatibility and default recovery. @param {object} browser DevTools client. @param {boolean} native Native workspace or PPTX. */
+export async function checkPreviewZoom(browser,native=false){
+  await browser.evaluate(`document.querySelector('#analytics-reject')?.click()`);
+  const prefix=native?'native-':'',stage=native?'.native-stage':'#stage',surface=native?'#native-slide-0 .slide-surface':'#slide-0 .slide-surface';
+  const settle=()=>browser.until(`!document.querySelector('${stage}').dataset.zoomAnimating`,'zoom animation completes');
+  const width=()=>browser.evaluate(`document.querySelector('${surface}').getBoundingClientRect().width`);
+  const base=await width(),sidebar=await browser.evaluate(`document.querySelector('${native?'.native-pages':'.sidebar'}').getBoundingClientRect().width`);
+  const set=async value=>{
+    await browser.evaluate(`(()=>{const input=document.querySelector('#${prefix}zoom-percent');input.focus();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'${value}');input.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+    await browser.evaluate('new Promise(resolve=>requestAnimationFrame(resolve))');
+    await browser.evaluate(`document.querySelector('#${prefix}zoom-percent').blur()`);
+    await browser.until(`document.querySelector('${stage}').dataset.zoom==='${value}'`,'zoom value applied');
+    await settle();
+  };
+  assert.equal(await browser.evaluate(`document.querySelector('#${prefix}zoom-percent').closest('.zoom-control').hidden`),true,'zoom controls initially hidden');
+  const footer=await browser.evaluate(`(()=>{const f=document.querySelector('${stage}').closest('.workspace').querySelector('.statusbar');const r=f.getBoundingClientRect();return {height:r.height,top:r.top}})()`);
+  const trigger=async()=>{const p=await browser.evaluate(`(()=>{const r=document.querySelector('${stage}').getBoundingClientRect();return {x:r.left+100,y:r.top+100}})()`);await browser.send('Input.dispatchMouseEvent',{type:'mouseWheel',...p,deltaX:0,deltaY:-100,modifiers:2});await browser.until(`!document.querySelector('#${prefix}zoom-percent').closest('.zoom-control').hidden`,'floating zoom appears');await settle();};
+  await trigger();await settle();
+  await checkFocusedEditScope(browser,native);
+  assert.equal(await browser.evaluate(`(()=>{document.querySelector('#${prefix}zoom-in').click();return document.querySelector('${stage}').getAnimations({subtree:true}).some(a=>a.effect.getTiming().duration===180)})()`),true,'zoom animates only the focused card');
+  await settle();
+  await browser.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  assert.equal(await browser.evaluate(`(()=>{document.querySelector('#${prefix}zoom-in').click();return !!document.querySelector('${stage}').dataset.zoomAnimating})()`),false,'reduced motion skips animation');
+  await browser.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
+  await set(150);
+  const fit=await browser.evaluate(`(()=>{const s=document.querySelector('${stage}'),c=getComputedStyle(s),r=document.querySelector('${surface}').getBoundingClientRect();return Math.max(80,Math.min(s.clientWidth-parseFloat(c.paddingLeft)-parseFloat(c.paddingRight),(s.clientHeight-parseFloat(c.paddingTop)-parseFloat(c.paddingBottom)-36)*r.width/r.height))})()`);
+  assert.ok(Math.abs((await width())/fit-1.5)<.025,'focused slide scales relative to one-slide fit');
+  const previewSelector=native?'.native-stage .native-layout':'#stage iframe';
+  await browser.until(`document.querySelectorAll('${previewSelector}').length===1`,'only focused frame remains mounted');
+  assert.equal(await browser.evaluate(`[...document.querySelectorAll('${stage} .slide-card')].filter(e=>e.getBoundingClientRect().width>0&&getComputedStyle(e).display!=='none').length`),1,'only one slide is rendered');
+  assert.equal(await browser.evaluate(`document.querySelector('${native?'.native-pages':'.sidebar'}').getBoundingClientRect().width`),sidebar,'panels remain unchanged');
+  assert.deepEqual(await browser.evaluate(`(()=>{const f=document.querySelector('${stage}').closest('.workspace').querySelector('.statusbar');const r=f.getBoundingClientRect();return {height:r.height,top:r.top}})()`),footer,'floating controls do not move the footer');
+  assert.equal(await browser.evaluate('window.visualViewport.scale'),1,'browser zoom is unchanged');
+  const p=await browser.evaluate(`(()=>{const r=document.querySelector('${stage}').getBoundingClientRect();return {x:r.left+Math.min(150,r.width/2),y:r.top+100}})()`);
+  await browser.send('Input.dispatchMouseEvent',{type:'mouseWheel',...p,deltaX:0,deltaY:-100,modifiers:2});
+  await browser.until(`Number(document.querySelector('#${prefix}zoom-percent').value)>150`,'Ctrl+wheel zooms the stage');
+  const zoomed=await browser.evaluate(`document.querySelector('#${prefix}zoom-percent').value`);
+  await browser.send('Input.dispatchMouseEvent',{type:'mouseWheel',...p,deltaX:0,deltaY:50});
+  assert.equal(await browser.evaluate(`document.querySelector('#${prefix}zoom-percent').value`),zoomed,'normal wheel does not zoom');
+  await set(200);
+  await browser.evaluate(`document.querySelector('${stage}').scrollTop=0;document.querySelector('${stage}').scrollLeft=0`);
+  const handle=native?'[data-resize-id="shape_1"][data-resize-handle="5"]':'#slide-0 [data-selection-id="101"] [data-resize-handle="5"]';
+  const before=await browser.evaluate(`document.querySelector('${handle}').getAttribute('cx')`);
+  const point=await browser.evaluate(`(()=>{const r=document.querySelector('${handle}').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()`);
+  await browser.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
+  await browser.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:point.x+12,y:point.y,button:'left',buttons:1});
+  await browser.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x+12,y:point.y,button:'left',clickCount:1});
+  await browser.until(`Number(document.querySelector('${handle}').getAttribute('cx'))>Number('${before}')`,'resize handles work while zoomed');
+  await browser.evaluate(`document.querySelector('#${prefix}undo').click()`);
+  await browser.until(`Math.abs(Number(document.querySelector('${handle}').getAttribute('cx'))-Number('${before}'))<1`,'undo while zoomed');
+  await browser.evaluate(`document.querySelector('#${prefix}redo').click()`);
+  assert.equal(await browser.evaluate(`document.querySelectorAll('${previewSelector}').length`),1,'editing and undo/redo do not render hidden slides');
+  await browser.evaluate(`document.querySelector('#${prefix}zoom-reset').click()`);
+  await browser.until(`document.querySelector('#${prefix}zoom-percent').value==='100'`,'reset zoom');
+  await settle();
+  assert.ok(Math.abs(await width()-base)<2,'default view restores slide dimensions');
+  assert.equal(await browser.evaluate(`document.querySelector('#${prefix}zoom-percent').closest('.zoom-control').hidden`),true,'reset hides floating controls');
+  if(!native)await browser.until(`document.querySelector('#slide-2 iframe')?.contentDocument?.querySelector('[data-pptx-mover="101"]')?.style.transform.includes('scale')`,'hidden edit appears when returning to grid');
+  await browser.evaluate(`document.querySelector('#${prefix}undo').click()`);
+  await trigger();await set(50);assert.ok(Math.abs((await width())/fit-.5)<.025,'zoom out');
+  const screenshot=await browser.send('Page.captureScreenshot',{format:'png'});await writeFile(`artifacts/${native?'native-':''}preview-zoom.png`,Buffer.from(screenshot.data,'base64'));
+  await browser.evaluate(`document.querySelector('#${prefix}zoom-reset').click()`);
+  await settle();
+  await browser.until(`document.querySelectorAll('${previewSelector}').length>1`,'normal grid previews return');
+  if(!native){await browser.until(`[...document.querySelectorAll('#stage iframe')].every(f=>f.contentDocument?.querySelector('[data-pptx-mover]'))`,'restored frame documents ready');await browser.evaluate(`globalThis.rangeFrames=[...document.querySelectorAll('#stage iframe')].map(frame=>({frame,doc:frame.contentDocument}));globalThis.rangeFrameWrites=0;void 0;`);}
+}

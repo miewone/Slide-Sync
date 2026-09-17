@@ -1,3 +1,6 @@
+import {FocusedEditScope} from '../editor/FocusedEditScope.js';
+import {usePreviewZoom} from '../hooks/usePreviewZoom.js';
+import {ZoomControl} from './ZoomControl.jsx';
 import {SimilarSelectionMenu} from './SimilarSelectionMenu.jsx';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
@@ -25,6 +28,10 @@ export default function NativeSlidesWorkspace({document:model,source:initialSour
   const [x,setX]=useState('0'),[y,setY]=useState('0'),[mode,setMode]=useState('relative'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[save,setSave]=useState(false),[saved,setSaved]=useState(false),[thumbnail,setThumbnail]=useState(null),[thumbnailError,setThumbnailError]=useState(''),[created,setCreated]=useState(null);
   const [target,setTarget]=useState('selection'),[slideQuery,setSlideQuery]=useState(''),[range,setRange]=useState(''),[onlyChecked,setOnlyChecked]=useState(false),[onlySelected,setOnlySelected]=useState(false);
   const [grid,setGrid]=useState({columns:null,rows:null}),[boxSelect,setBoxSelect]=useState(false),[toolbarHost,setToolbarHost]=useState(null);
+  const zoom=usePreviewZoom(stage,{...grid,documentKey:model});
+  const scopeResolver=useMemo(()=>new FocusedEditScope(),[]);
+  const editChecked=scopeResolver.resolve(checked,zoom.focused,zoom.editScope),localScope=zoom.focused!==null&&zoom.editScope==='page';
+  useEffect(()=>{if(zoom.focused!==null)setPage(zoom.focused);},[zoom.focused]);
   const [fontOverrides,setFontOverrides]=useState(new Map());
   const [guides]=useState(()=>new NativeSlidesGuides()),[showGuides,setShowGuides]=useState(true),[snap,setSnap]=useState(true);
   const media=useMemo(()=>new NativeSlidesMedia(files,model,source.id),[files,model,source.id,model.original.revisionId]);
@@ -59,7 +66,7 @@ export default function NativeSlidesWorkspace({document:model,source:initialSour
   const elements=model.elements(page),matches=e=>NativeSlidesSelection.matches(e,query);
   const matchingSlides=new Set(model.findSlides(slideQuery));
   const toggle=id=>setSelected(previous=>{const next=new Set(previous);next.has(id)?next.delete(id):next.add(id);return next;});
-  const selectedCount=[...checked].reduce((n,index)=>n+model.elements(index).filter(e=>selected.has(e.id)&&!e.deleted).length,0);
+  const selectedCount=[...editChecked].reduce((n,index)=>n+model.elements(index).filter(e=>selected.has(e.id)&&!e.deleted).length,0);
   const checkSlide=(index,value)=>setChecked(previous=>{const next=new Set(previous);value?next.add(index):next.delete(index);return next;});
   const activate=index=>{setPage(index);root.current.querySelector(`#native-slide-${index}`)?.scrollIntoView({block:'nearest'});};
   const visibleSlide=index=>(!onlyChecked||checked.has(index))&&(!onlySelected||model.elements(index).some(e=>selected.has(e.id)&&!e.deleted))&&(!slideQuery.trim()||matchingSlides.has(index));
@@ -72,7 +79,7 @@ export default function NativeSlidesWorkspace({document:model,source:initialSour
       <input type="checkbox" aria-label={t('drive.checkSlide',{n:index+1})} checked={checked.has(index)} disabled={busy} onChange={event=>checkSlide(index,event.target.checked)}/>
       <button className="native-slide-link slide-item-body" type="button" disabled={busy} aria-current={page===index?'page':undefined} onClick={()=>activate(index)}><span className="slide-item-heading"><span className="slide-number">{String(index+1).padStart(2,'0')}</span><span className="slide-scope-state">{t(checked.has(index)?'createEditorRuntime.36':'sidebar.excluded')}</span></span><span className="slide-label">{model.elements(index).find(e=>e.text)?.text.slice(0,80)||t('drive.slide')}</span></button>
     </div>)}</div>
-    <InspectorSection title={t('SelectionPanel.1')}><button type="button" id="native-clear-selection" className="text-button" disabled={busy} onClick={()=>setSelected(new Set())}>{t('SelectionPanel.2')}</button>
+    <InspectorSection title={t('SelectionPanel.1')}><button type="button" id="native-clear-selection" className="text-button" disabled={busy} onClick={()=>setSelected(previous=>{if(!localScope)return new Set();const next=new Set(previous);for(const i of editChecked)for(const e of model.elements(i))next.delete(e.id);return next;})}>{t('SelectionPanel.2')}</button>
       <div className="native-elements">{elements.filter(matches).map(e=><label key={e.id} className={e.deleted?'native-deleted':''}><input type="checkbox" data-native-element={e.id} disabled={busy||e.deleted} checked={selected.has(e.id)} onChange={()=>toggle(e.id)}/><span>{e.name}<small> ({e.kind})</small></span></label>)}</div>
     </InspectorSection><div className="sidebar-bottom">{t('Sidebar.9')}</div>
   </aside>;
@@ -85,22 +92,22 @@ export default function NativeSlidesWorkspace({document:model,source:initialSour
     {created&&<p className="notice" role="alert">{t('drive.copyCreated')} <a href={`https://docs.google.com/presentation/d/${encodeURIComponent(created.id)}/edit`} target="_blank" rel="noopener noreferrer">{created.name}</a></p>}
     <div ref={renderContainer} className="native-render-container">
     <div ref={stage} className={`stage native-stage${grid.columns===null?'':' preview-grid'}`} style={{'--preview-columns':grid.columns||2,'--slide-aspect':model.width/model.height}}>
-      {model.original.slides.map((slide,index)=>visibleSlide(index)&&<NativeSlideCard key={slide.objectId} index={index} active={page===index} onActivate={setPage} onCheck={checkSlide} model={model} checked={checked} setChecked={setChecked} selected={selected} setSelected={setSelected} perform={perform} busy={busy||save} guides={guides} showGuides={showGuides} snap={snap} version={version} fontOverrides={fontOverrides} boxSelect={boxSelect}/>)}
+      {model.original.slides.map((slide,index)=>visibleSlide(index)&&<NativeSlideCard editChecked={editChecked} selectionScope={localScope?editChecked:null} renderPreview={zoom.focused===null||zoom.focused===index} key={slide.objectId} index={index} active={page===index} onActivate={setPage} onCheck={checkSlide} model={model} checked={checked} setChecked={setChecked} selected={selected} setSelected={setSelected} perform={perform} busy={busy||save} guides={guides} showGuides={showGuides} snap={snap} version={version} fontOverrides={fontOverrides} boxSelect={boxSelect}/>)}
     </div>
       <NativeSavedPreview container={renderContainer} page={page} thumbnail={thumbnail} error={thumbnailError} onImageError={()=>setThumbnailError(t('drive.previewError'))}/>
     </div>
-    <footer className="statusbar"><span role="status">{saved?t('drive.saved'):t('drive.pending',{count:model.changes.size})} · {t('drive.selected',{count:selectedCount})}</span><span>{(model.width*2.54/72).toFixed(2)} × {(model.height*2.54/72).toFixed(2)} cm</span></footer>
+    <footer className="statusbar"><span role="status">{saved?t('drive.saved'):t('drive.pending',{count:model.changes.size})} · {t('drive.selected',{count:selectedCount})}</span><span>{(model.width*2.54/72).toFixed(2)} × {(model.height*2.54/72).toFixed(2)} cm</span><ZoomControl zoom={{...zoom,busy:busy||save}} idPrefix="native-"/></footer>
   </section>;
   const right=<aside className="inspector native-tools"><h2>{t('Inspector.1')}</h2><div className="native-selection-summary"><strong>{selectedCount}</strong><span>{t('drive.selected',{count:selectedCount})}</span></div>
     <fieldset disabled={busy}>
-      <div className="history-controls"><Button id="native-delete" variant="danger" disabled={!selectedCount} title={t('drive.delete')} onClick={()=>perform(()=>model.remove(checked,selected))}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></Button><Button id="native-undo" disabled={!model.undoStack.length} title={t('drive.undo')} onClick={()=>perform(()=>model.undo())}>↶</Button><Button id="native-redo" disabled={!model.redoStack.length} title={t('drive.redo')} onClick={()=>perform(()=>model.redo())}>↷</Button></div>
-      <InspectorSection title={t('drive.search')}><label className="field-label" htmlFor="native-search">{t('drive.search')}</label><input id="native-search" value={query} onChange={e=>setQuery(e.target.value)}/><Button id="native-select-matches" full onClick={()=>setSelected(previous=>{const next=new Set(previous);for(const index of checked)for(const e of model.elements(index))if(matches(e)&&!e.deleted)next.add(e.id);return next;})}>{t('drive.selectMatches')}</Button></InspectorSection>
+      <div className="history-controls"><Button id="native-delete" variant="danger" disabled={!selectedCount} title={t('drive.delete')} onClick={()=>perform(()=>model.remove(editChecked,selected))}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></Button><Button id="native-undo" disabled={!model.undoStack.length} title={t('drive.undo')} onClick={()=>perform(()=>model.undo())}>↶</Button><Button id="native-redo" disabled={!model.redoStack.length} title={t('drive.redo')} onClick={()=>perform(()=>model.redo())}>↷</Button></div>
+      <InspectorSection title={t('drive.search')}><label className="field-label" htmlFor="native-search">{t('drive.search')}</label><input id="native-search" value={query} onChange={e=>setQuery(e.target.value)}/><Button id="native-select-matches" full onClick={()=>setSelected(previous=>{const next=new Set(previous);for(const index of editChecked)for(const e of model.elements(index))if(matches(e)&&!e.deleted)next.add(e.id);return next;})}>{t('drive.selectMatches')}</Button></InspectorSection>
       <InspectorSection title={t('LayoutPanel.3')}><SelectField id="native-layout-target" label={t('LayoutPanel.4')} value={target} onChange={e=>setTarget(e.target.value)} options={[{value:'selection',label:t('LayoutPanel.1')},{value:'slide',label:t('LayoutPanel.2')}]}/>
-        {alignmentGroups().map(group=><div className="alignment-group" key={group.label}><h3>{group.label}</h3><div className="align-grid">{group.actions.map(([action,label])=><Button key={action} data-native-align={action} disabled={!selectedCount} onClick={()=>perform(()=>model.align(checked,selected,action,target))}>{label}</Button>)}</div></div>)}
-        <details className="spacing-options"><summary>{t('LayoutPanel.6')}</summary><div className="distribute-grid">{distributionActions().map(([action,label])=><Button key={action} data-native-align={action} disabled={!selectedCount} onClick={()=>perform(()=>model.align(checked,selected,action,target))}>{label}</Button>)}</div></details>
+        {alignmentGroups().map(group=><div className="alignment-group" key={group.label}><h3>{group.label}</h3><div className="align-grid">{group.actions.map(([action,label])=><Button key={action} data-native-align={action} disabled={!selectedCount} onClick={()=>perform(()=>model.align(editChecked,selected,action,target))}>{label}</Button>)}</div></div>)}
+        <details className="spacing-options"><summary>{t('LayoutPanel.6')}</summary><div className="distribute-grid">{distributionActions().map(([action,label])=><Button key={action} data-native-align={action} disabled={!selectedCount} onClick={()=>perform(()=>model.align(editChecked,selected,action,target))}>{label}</Button>)}</div></details>
       </InspectorSection>
-      <InspectorSection title={t('MovePanel.1')}><SelectField id="native-mode" label={t('MovePanel.3')} value={mode} onChange={e=>setMode(e.target.value)} options={[{value:'relative',label:t('MovePanel.5')},{value:'absolute',label:t('MovePanel.4')}]}/><div className="coordinates"><NumberField id="native-x" label="X (cm)" value={x} onChange={e=>setX(e.target.value)}/><NumberField id="native-y" label="Y (cm)" value={y} onChange={e=>setY(e.target.value)}/></div><Button id="native-move" variant="primary" full disabled={!selectedCount||!x.trim()||!y.trim()} onClick={()=>perform(()=>model.move(checked,selected,Number(x),Number(y),mode))}>{t('MovePanel.7')}</Button><p className="field-help">{t('drive.layoutHelp')}</p></InspectorSection>
-      <NativeSlidesTools busy={busy||save} toolbarHost={toolbarHost} fontOverrides={fontOverrides} setFontOverrides={setFontOverrides} model={model} checked={checked} selected={selected} setSelected={setSelected} perform={perform} run={action=>run(async()=>{await action();setSaved(false);})} guides={guides} showGuides={showGuides} setShowGuides={setShowGuides} snap={snap} setSnap={setSnap}/>
+      <InspectorSection title={t('MovePanel.1')}><SelectField id="native-mode" label={t('MovePanel.3')} value={mode} onChange={e=>setMode(e.target.value)} options={[{value:'relative',label:t('MovePanel.5')},{value:'absolute',label:t('MovePanel.4')}]}/><div className="coordinates"><NumberField id="native-x" label="X (cm)" value={x} onChange={e=>setX(e.target.value)}/><NumberField id="native-y" label="Y (cm)" value={y} onChange={e=>setY(e.target.value)}/></div><Button id="native-move" variant="primary" full disabled={!selectedCount||!x.trim()||!y.trim()} onClick={()=>perform(()=>model.move(editChecked,selected,Number(x),Number(y),mode))}>{t('MovePanel.7')}</Button><p className="field-help">{t('drive.layoutHelp')}</p></InspectorSection>
+      <NativeSlidesTools busy={busy||save} toolbarHost={toolbarHost} fontOverrides={fontOverrides} setFontOverrides={setFontOverrides} model={model} checked={editChecked} selected={selected} setSelected={setSelected} perform={perform} run={action=>run(async()=>{await action();setSaved(false);})} guides={guides} showGuides={showGuides} setShowGuides={setShowGuides} snap={snap} setSnap={setSnap}/>
 
     </fieldset>
   </aside>;
@@ -111,10 +118,10 @@ export default function NativeSlidesWorkspace({document:model,source:initialSour
         const modifier=event.ctrlKey||event.metaKey,key=event.key.toLowerCase();
         if(modifier&&key==='z'){event.preventDefault();perform(()=>event.shiftKey?model.redo():model.undo());return;}
         if(modifier&&key==='y'){event.preventDefault();perform(()=>model.redo());return;}
-        if(modifier&&key==='a'){event.preventDefault();setSelected(previous=>{const next=new Set(previous);for(const i of checked)for(const e of model.elements(i))if(!e.deleted)next.add(e.id);return next;});return;}
-        if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();perform(()=>model.remove(checked,selected));return;}
+        if(modifier&&key==='a'){event.preventDefault();setSelected(previous=>{const next=new Set(previous);for(const i of editChecked)for(const e of model.elements(i))if(!e.deleted)next.add(e.id);return next;});return;}
+        if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();perform(()=>model.remove(editChecked,selected));return;}
         const direction={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];
-        if(direction){event.preventDefault();const step=event.shiftKey?1:0.1;perform(()=>model.move(checked,selected,direction[0]*step,direction[1]*step));return;}
+        if(direction){event.preventDefault();const step=event.shiftKey?1:0.1;perform(()=>model.move(editChecked,selected,direction[0]*step,direction[1]*step));return;}
       }
       if(event.key==='Escape'){event.preventDefault();close();}
       if(event.key==='Tab'){

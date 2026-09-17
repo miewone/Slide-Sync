@@ -49,3 +49,13 @@ test('fit eligibility caches descriptor generations and uses Set membership',()=
   slide.elements=[makeElement('c')];fitCandidates(deck,new Set([0]),new Map(),'all');
   assert.equal(reads,first+1,'undo/new descriptor array invalidates eligibility');
 });
+
+
+test('resize drafts reuse indexes and touch only selected IDs without rebuilding descriptor arrays',()=>{
+  const root=preview(['a','b']),slide={elements:[{id:'a',kind:'pic',g:{x:0,y:0,w:10,h:10}},{id:'b',g:{x:0,y:0},get node(){throw Error('unselected XML traversal');}}]};
+  const original=slide.elements;
+  for(let i=1;i<=20;i++)syncPreviewPositions(root,slide,{ids:new Set(['a']),geometries:new Map([['a',{x:i,y:0,w:10,h:10}]])});
+  assert.equal(root.scans,1,'full draft sync reuses the mover index');assert.equal(slide.elements,original);
+  assert.equal(slide.elements[0].g.x,0,'draft leaves source geometry unchanged');
+  assert.equal(root.movers[0].style.transform,'translate(20px, 0px)');assert.equal(root.movers[1].style.transform,'');
+});

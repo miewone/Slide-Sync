@@ -9,6 +9,7 @@ export class EditHistorySnapshot {
     return snapshots.map(({index,type,ids})=>{
       const slide=deck.slides[index];
       return {index,xml:serialize(slide.doc),dirty:slide.dirty,
+        ...(type==='resize'?{type,ids:[...ids]}:{}),
         ...(type==='delete'?{type,ids:[...ids],selection:[...(selection.get(index)||[])]}:{})};
     });
   }

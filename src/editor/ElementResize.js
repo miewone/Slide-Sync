@@ -27,7 +27,8 @@ export class ElementResize {
     }
     const snapshots=new Map();
     for(const {slide,element,g,dimensions} of plans){
-      if(!snapshots.has(slide.index))snapshots.set(slide.index,{index:slide.index,xml:serialize(slide.doc),dirty:slide.dirty});
+      if(!snapshots.has(slide.index))snapshots.set(slide.index,{index:slide.index,xml:serialize(slide.doc),dirty:slide.dirty,type:'resize',ids:[]});
+      snapshots.get(slide.index).ids.push(element.id);
       // Materialize inherited transforms without altering rotation or group coordinates.
       setPosition(element,g.x,g.y);
       const parent=element.kind==='graphicFrame'?element.node:child(element.node,element.kind==='grpSp'?'grpSpPr':'spPr');
@@ -36,6 +37,6 @@ export class ElementResize {
       slide.dirty=true;
     }
     for(const index of snapshots.keys())refreshSlide(deck.slides[index]);
-    return [...snapshots.values()];
+    const result=[...snapshots.values()];result.changes=plans.map(({slide,element})=>({index:slide.index,id:element.id}));return result;
   }
 }

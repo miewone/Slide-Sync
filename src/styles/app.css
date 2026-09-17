@@ -349,3 +349,20 @@
 
 .hit-overlay .resize-handle,.native-layout .resize-handle{pointer-events:all;fill:#fff;stroke:#466ce0;stroke-width:1.5;vector-effect:non-scaling-stroke;touch-action:none}
 .hit-overlay .resize-handle:hover,.native-layout .resize-handle:hover{fill:#dce6ff;stroke:#2854d4}
+
+.statusbar:has(.zoom-control){position:relative}
+.zoom-control{position:absolute;right:16px;bottom:calc(100% + 12px);z-index:1200;display:inline-flex;align-items:center;gap:4px;padding:7px 9px;border:1px solid #cdd8ee;border-radius:8px;background:#fff;color:#647188;box-shadow:0 4px 16px #2633461f}
+.zoom-control[hidden]{display:none}
+.zoom-control button{display:grid;place-items:center;width:26px;height:26px;min-height:26px;border:1px solid transparent;border-radius:5px;background:transparent;color:#536889;font-size:17px;padding:0}
+.zoom-control button:hover:not(:disabled){background:#f0f3f8;border-color:#cfd6e0;color:#3259c9}
+.zoom-control label{display:flex;align-items:center;gap:2px;font-size:12px}
+.zoom-control input{width:43px;height:25px;min-height:25px;padding:3px;text-align:right;font-size:12px;appearance:textfield;-moz-appearance:textfield}
+.zoom-control input::-webkit-inner-spin-button,.zoom-control input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+
+.stage[data-zoom-focus]{grid-template-columns:var(--zoom-slide-width);grid-auto-rows:auto;align-content:start;justify-content:start;overflow:auto}
+.stage[data-zoom-focus]>.slide-card:not([data-zoom-active]){display:none}
+.stage[data-zoom-focus]>.slide-card[data-zoom-active]{width:var(--zoom-slide-width);content-visibility:visible;contain-intrinsic-size:none}
+.stage[data-zoom-focus] .slide-surface,.stage[data-zoom-focus] .card-head{width:100%}
+
+.zoom-control select{width:auto;max-width:180px;min-height:27px;height:27px;padding:3px 7px;font-size:12px;border-color:#d5dce6;color:#536889}
+@media(max-width:540px){.zoom-control{max-width:calc(100% - 16px);right:8px;flex-wrap:wrap;justify-content:flex-end}.zoom-control select{max-width:100%;flex:1 1 100%}}

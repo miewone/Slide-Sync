@@ -1422,4 +1422,13 @@ Object.assign(messages, {
   'resize.invalid':{ko:'가로·높이는 1~1000% 범위로 입력하세요. 결과 크기가 지원 범위를 벗어나면 적용할 수 없습니다.',en:'Enter width and height from 1 to 1000%. The resulting dimensions must stay within supported limits.'},
   'resize.done':{ko:'각 요소의 중심을 유지하며 크기를 변경했습니다.',en:'Resized elements while preserving each center.'},
   'resize.unchanged':{ko:'크기 변경 사항이 없습니다.',en:'No size changes.'},
+  'zoom.label':{ko:'화면 확대·축소',en:'Preview zoom'},
+  'zoom.percent':{ko:'화면 배율 (%)',en:'Zoom percentage'},
+  'zoom.in':{ko:'화면 확대',en:'Zoom in'},
+  'zoom.out':{ko:'화면 축소',en:'Zoom out'},
+  'zoom.reset':{ko:'기본 보기로 돌아가기 (100%)',en:'Return to default view (100%)'},
+  'zoom.help':{ko:'25~400%. 작업 화면에서 Ctrl+휠로 확대·축소합니다.',en:'25–400%. Use Ctrl+wheel over the preview to zoom.'},
+  'zoom.editScope':{ko:'확대 화면 편집 범위',en:'Focused view editing scope'},
+  'zoom.scopePage':{ko:'현재 페이지만 수정',en:'Edit current slide only'},
+  'zoom.scopeSelection':{ko:'기존 선택 범위 수정',en:'Edit checked slide scope'},
 });

@@ -1,7 +1,9 @@
+import {usePreviewZoom} from '../hooks/usePreviewZoom.js';
+import {ZoomControl} from './ZoomControl.jsx';
 import {AnalyticsSettingsButton} from './AnalyticsConsentBanner.jsx';
 import {t} from '../i18n/I18n.js';
 import {useLanguage} from '../hooks/useLanguage.js';
-import {useState} from 'react';
+import {useRef,useState} from 'react';
 import {PreviewStage} from './PreviewStage.jsx';
 import {PreviewGridControl} from './PreviewGridControl.jsx';
 import {TextFormatToolbar} from './TextFormatToolbar.jsx';
@@ -34,10 +36,10 @@ function EmptyState() {
 }
 
 /** Status information subscribes independently of the preview canvas. */
-function StatusBar() {
+function StatusBar({zoom}) {
   useLanguage();
   const status = useEditorValue('status'), size = useEditorValue('size');
-  const backgroundSaving=useEditorValue('backgroundSaving');
+  const backgroundSaving=useEditorValue('backgroundSaving'),busy=useEditorValue('busy');
   return <footer className="statusbar"><span id="status" role="status">{status}</span>
     <span id="background-save-status" role="status" hidden={!backgroundSaving}>{backgroundSaving?t('storage.saving'):''}</span>
     <nav className="policy-links" aria-label={t('legal.links')}>
@@ -45,15 +47,17 @@ function StatusBar() {
       <a id="privacy-link" href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer">{t('legal.privacy')}</a>
       <a id="terms-link" href={`${import.meta.env.BASE_URL}terms.html`} target="_blank" rel="noopener noreferrer">{t('legal.terms')}</a>
     </nav>
-    <span id="size-info">{size}</span></footer>;
+    <span id="size-info">{size}</span><ZoomControl zoom={{...zoom,busy}}/></footer>;
 }
 
 /** Presentation metadata and isolated preview host. */
 export function Workspace() {
   useLanguage();
   const [grid,setGrid]=useState({columns:null,rows:null});
-  const busy=useEditorValue('busy');
+  const busy=useEditorValue('busy'),hasDeck=useEditorValue('hasDeck');
+  const stage=useRef(null);
   const name = useEditorValue('name'), summary = useEditorValue('summary'), notice = useEditorValue('notice');
+  const zoom=usePreviewZoom(stage,{...grid,enabled:hasDeck,documentKey:name});
   return <section className="workspace">
     <div className="workspace-bar"><div className="workspace-heading"><div className="workspace-title-row"><h1 id="filename">{name}</h1><PreviewGridControl grid={grid} disabled={busy} onChange={setGrid}/></div><p id="workspace-summary">{summary}</p></div>
       <TextFormatToolbar/>
@@ -66,6 +70,6 @@ export function Workspace() {
       </div>
     </div>
     <div id="notice" className="notice" role="alert" hidden={!notice}>{notice}</div>
-    <EmptyState/><PreviewStage columns={grid.columns} rows={grid.rows}/><StatusBar/>
+    <EmptyState/><PreviewStage hostRef={stage} columns={grid.columns} rows={grid.rows}/><StatusBar zoom={zoom}/>
   </section>;
 }

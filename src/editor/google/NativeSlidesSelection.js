@@ -4,6 +4,14 @@ import {SearchText} from '../SearchText.js';
 export class NativeSlidesSelection {
   /** @param {object} element Native descriptor. @param {string} query Literal name or text query. */
   static matches(element,query){return SearchText.normalize(`${element.name} ${element.text}`).includes(SearchText.normalize(query));}
+  /** @param {NativeSlidesDocument} model Native deck. @param {Set<string>} previous Remembered IDs. @param {object} point Slide coordinates. @param {number} reference Source slide. @param {string} mode replace/add/remove. @param {object|null} criteria Optional appearance filters. @param {Set<number>|null} scope Optional page-only selection boundary preserving other IDs. */
+  static atPoint(model,previous,point,reference,mode='replace',criteria=null,scope=null){
+    const hit=index=>[...model.elements(index)].reverse().find(e=>!e.deleted&&e.box&&point.x>=e.box.x&&point.y>=e.box.y&&point.x<=e.box.x+e.box.w&&point.y<=e.box.y+e.box.h);
+    const source=hit(reference),result=new Set(mode==='replace'&&!scope?[]:previous),strict=criteria&&Object.values(criteria).some(Boolean);
+    if(mode==='replace'&&scope)for(const index of scope)for(const e of model.elements(index))result.delete(e.id);
+    for(let index=0;index<model.original.slides.length;index++){if(scope&&!scope.has(index))continue;const e=hit(index);if(!e||(strict&&(!source||!this.similar(source,e,criteria))))continue;mode==='remove'?result.delete(e.id):result.add(e.id);}
+    return result;
+  }
   /** @param {object} reference Source descriptor. @param {object} candidate Candidate. @param {object} criteria size, colors, layout. */
   static similar(reference,candidate,criteria){
     if(reference.kind!==candidate.kind||!reference.box||!candidate.box||candidate.deleted)return false;

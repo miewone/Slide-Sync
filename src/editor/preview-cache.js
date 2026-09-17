@@ -93,16 +93,16 @@ export function cachePreview(root, slide, unitsPerPixel = 12700) {
  * Synchronize a cached or mounted preview with current geometry.
  * @param {Element|Document|null} root Preview root; replaced layers rebuild its index.
  * @param {object} slide Current slide descriptor.
- * @param {object} options positionOnly skips text work; ids optionally limits movers.
+ * @param {object} options positionOnly skips text work; ids limits movers and geometries supplies draft overrides without rebuilding indexes.
  */
 export function syncPreviewPositions(root, slide, options={}) {
   if (!root) return 0;
   const elements = elementsById(slide.elements);
-  const movers=moversById(root,!options.positionOnly);
+  const movers=moversById(root,false);
   const targets=options.ids===undefined?movers.values():Array.from(new Set(options.ids),id=>movers.get(id)).filter(Boolean);
   let changed = 0;
   for (const mover of targets) {
-    const element=elements.get(mover.dataset.pptxMover),g = element?.g;
+    const element=elements.get(mover.dataset.pptxMover),g = options.geometries?.get(mover.dataset.pptxMover)||element?.g;
     if (!g) continue;
     const units = Number(mover.dataset.unitsPerPixel);
     const dx = (g.x - Number(mover.dataset.originX)) / units;

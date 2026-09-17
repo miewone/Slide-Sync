@@ -1,4 +1,4 @@
-import {useEffect,useId,useRef} from 'react';
+import {memo,useEffect,useId,useRef} from 'react';
 import {NativeSlidesAppearance as Appearance} from '../editor/google/NativeSlidesAppearance.js';
 import {NativeSlidesTableLayout} from '../editor/google/NativeSlidesTableLayout.js';
 import {NativeSlidesImage} from './NativeSlidesImage.jsx';
@@ -26,7 +26,7 @@ function NativeTable({element,width,height,renderer,appearance}){
 }
 
 /** Native artwork primitives. Never replace unrecognized content with invented colored boxes. @param {object} props Element and shared text/appearance resolvers. */
-export function NativeSlidesArtwork({element:n,renderer,appearance}){
+export const NativeSlidesArtwork=memo(function NativeSlidesArtwork({element:n,renderer,appearance}){
   const marker=useId().replace(/:/g,''),t=n.transform||{scaleX:1,scaleY:1},w=Appearance.points(n.size?.width)||0,h=Appearance.points(n.size?.height)||0;
   const transform=`matrix(${t.scaleX??0} ${t.shearY||0} ${t.shearX||0} ${t.scaleY??0} ${t.unit==='EMU'?(t.translateX||0)/12700:t.translateX||0} ${t.unit==='EMU'?(t.translateY||0)/12700:t.translateY||0})`;
   const sx=Math.hypot(t.scaleX??0,t.shearY||0)||1,sy=Math.hypot(t.scaleY??0,t.shearX||0)||1;
@@ -42,4 +42,4 @@ export function NativeSlidesArtwork({element:n,renderer,appearance}){
       {n.shape?.text&&<g transform={`scale(${1/sx} ${1/sy})`}><NativeText element={shape} renderer={renderer} width={w*sx} height={h*sy}/></g>}
     </>}
   </g>;
-}
+});

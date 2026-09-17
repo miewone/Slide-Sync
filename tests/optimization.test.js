@@ -39,6 +39,22 @@ test('viewport ignores obsolete records and intersects dirty indices with nearby
   } finally {globalThis.IntersectionObserver=Original;}
 });
 
+test('focused viewport excludes other slides even when stale observer records arrive',()=>{
+  const Original=globalThis.IntersectionObserver;let notify;
+  globalThis.IntersectionObserver=class{constructor(callback){notify=callback;}observe(){}disconnect(){}};
+  try{
+    const entered=[],viewport=new PreviewViewport({root:{},onEnter:i=>entered.push(i)});
+    const entries=[0,1,2].map(i=>({card:{hidden:false},surface:{dataset:{slide:String(i)}}}));
+    entries.forEach((entry,i)=>viewport.register(i,entry));
+    notify(entries.map(e=>({target:e.surface,isIntersecting:true})));entered.length=0;
+    viewport.focus(1);notify(entries.map(e=>({target:e.surface,isIntersecting:true})));
+    assert.deepEqual(entered,[1]);assert.deepEqual(viewport.indices(),[1]);assert.deepEqual([...viewport.surfaces([0,1,2])],[entries[1].surface]);
+    assert.equal(viewport.isNearby(0),false);
+    viewport.focus(null);notify(entries.map(e=>({target:e.surface,isIntersecting:true})));
+    assert.deepEqual(viewport.indices(),[0,1,2]);viewport.reset();
+  }finally{globalThis.IntersectionObserver=Original;}
+});
+
 test('chart references in inherited parts are detected and shared documents scanned once', () => {
   let scans=0;
   const plain={getElementsByTagNameNS(){scans++;return [];}};

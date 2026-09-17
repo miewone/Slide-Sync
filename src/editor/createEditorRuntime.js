@@ -1,3 +1,4 @@
+import {FocusedEditScope} from './FocusedEditScope.js';
 import {ResizeGesture} from './ResizeGesture.js';
 import {ElementResize} from './ElementResize.js';
 import {SimilarElementMatcher} from './SimilarElementMatcher.js';
@@ -40,7 +41,7 @@ import {loadDeck,hitTest,corners,moveSelected,movePlans,selectedInSlide,selectio
 export function createEditorRuntime(root, store, resources, activityLog=new ActivityLog()) {
 const events = new EventScope();
 const toolLifecycle = new AbortController();
-const resizeGestures=new Set();
+const resizeGestures=new Set(),deferredPreviews=new Set(),editScopeResolver=new FocusedEditScope();
 let disposed = false;
 const ensureActive = () => { if (disposed) throw new DOMException('Editor disposed', 'AbortError'); };
 const $=id=>root.querySelector(`#${CSS.escape(id)}`),state={deck:null,name:'',checked:new Set(),selected:new Map(),allSelected:new Map(),reference:null,point:null,undo:[],redo:[],busy:false,previews:new Map(),failed:new Set(),drag:null,boxSelection:null};
@@ -63,7 +64,7 @@ function trackBackground(task) {
 function savePreviewInBackground(source) {
   try{
     if(Array.isArray(source)&&!source.length)return;
-    const entries=slidePreviewCache.capture(state.previews,state.failed);
+    const entries=slidePreviewCache.capture(state.previews,new Set([...state.failed,...deferredPreviews]));
     if(!entries.length)return;
     trackBackground(storageAction(async()=>{
       const keys=Array.isArray(source)?source:await slidePreviewCache.keys(source);
@@ -103,11 +104,14 @@ function status(text){statusMessage=typeof text==='function'?text:()=>text;if(!d
 function notice(text){noticeMessage=typeof text==='function'?text:()=>text;if(!disposed)store.update({notice:noticeMessage()||''});}
 function busy(value){if(disposed)return;state.busy=value;store.update({busy:value});for(const id of ['resize-width','resize-height','resize-apply','only-with-selection','delete-selection','match-appearance','box-select-mode','move','undo','redo','apply-range','clear-selection','text-format-size','text-format-decrease','text-format-increase','text-format-bold','fit-text','fit-text-width','fit-width-unwrap','fit-width-scope','fit-width-background','fit-scope','layout-target','guide-horizontal','guide-vertical','guide-select','guide-position','guide-apply','guide-delete','guides-visible','guides-edit','guides-snap']){const el=$(id);if(el)el.disabled=value;}for(const el of root.querySelectorAll('.card-head input,[data-layout]'))el.disabled=value;$('only-checked').disabled=value;if(!value)updateInspector();}
 function error(err,fileName=state.name){notice(()=>(err?.message||String(err)));status(()=>(t('createEditorRuntime.8')));log('activity.error',{message:err?.message||String(err)},'error',fileName);}
-function syncSelection(){state.selected=new Map([...state.allSelected].filter(([i,ids])=>state.checked.has(i)&&ids.size));}
+/** Effective edit scope; original checked slides remain untouched. */
+function editChecked(){return editScopeResolver.resolve(state.checked,state.zoomFocus??null,state.zoomEditScope||'selection');}
+function pageOnly(){return state.zoomFocus!=null&&state.zoomEditScope==='page';}
+function syncSelection(){const scope=editChecked();state.selected=new Map([...state.allSelected].filter(([i,ids])=>scope.has(i)&&ids.size));}
 function selectedElements(){if(!state.deck)return [];return [...state.selected].flatMap(([i,ids])=>selectedInSlide(state.deck.slides[i],ids).map(element=>({slide:state.deck.slides[i],element})));}
 function referenceElements(){const i=state.selected.has(state.reference)?state.reference:state.selected.keys().next().value;return i===undefined?[]:selectedInSlide(state.deck.slides[i],state.selected.get(i));}
 function updatePositionFields(){const bounds=selectionBounds(referenceElements());if(bounds&&$('move-mode').value==='absolute'){$('x').value=(bounds.x/EMU_PER_CM).toFixed(2);$('y').value=(bounds.y/EMU_PER_CM).toFixed(2);}}
-function resetSelection(){cancelActiveDrag?.();nudgeHistory=null;state.allSelected.clear();syncSelection();state.point=null;updateInspector();updateOverlays();}
+function resetSelection(){cancelActiveDrag?.();nudgeHistory=null;if(pageOnly())state.allSelected.delete(state.zoomFocus);else state.allSelected.clear();syncSelection();state.point=null;updateInspector();updateOverlays();}
 function selectAt(x,y,reference=null,mode='replace'){
   if(!state.deck||state.busy)return;
   const strict=$('match-appearance').checked&&Object.values(store.getSnapshot().appearanceCriteria).some(Boolean);
@@ -115,10 +119,11 @@ function selectAt(x,y,reference=null,mode='replace'){
   const sourceSlide=state.deck.slides[reference],source=sourceSlide&&hitTest(sourceSlide,x,y);
   const matcher=strict?new AppearanceMatcher(state.deck,store.getSnapshot().appearanceCriteria):null;
   nudgeHistory=null;state.point={x,y};state.reference=reference;
-  if(mode==='replace')state.allSelected.clear();
+  if(mode==='replace'){if(pageOnly())state.allSelected.delete(state.zoomFocus);else state.allSelected.clear();}
   // Remember corresponding IDs on unchecked slides so changing scope preserves
   // a multi-selection even after its checked-slide objects have moved.
   for(const slide of state.deck.slides){
+    if(pageOnly()&&!editChecked().has(slide.index))continue;
     const hit=hitTest(slide,x,y);if(!hit || (matcher && !matcher.matches(source,hit,sourceSlide,slide)))continue;
     const ids=new Set(state.allSelected.get(slide.index)||[]);
     mode==='remove'?ids.delete(hit.id):ids.add(hit.id);
@@ -133,7 +138,7 @@ function selectRange(rectangle, additive, reference) {
   const sources=sourceSlide?.elements.filter(element=>RangeSelection.contains(element,rectangle))||[];
   const matcher=$('match-appearance').checked&&Object.values(store.getSnapshot().appearanceCriteria).some(Boolean)?new AppearanceMatcher(state.deck,store.getSnapshot().appearanceCriteria):null;
   const accept=matcher?(element,slide)=>sources.some(source=>matcher.matches(source,element,sourceSlide,slide)):null;
-  state.allSelected=RangeSelection.apply(state.deck,state.checked,state.allSelected,rectangle,additive,accept);
+  state.allSelected=RangeSelection.apply(state.deck,editChecked(),state.allSelected,rectangle,additive,accept);
   state.reference=reference;state.point=null;syncSelection();
   updatePositionFields();updateInspector();updateOverlays();
   status(()=>(t('createEditorRuntime.10', {p0: state.selected.size, p1: selectedElements().length})));
@@ -163,7 +168,7 @@ function updateInspector(){
   const ref=referenceElements(),bounds=selectionBounds(ref);
   const size=bounds?t('createEditorRuntime.11', {p0: ref.length>1?t('createEditorRuntime.12'):'', p1: (bounds.w/EMU_PER_CM).toFixed(2), p2: (bounds.h/EMU_PER_CM).toFixed(2)}):'';
   updateTextFormatControls();updateFitControls();updateLayoutControls();guideUI?.updateControls();
-  const rows = !n&&!state.point ? [] : [...state.checked].sort((a,b)=>a-b).map(i=>{
+  const rows = !n&&!state.point ? [] : [...editChecked()].sort((a,b)=>a-b).map(i=>{
     const elements=selectedInSlide(state.deck.slides[i],state.selected.get(i));
     return {index:i, matched:!!elements.length,count:elements.length,
       label:elements.length?elements.map(e=>e.text||e.name).join(' / '):t('createEditorRuntime.14'),
@@ -182,11 +187,12 @@ function updateLayoutControls(){
 function setChecked(next){cancelActiveDrag?.();nudgeHistory=null;state.checked=next;syncSelection();updatePositionFields();updateInspector();updateScope();updateSummary();updateOverlays();}
 function updateElementSearch(query=store.getSnapshot().elementSearch.query) {
   if(disposed)return;
+  const scope=editChecked();
   // Scope sets are replaced by setChecked; selection/geometry changes can reuse matches.
-  if(!elementSearchCache || elementSearchCache.index!==elementSearchIndex || elementSearchCache.query!==query || elementSearchCache.scope!==state.checked) {
-    const names=elementSearchCache?.index===elementSearchIndex && elementSearchCache.scope===state.checked
-      ?elementSearchCache.names:elementSearchIndex.names(state.checked);
-    elementSearchCache={index:elementSearchIndex,query,scope:state.checked,names,matches:elementSearchIndex.find(query,state.checked)};
+  if(!elementSearchCache || elementSearchCache.index!==elementSearchIndex || elementSearchCache.query!==query || elementSearchCache.scope!==scope) {
+    const names=elementSearchCache?.index===elementSearchIndex && elementSearchCache.scope===scope
+      ?elementSearchCache.names:elementSearchIndex.names(scope);
+    elementSearchCache={index:elementSearchIndex,query,scope:scope,names,matches:elementSearchIndex.find(query,scope)};
   }
   const {matches,names}=elementSearchCache,previous=store.getSnapshot().elementSearch;
   const selected=matches.reduce((count,match)=>count+(state.selected.get(match.index)?.has(match.id)?1:0),0);
@@ -244,11 +250,33 @@ function updateSummary(){
 function renderList(){
   store.updateSlides(state.deck?.slides.map(s=>({index:s.index,title:s.title,checked:state.checked.has(s.index)}))||[]);
 }
-const resizeObserver=new ResizeObserver(entries=>{for(const entry of entries){const frame=entry.target.querySelector('iframe');if(frame)frame.style.transform=`scale(${entry.contentRect.width/960})`;}});
+const resizeObserver=new ResizeObserver(entries=>{for(const entry of entries){const frame=entry.target.querySelector('iframe');if(frame)frame.style.transform=`scale(${entry.contentRect.width/960})`;delete entry.target.dataset.overlayKey;if(state.deck)updateOverlays([Number(entry.target.dataset.slide)]);}});
 const viewport=new PreviewViewport({root:$('stage'),onEnter:index=>{
   if(disposed || !state.deck)return;
   mountPreview(index);updateOverlays([index]);
 }});
+
+events.on($('stage'),'viewportzoom',event=>{
+  const focus=event.detail?.focus??null;if(viewport.focused===focus)return;
+  cancelActiveDrag?.();
+  if(focus!==null)for(const [index,entry] of viewport.entries)if(index!==focus&&entry.frame){entry.frame.remove();entry.frame=null;}
+  state.zoomFocus=focus;syncSelection();
+  viewport.focus(focus);
+  updatePositionFields();updateInspector();
+  if(focus===null)for(const index of viewport.indices()){flushDeferredPreview(index);mountPreview(index);}
+  updateOverlays();
+});
+events.on($('stage'),'viewporteditscope',event=>{
+  if(state.busy||!['page','selection'].includes(event.detail?.scope))return;
+  cancelActiveDrag?.();state.zoomEditScope=event.detail.scope;nudgeHistory=null;syncSelection();
+  updatePositionFields();updateInspector();updateOverlays();
+});
+/** Synchronize stale detached previews only when they are needed again. @param {number} index Slide index. */
+function flushDeferredPreview(index){
+  if(!deferredPreviews.has(index)||!state.deck)return;
+  const slide=state.deck.slides[index],cached=state.previews.get(index);
+  syncPreviewPresence(cached,slide);syncPreviewPositions(cached,slide);deferredPreviews.delete(index);
+}
 
 /** @param {number} index Preview slide to add to the scope without replacing remembered selections. */
 function activatePreview(index) {
@@ -287,7 +315,7 @@ function bindPreviewHover(card,index) {
 function renderCards() {
   if(!state.deck)return;
   for(const gesture of resizeGestures)gesture.dispose();resizeGestures.clear();resizeObserver.disconnect();viewport.reset();store.update({hoveredSlide:null});
-  const stage=$('stage');stage.replaceChildren();stage.scrollTop=0;
+  const stage=$('stage');stage.dispatchEvent(new Event('previewdocumentchange'));stage.replaceChildren();stage.scrollTop=0;
   const fragment=document.createDocumentFragment();
   const entries=[];
   for(const slide of state.deck.slides) {
@@ -324,6 +352,8 @@ function renderCards() {
 
 // Mount each frame at most once. Edits synchronize caches even before it is mounted.
 function mountPreview(index) {
+  if(!viewport.accepts(index))return;
+  flushDeferredPreview(index);
   const entry=viewport.get(index),cached=state.previews.get(index),slide=state.deck?.slides[index];
   if(!entry || entry.frame || !cached || !slide || !viewport.isNearby(index) || entry.card.hidden)return;
   const frame=make('iframe');entry.frame=frame;
@@ -374,8 +404,8 @@ function updateScope() {
   updateVisibility();
 }
 
-function updateMovedPreviews(indices,{positionOnly=false,idsBySlide}={}) {
-  indices=[...indices];
+function updateMovedPreviews(indices,{positionOnly=false,geometryOnly=false,idsBySlide}={}) {
+  indices=[...indices].filter(index=>{if(viewport.accepts(index))return true;deferredPreviews.add(index);return false;});
   for (const i of indices) {
     const slide=state.deck.slides[i];
     const options={positionOnly,ids:idsBySlide?.get(i)};
@@ -386,7 +416,7 @@ function updateMovedPreviews(indices,{positionOnly=false,idsBySlide}={}) {
     if(badge) badge.textContent=slide.dirty?t('createEditorRuntime.35'):state.checked.has(i)?t('createEditorRuntime.36'):'';
   }
   updateOverlays(indices);
-  if(!positionOnly&&state.fonts){
+  if(!positionOnly&&!geometryOnly&&state.fonts){
     const deck=state.deck,fonts=state.fonts;
     state.fontRefresh=(state.fontRefresh||Promise.resolve()).then(async()=>{
       if(disposed||state.deck!==deck)return;
@@ -402,7 +432,7 @@ function updateOverlays(indices, guideIndices=indices, {force=false}={}){
   // Materialize one-shot iterators because both selection layers may consume them.
   if(indices){const shared=guideIndices===indices;indices=[...indices];if(shared)guideIndices=indices;}
   renderBoxSelection(indices);
-  const surfaces=force?[...indices].map(index=>viewport.get(index)?.surface).filter(Boolean):viewport.surfaces(indices);
+  const surfaces=force?[...indices].filter(index=>viewport.accepts(index)).map(index=>viewport.get(index)?.surface).filter(Boolean):viewport.surfaces(indices);
   for(const surface of surfaces){
     const i=Number(surface.dataset.slide),svg=surface.querySelector('svg.hit-overlay');
     const elements=selectedInSlide(state.deck.slides[i],state.selected.get(i)),point=state.point&&state.checked.has(i)?state.point:null;
@@ -416,7 +446,7 @@ function updateOverlays(indices, guideIndices=indices, {force=false}={}){
       let group=existing.get(id);existing.delete(id);
       if(!group){group=document.createElementNS(svg.namespaceURI,'g');group.dataset.selectionId=id;group.append(document.createElementNS(svg.namespaceURI,'polygon'));for(let j=0;j<8;j++)group.append(document.createElementNS(svg.namespaceURI,'circle'));svg.append(group);}
       const points=corners(g);group.firstElementChild.setAttribute('points',points.map(p=>`${p.x},${p.y}`).join(' '));
-      const handleSize=5*state.deck.width/Math.max(1,surface.getBoundingClientRect().width);
+      const handleSize=5*state.deck.width/Math.max(1,surface.clientWidth);
       for(const handle of ResizeGesture.handles(g)){const circle=group.children[handle.index+1];circle.dataset.resizeHandle=String(handle.index);circle.setAttribute('cx',handle.x);circle.setAttribute('cy',handle.y);circle.setAttribute('r',handleSize);circle.style.cursor=['nwse-resize','nesw-resize','nwse-resize','nesw-resize','ns-resize','ew-resize','ns-resize','ew-resize'][handle.index];circle.classList.add('resize-handle');}
 
     }
@@ -438,15 +468,20 @@ function bindPointer(surface,index){
       const id=handle.closest('[data-selection-id]')?.dataset.selectionId,element=state.deck.slides[index].elements.find(e=>e.id===id);
       if(!element||!state.selected.get(index)?.has(id))return null;
       cancelActiveDrag?.();state.reference=index;cancelActiveDrag=()=>resize.cancel();
-      return {g:element.g,selection:new Map([...state.selected].map(([i,ids])=>[i,new Set(ids)]))};
+      const selection=new Map([...state.selected].map(([i,ids])=>[i,new Set(ids)]));
+      const visible=new Map([...selection].filter(([i])=>viewport.isNearby(i)).map(([i,ids])=>[i,selectedInSlide(state.deck.slides[i],ids)]));
+      return {g:element.g,selection,visible};
     },
     onPreview:({sx,sy},draft)=>{
       state.resize=new Map();
-      for(const [i,ids] of draft.selection)for(const e of selectedInSlide(state.deck.slides[i],ids))state.resize.set(`${i}/${e.id}`,ElementResize.geometry(e.g,sx,sy));
-      for(const [i] of draft.selection){const slide=state.deck.slides[i],frame=viewport.get(i)?.frame;if(frame)syncPreviewPositions(frame.contentDocument,{...slide,elements:slide.elements.map(e=>({...e,g:state.resize.get(`${i}/${e.id}`)||e.g}))});}
-      updateOverlays(draft.selection.keys());
+      for(const [i,elements] of draft.visible){
+        const geometries=new Map(elements.map(e=>[e.id,ElementResize.geometry(e.g,sx,sy)]));
+        for(const [id,g] of geometries)state.resize.set(`${i}/${id}`,g);
+        const frame=viewport.get(i)?.frame;if(frame)syncPreviewPositions(frame.contentDocument,state.deck.slides[i],{ids:draft.selection.get(i),geometries});
+      }
+      updateOverlays(draft.visible.keys());
     },
-    onEnd:()=>{state.resize=null;cancelActiveDrag=null;updateMovedPreviews(state.selected.keys());},
+    onEnd:()=>{state.resize=null;cancelActiveDrag=null;for(const [i,ids] of state.selected)if(viewport.isNearby(i))syncPreviewPositions(viewport.get(i)?.frame?.contentDocument,state.deck.slides[i],{ids});updateOverlays();},
     onError:error,onCommit:({sx,sy})=>applyResize(sx*100,sy*100)
   });resizeGestures.add(resize);
 
@@ -536,7 +571,7 @@ function bindPointer(surface,index){
   for(const type of ['pointercancel','lostpointercapture'])surface.addEventListener(type,event=>{if(start&&event.pointerId===start.pointerId)clearDraft(true);});
 }
 
-function recordEdit(snapshots,coalesce=false,{positionOnly=false,operation='activity.edited'}={}) {
+function recordEdit(snapshots,coalesce=false,{positionOnly=false,geometryOnly=false,operation='activity.edited'}={}) {
   if(!snapshots.length)return;
   const continuing=coalesce&&nudgeHistory&&state.undo.at(-1)===nudgeHistory.history;
   if(!continuing)log(snapshots[0]?.type==='guides'?'activity.guides':operation,{slides:snapshots.length},'success');
@@ -557,14 +592,14 @@ function recordEdit(snapshots,coalesce=false,{positionOnly=false,operation='acti
     idsBySlide.get(index).add(id);
   }
   const indices=snapshots.changes?[...idsBySlide.keys()]:snapshots.map(item=>item.index);
-  updateMovedPreviews(indices,{positionOnly,idsBySlide:snapshots.changes?idsBySlide:undefined});updateSummary();
+  updateMovedPreviews(indices,{positionOnly,geometryOnly,idsBySlide:snapshots.changes?idsBySlide:undefined});updateSummary();
 }
 
 /** @param {number} width Width percentage. @param {number} height Height percentage. Apply one center-preserving edit. */
 function applyResize(width,height){
   if(state.busy||!state.deck||!state.selected.size)return;
   cancelActiveDrag?.();nudgeHistory=null;busy(true);notice(()=>(''));
-  try{const snapshots=ElementResize.apply(state.deck,state.selected,width,height);recordEdit(snapshots);updatePositionFields();status(()=>t(snapshots.length?'resize.done':'resize.unchanged'));}
+  try{const snapshots=ElementResize.apply(state.deck,state.selected,width,height);recordEdit(snapshots,false,{geometryOnly:true});updatePositionFields();status(()=>t(snapshots.length?'resize.done':'resize.unchanged'));}
   catch(err){error(err);}finally{busy(false);}
 }
 async function applyLayout(action){
@@ -574,7 +609,7 @@ async function applyLayout(action){
   catch(err){error(err);}finally{busy(false);}
 }
 function updateTextFormatControls() {
-  const candidates=TextFormat.candidates(state.deck,state.checked,state.selected);
+  const candidates=TextFormat.candidates(state.deck,editChecked(),state.selected);
   for(const id of ['text-format-size','text-format-decrease','text-format-increase','text-format-bold'])$(id).disabled=state.busy||!candidates.length;
   $('text-format-toolbar').title=candidates.length?t('textFormat.count',{count:candidates.length}):t('textFormat.empty');
   const bolds=candidates.map(({element})=>TextFormat.value(element.node.getElementsByTagNameNS('*','txBody')[0],'b'));
@@ -590,7 +625,7 @@ function updateTextFormatControls() {
 }
 function applyTextFormat(patch) {
   if(!state.deck||state.busy)return;
-  const candidates=TextFormat.candidates(state.deck,state.checked,state.selected);
+  const candidates=TextFormat.candidates(state.deck,editChecked(),state.selected);
   if(!candidates.length)return;
   cancelActiveDrag?.();busy(true);notice(()=>(''));
   try{recordEdit(TextFormat.apply(candidates,patch),false,{operation:'activity.formatted'});status(()=>t('textFormat.done',{count:candidates.length}));}
@@ -598,12 +633,12 @@ function applyTextFormat(patch) {
 }
 
 function widthFitCandidates() {
-  return fitCandidates(state.deck,state.checked,state.selected,$('fit-width-scope').value).filter(({element})=>!element.hidden);
+  return fitCandidates(state.deck,editChecked(),state.selected,$('fit-width-scope').value).filter(({element})=>!element.hidden);
 }
 
 function updateFitControls() {
   const button=$('fit-text');if(!button)return;
-  const candidates=fitCandidates(state.deck,state.checked,state.selected,$('fit-scope').value);
+  const candidates=fitCandidates(state.deck,editChecked(),state.selected,$('fit-scope').value);
   button.disabled=state.busy||!candidates.length;
   $('fit-text-width').disabled=state.busy||!widthFitCandidates().length;
   $('fit-count').textContent=candidates.length?t('createEditorRuntime.41', {p0: candidates.length}):t('TextFitPanel.6');
@@ -614,12 +649,13 @@ async function fitText(axis='height') {
   const filterBackground=axis==='width'&&$('fit-width-background').checked;
   if(!state.deck||state.busy)return;
   cancelActiveDrag?.();nudgeHistory=null;
-  let candidates=axis==='width'?widthFitCandidates():fitCandidates(state.deck,state.checked,state.selected,$('fit-scope').value);
+  let candidates=axis==='width'?widthFitCandidates():fitCandidates(state.deck,editChecked(),state.selected,$('fit-scope').value);
   if(!candidates.length)return;
   busy(true);notice(()=>(''));status(()=>(t('createEditorRuntime.42')));
   try {
     await state.fontRefresh;ensureActive();
     if(filterBackground){candidates=await new TextBoxBackground(state.deck).filter(candidates);ensureActive();}
+    for(const {slide} of candidates)flushDeferredPreview(slide.index);
     const result=await measureTextBoxes(candidates,state.previews,document,axis,unwrap);ensureActive();
     const snapshots=fitTextBoxes(state.deck,result.changes,axis,unwrap);
     recordEdit(snapshots,false,{operation:'activity.fitted'});updatePositionFields();
@@ -634,7 +670,7 @@ function fallback(slide){const d=state.deck,k=960/d.width;const elements=slide.e
 let previewer=null,renderHost=null;
 async function renderDeck() {
   const d=state.deck;
-  state.previews.clear();state.failed.clear();
+  state.previews.clear();state.failed.clear();deferredPreviews.clear();
   status(()=>(t('createEditorRuntime.46')));
   renderCards();
   if(!renderHost){renderHost=make('div');renderHost.style.cssText='position:absolute;left:-100000px;top:0;width:960px;pointer-events:none;';renderHost.setAttribute('aria-hidden','true');document.body.append(renderHost);}
@@ -820,6 +856,7 @@ function refreshDeletedElements(snapshots) {
   updateSlideSearch(store.getSnapshot().slideSearch.query);renderList();
   for(const {index} of snapshots) {
     const slide=state.deck.slides[index];
+    if(!viewport.accepts(index)){deferredPreviews.add(index);continue;}
     syncPreviewPresence(state.previews.get(index),slide);
     syncPreviewPresence(viewport.get(index)?.frame?.contentDocument,slide);
   }
@@ -860,7 +897,7 @@ async function restoreHistory(direction) {
           if(ids.size)state.allSelected.set(snapshot.index,ids);else state.allSelected.delete(snapshot.index);
         }
         state.point=null;refreshDeletedElements(snapshots);
-      } else updateMovedPreviews(snapshots.map(s=>s.index));
+      } else updateMovedPreviews(snapshots.map(s=>s.index),snapshots[0]?.type==='resize'?{geometryOnly:true,idsBySlide:new Map(snapshots.map(s=>[s.index,new Set(s.ids)]))}:{});
     }
     source.pop();target.push(inverse);if(target.length>25)target.shift();
     updateSummary();updatePositionFields();status(()=>t(direction==='undo'?'createEditorRuntime.61':'history.redone'));log(direction==='undo'?'activity.undo':'activity.redo',{},'success');
@@ -916,7 +953,7 @@ events.on(root,'dragover',event=>{event.preventDefault();$('dropzone')?.classLis
   const surface=target.closest?.('.slide-surface');if(target.closest?.('.guide-overlay'))return;if(!surface||state.busy||!state.deck||cancelActiveDrag)return;
   if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='a'){
     event.preventDefault();nudgeHistory=null;state.reference=Number(surface.dataset.slide);
-    state.allSelected=new Map(state.deck.slides.map(s=>[s.index,new Set(s.elements.filter(e=>e.g&&!e.hidden).map(e=>e.id))]));
+    if(!pageOnly())state.allSelected.clear();for(const slide of state.deck.slides){if(pageOnly()&&!editChecked().has(slide.index))continue;state.allSelected.set(slide.index,new Set(slide.elements.filter(e=>e.g&&!e.hidden).map(e=>e.id)));}
     syncSelection();updatePositionFields();updateInspector();updateOverlays();status(()=>(t('createEditorRuntime.9', {p0: state.selected.size, p1: selectedElements().length})));return;
   }
   const directions={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]},direction=directions[event.key];

@@ -4,8 +4,8 @@ import {memo,useLayoutEffect,useRef} from 'react';
  * Stable preview host; the editor alone owns its descendants.
  * @param {object} props Grid columns and visible rows; null values preserve the responsive layout.
  */
-export const PreviewStage=memo(function PreviewStage({columns,rows}) {
-  const ref=useRef(null);
+export const PreviewStage=memo(function PreviewStage({columns,rows,hostRef}) {
+  const ownRef=useRef(null),ref=hostRef||ownRef;
   useLayoutEffect(()=>{
     const stage=ref.current;
     if(rows===null){stage.style.removeProperty('--preview-row-height');return;}

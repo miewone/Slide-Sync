@@ -10,7 +10,7 @@ import {NativeSlidesArtwork} from './NativeSlidesArtwork.jsx';
 import {NativeSlidesImage} from './NativeSlidesImage.jsx';
 
 /** Pointer drag, cross-slide box selection and guide snapping in slide coordinates. @param {object} props Current model, scope, selection, guides and edit callbacks. */
-export function NativeSlidesCanvas({model,page,checked,setChecked,selected,setSelected,perform,busy,guides,showGuides,snap,version,fontOverrides,boxSelect=false}){
+export function NativeSlidesCanvas({model,page,checked,setChecked,selected,setSelected,perform,busy,guides,showGuides,snap,version,fontOverrides,boxSelect=false,selectionScope=null}){
   const svg=useRef(null),gesture=useRef(null),[draft,setDraft]=useState(null);
   const latest=useRef(null),resize=useRef(null),[resizeDraft,setResizeDraft]=useState(null);
   latest.current={model,page,checked,selected,busy,perform};
@@ -22,20 +22,20 @@ export function NativeSlidesCanvas({model,page,checked,setChecked,selected,setSe
   const reset=()=>{resize.current?.cancel();gesture.current=null;setDraft(null);};
   useEffect(()=>{
     const controller=new ResizeGesture({surface:svg.current,point,
-      source:handle=>{const s=latest.current;if(s.busy||!s.checked.has(s.page))return null;const e=s.model.elements(s.page).find(e=>e.id===handle.dataset.resizeId);return e&&s.selected.has(e.id)?{g:s.model.resizeGeometry(e)}:null;},
-      onPreview:factors=>{const s=latest.current;for(const i of s.checked)for(const e of s.model.elements(i))if(s.selected.has(e.id)&&!e.deleted&&e.box)s.model.resizedElement(e,factors.sx,factors.sy);setResizeDraft(factors);},onEnd:()=>setResizeDraft(null),
+      source:handle=>{const s=latest.current;if(s.busy||!s.checked.has(s.page))return null;const e=s.model.elements(s.page).find(e=>e.id===handle.dataset.resizeId);return e&&s.selected.has(e.id)?{g:s.model.resizeGeometry(e),elements:s.model.elements(s.page).filter(e=>s.selected.has(e.id)&&!e.deleted&&e.box)}:null;},
+      onPreview:(factors,draft)=>{for(const e of draft.elements)latest.current.model.resizedElement(e,factors.sx,factors.sy);setResizeDraft(factors);},onEnd:()=>setResizeDraft(null),
       onError:error=>latest.current.perform(()=>{throw error;}),
       onCommit:({sx,sy})=>{const s=latest.current;if(!s.busy)s.perform(()=>s.model.resize(s.checked,s.selected,sx*100,sy*100));}
     });resize.current=controller;return ()=>{controller.dispose();resize.current=null;};
   },[model,page]);
-  useEffect(()=>{reset();},[page,busy,version,checked]);
+  useEffect(()=>{reset();},[page,busy,version,checked,selectionScope]);
   useEffect(()=>{window.addEventListener('blur',reset);return ()=>window.removeEventListener('blur',reset);},[]);
   const down=event=>{
     if(busy||event.button!==0)return;event.preventDefault();svg.current.focus();
     const id=boxSelect?null:event.target.closest('[data-object-id]')?.dataset.objectId,start=point(event);
     if(id&&!checked.has(page))return;
     const selection=new Set(selected);
-    if(id&&!selection.has(id)){if(!event.shiftKey&&!event.ctrlKey&&!event.metaKey)selection.clear();selection.add(id);setSelected(selection);}
+    if(id&&!selection.has(id)){if(!event.shiftKey&&!event.ctrlKey&&!event.metaKey){if(selectionScope){for(const i of selectionScope)for(const e of model.elements(i))selection.delete(e.id);}else selection.clear();}selection.add(id);setSelected(selection);}
     gesture.current={start,id,selection,wasSelected:selected.has(id),additive:event.shiftKey||event.ctrlKey||event.metaKey,pointerId:event.pointerId};
     svg.current.setPointerCapture(event.pointerId);
   };
@@ -79,7 +79,7 @@ export function NativeSlidesCanvas({model,page,checked,setChecked,selected,setSe
       <rect x={e.box.x} y={e.box.y} width={Math.max(e.box.w,2)} height={Math.max(e.box.h,2)} fill="transparent" stroke={selected.has(e.id)?'#466ce0':e.changed?'#b45309':'transparent'} strokeWidth={selected.has(e.id)?2:1} strokeDasharray={e.changed?'4 2':undefined}/>
       <title>{e.name}</title>
     </g>)}
-    {checked.has(page)&&elements.filter(e=>selected.has(e.id)&&e.box&&!e.deleted).flatMap(e=>ResizeGesture.handles(model.resizeGeometry(e)).map(h=><circle key={`${e.id}-${h.index}`} className="resize-handle" data-resize-handle={h.index} data-resize-id={e.id} cx={h.x} cy={h.y} r={5*model.width/(svg.current?.getBoundingClientRect().width||600)} style={{cursor:['nwse-resize','nesw-resize','nwse-resize','nesw-resize','ns-resize','ew-resize','ns-resize','ew-resize'][h.index]}}/>))}
+    {checked.has(page)&&elements.filter(e=>selected.has(e.id)&&e.box&&!e.deleted).flatMap(e=>ResizeGesture.handles(model.resizeGeometry(e)).map(h=><circle key={`${e.id}-${h.index}`} className="resize-handle" data-resize-handle={h.index} data-resize-id={e.id} cx={h.x} cy={h.y} r={5*model.width/(svg.current?.clientWidth||600)} style={{cursor:['nwse-resize','nesw-resize','nwse-resize','nesw-resize','ns-resize','ew-resize','ns-resize','ew-resize'][h.index]}}/>))}
     {showGuides&&guides.items.map(g=><line key={g.id} x1={g.axis==='x'?g.pos:0} x2={g.axis==='x'?g.pos:model.width} y1={g.axis==='y'?g.pos:0} y2={g.axis==='y'?g.pos:model.height} stroke="#c36c32" strokeWidth="0.8" strokeDasharray="4 3" pointerEvents="none"/>)}
     {draft&&!draft.id&&<rect {...draft.rectangle} width={draft.rectangle.w} height={draft.rectangle.h} fill="#466ce022" stroke="#466ce0" pointerEvents="none"/>}
   </svg>;
