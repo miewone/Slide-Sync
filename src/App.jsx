@@ -1,3 +1,4 @@
+import {SimilarSelectionMenu} from './components/SimilarSelectionMenu.jsx';
 import {t} from './i18n/I18n.js';
 import {useLanguage} from './hooks/useLanguage.js';
 import {useEffect, useMemo, useRef} from 'react';
@@ -48,6 +49,6 @@ export default function App() {
   }, [services]);
 
   return <EditorContext.Provider value={services}>
-    <div id="app" ref={root}><AnalyticsConsentBanner/><Header/><ResizableLayout left={<Sidebar/>} center={<Workspace/>} right={<Inspector/>}/></div>
+    <div id="app" ref={root}><SimilarSelectionMenu root={root}/><AnalyticsConsentBanner/><Header/><ResizableLayout left={<Sidebar/>} center={<Workspace/>} right={<Inspector/>}/></div>
   </EditorContext.Provider>;
 }

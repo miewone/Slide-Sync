@@ -1,3 +1,4 @@
+import {checkNativeSimilarSelection} from './similar-selection-checks.mjs';
 import {checkNativeImages} from './native-image-checks.mjs';
 import {checkNativeSlidesRendering} from './native-slides-rendering-checks.mjs';
 import {checkNativeSavedPreview} from './native-saved-preview-checks.mjs';
@@ -17,6 +18,7 @@ export async function checkNativeSlidesEditing(browser){
   assert.equal(await browser.evaluate('document.querySelector(".native-slides-editor").scrollWidth<=innerWidth'),true,'shared native editor fits mobile width');
   await browser.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await browser.until('!!document.querySelector("#native-slide-0 .native-layout")','native grid becomes visible');
+  await checkNativeSimilarSelection(browser);
   await checkNativeImages(browser);
   await checkNativeSlidesRendering(browser);
   await checkNativeSavedPreview(browser);

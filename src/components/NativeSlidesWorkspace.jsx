@@ -1,3 +1,4 @@
+import {SimilarSelectionMenu} from './SimilarSelectionMenu.jsx';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {t,i18n} from '../i18n/I18n.js';
@@ -84,7 +85,7 @@ export default function NativeSlidesWorkspace({document:model,source:initialSour
     {created&&<p className="notice" role="alert">{t('drive.copyCreated')} <a href={`https://docs.google.com/presentation/d/${encodeURIComponent(created.id)}/edit`} target="_blank" rel="noopener noreferrer">{created.name}</a></p>}
     <div ref={renderContainer} className="native-render-container">
     <div ref={stage} className={`stage native-stage${grid.columns===null?'':' preview-grid'}`} style={{'--preview-columns':grid.columns||2,'--slide-aspect':model.width/model.height}}>
-      {model.original.slides.map((slide,index)=>visibleSlide(index)&&<NativeSlideCard key={slide.objectId} index={index} active={page===index} onActivate={setPage} onCheck={checkSlide} model={model} checked={checked} selected={selected} setSelected={setSelected} perform={perform} busy={busy||save} guides={guides} showGuides={showGuides} snap={snap} version={version} fontOverrides={fontOverrides} boxSelect={boxSelect}/>)}
+      {model.original.slides.map((slide,index)=>visibleSlide(index)&&<NativeSlideCard key={slide.objectId} index={index} active={page===index} onActivate={setPage} onCheck={checkSlide} model={model} checked={checked} setChecked={setChecked} selected={selected} setSelected={setSelected} perform={perform} busy={busy||save} guides={guides} showGuides={showGuides} snap={snap} version={version} fontOverrides={fontOverrides} boxSelect={boxSelect}/>)}
     </div>
       <NativeSavedPreview container={renderContainer} page={page} thumbnail={thumbnail} error={thumbnailError} onImageError={()=>setThumbnailError(t('drive.previewError'))}/>
     </div>
@@ -133,6 +134,7 @@ export default function NativeSlidesWorkspace({document:model,source:initialSour
         <a className="developer-email" href="mailto:dlsrk489@gmail.com">{t('Header.4')}</a>
       </div>
     </div><div className="header-actions"><div className="language-control" role="group" aria-label={t('language.label')}>{['ko','en'].map(language=><button key={language} type="button" id={`native-language-${language}`} lang={language} disabled={busy} aria-pressed={i18n.getLanguage()===language} onClick={()=>i18n.setLanguage(language)}>{t(language==='ko'?'language.korean':'language.english')}</button>)}</div><Button id="native-connect" disabled={busy} onClick={()=>run(()=>session.authorize())}>{t('drive.connect')}</Button><Button id="native-close" disabled={busy} onClick={close}>{t('drive.close')}</Button><Button id="native-save" disabled={busy} variant="primary" onClick={()=>{setError('');setSave(true);}}>{t('drive.save')}</Button></div></header>
+    <SimilarSelectionMenu root={root}/>
     <ResizableLayout left={left} center={center} right={right} busy={busy||save}/>
     {save&&<DriveSaveDialog source={source} title={source.name} session={session} busy={busy} error={error} createdFile={created} onClose={()=>setSave(false)} onSave={options=>run(async()=>{
       const target=await files.saveSlides(model,{...options,source});

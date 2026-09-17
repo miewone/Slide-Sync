@@ -1,3 +1,4 @@
+import {checkSimilarSelection} from './similar-selection-checks.mjs';
 import {checkAlignment} from './alignment-checks.mjs';
 import assert from 'node:assert/strict';
 import {makeDeckFixture} from '../tests/deck-fixtures.mjs';
@@ -39,6 +40,7 @@ export async function checkRangeSelection(browser,origin,count=12) {
   await browser.evaluate(`globalThis.rangeFrames=[...document.querySelectorAll('#stage iframe')].map(frame=>({frame,doc:frame.contentDocument}));
     globalThis.rangeEncodes=0;const originalEncode=JSZip.prototype.generateAsync;JSZip.prototype.generateAsync=function(...args){rangeEncodes++;return originalEncode.apply(this,args)};
     globalThis.rangeFrameWrites=0;const descriptor=Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype,'srcdoc');Object.defineProperty(HTMLIFrameElement.prototype,'srcdoc',{...descriptor,set(value){rangeFrameWrites++;return descriptor.set.call(this,value)}});void 0;`);
+  await checkSimilarSelection(browser,count);
   const position=async(index,x,y)=>browser.evaluate(`(()=>{const r=document.querySelector('#slide-${index} .slide-surface').getBoundingClientRect();return {x:r.left+${x}/960*r.width,y:r.top+${y}/540*r.height}})()`);
   const ids=async(index=0)=>browser.evaluate(`[...document.querySelectorAll('#slide-${index} .hit-overlay [data-selection-id]')].map(n=>n.dataset.selectionId).sort()`);
   const number=async()=>browser.evaluate('Number(document.querySelector(".selection-number").textContent)');

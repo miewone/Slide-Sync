@@ -145,6 +145,8 @@ try {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkActivityLog(browser,origin);
   } else if(process.argv.includes('--check-background-persistence')) {
     await checkBackgroundPersistence(browser,'http://127.0.0.1:5179');
+  } else if(process.argv.includes('--check-similar-selection')) {
+    await checkRangeSelection(browser,'http://127.0.0.1:4179',12);
   } else if(process.argv.includes('--check-appearance')) {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkRangeSelection(browser,origin,3);
     await browser.evaluate('document.querySelector("#appearance-settings").click()');

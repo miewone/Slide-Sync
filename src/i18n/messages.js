@@ -1405,5 +1405,13 @@ Object.assign(messages, {
   'layout.resize.left': {ko:'왼쪽 패널 너비 조절',en:'Resize the left panel'},
   'layout.resize.right': {ko:'오른쪽 패널 너비 조절',en:'Resize the right panel'},
   'layout.resize.help': {ko:'드래그하거나 좌우 방향키로 너비를 조절합니다. 두 번 클릭 또는 Home으로 기본 너비를 복원합니다.',en:'Drag or use Left/Right arrow keys to resize. Double-click or press Home to restore the default width.'},
-  'layout.resize.saveFailed': {ko:'너비는 적용했지만 브라우저에 저장하지 못했습니다. 브라우저 저장소 설정을 확인하세요.',en:'The widths were applied but could not be saved. Check your browser storage settings.'}
+  'layout.resize.saveFailed': {ko:'너비는 적용했지만 브라우저에 저장하지 못했습니다. 브라우저 저장소 설정을 확인하세요.',en:'The widths were applied but could not be saved. Check your browser storage settings.'},
+  'similar.title':{ko:'동일한 요소 선택',en:'Select similar elements'},
+  'similar.layout':{ko:'레이아웃 (종류·크기·회전)',en:'Layout (type, size, rotation)'},
+  'similar.colors':{ko:'색상 (채우기·테두리·글자)',en:'Colors (fill, border, text)'},
+  'similar.format':{ko:'서식 (글꼴·크기·굵기·정렬)',en:'Format (font, size, bold, alignment)'},
+  'similar.scope':{ko:'선택 범위',en:'Selection scope'},
+  'similar.page':{ko:'현재 슬라이드',en:'Current slide'},
+  'similar.all':{ko:'전체 슬라이드',en:'All slides'},
+  'similar.apply':{ko:'일치하는 요소 선택',en:'Select matching elements'},
 });

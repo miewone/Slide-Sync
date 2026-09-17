@@ -1,3 +1,4 @@
+import {SimilarElementMatcher} from './SimilarElementMatcher.js';
 import {TextBoxBackground} from './TextBoxBackground.js';
 import {t,localizedError,i18n} from '../i18n/I18n.js';
 import {EditHistorySnapshot} from './EditHistorySnapshot.js';
@@ -424,6 +425,21 @@ function updateOverlays(indices, guideIndices=indices, {force=false}={}){
 }
 let cancelActiveDrag=null,refreshActiveDrag=null,nudgeHistory=null;
 function bindPointer(surface,index){
+  surface.addEventListener('contextmenu',event=>{
+    if(state.busy||!state.deck)return;
+    const rect=surface.getBoundingClientRect();
+    const source=hitTest(state.deck.slides[index],(event.clientX-rect.left)/rect.width*state.deck.width,(event.clientY-rect.top)/rect.height*state.deck.height);
+    if(!source)return;
+    event.preventDefault();cancelActiveDrag?.();
+    const deck=state.deck;
+    surface.dispatchEvent(new CustomEvent('similar-selection',{bubbles:true,detail:{x:event.clientX,y:event.clientY,anchor:surface,apply:(criteria,scope)=>{
+      if(disposed||state.busy||state.deck!==deck||!surface.isConnected)return;
+      state.allSelected=SimilarElementMatcher.select(deck,index,source,criteria,scope);
+      state.reference=index;state.point=null;
+      setChecked(new Set(scope==='all'?deck.slides.map(s=>s.index):[index]));
+      status(()=>t('createEditorRuntime.9',{p0:state.selected.size,p1:selectedElements().length}));
+    }}}));
+  });
   let start=null,scheduled=0,latest=null;
   const tooltip=surface.querySelector('.drag-tooltip');
   const box=new BoxSelectionGesture({surface,width:state.deck.width,height:state.deck.height,

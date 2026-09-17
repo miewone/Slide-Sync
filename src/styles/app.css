@@ -337,3 +337,12 @@
 .native-saved-preview-resize{position:absolute;right:0;top:0;display:grid;place-items:center;width:25px;height:25px;min-height:25px;padding:0;border:0;border-radius:0 7px 0 5px;background:#e8eef9;color:#526b99;cursor:nesw-resize;touch-action:none}
 .native-saved-preview-resize:hover{background:#d7e3f9}
 @media(max-width:850px){.native-render-container{flex:none;height:70vh;min-height:400px;max-height:75vh}}
+
+/* Reuse appearance-panel and shared controls for the editor's context dialog. */
+.similar-selection-menu{z-index:10000;max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}
+.similar-selection-menu>header{margin-bottom:6px}
+.similar-selection-menu>label{line-height:1.5;color:#536889}
+.similar-selection-menu input[type=checkbox]{margin:0;flex-shrink:0}
+.similar-selection-scope{margin-top:8px;padding-top:12px;border-top:1px solid #e3e8f0}
+.similar-selection-scope .field-label{display:block;margin:0 0 6px}
+.similar-selection-menu>.button{margin-top:14px}

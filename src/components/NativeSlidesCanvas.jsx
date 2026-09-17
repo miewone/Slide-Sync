@@ -1,3 +1,5 @@
+import {openSimilarSelection} from './SimilarSelectionMenu.jsx';
+import {NativeSimilarSelection} from '../editor/google/NativeSimilarSelection.js';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {NativeSlidesText} from '../editor/google/NativeSlidesText.js';
 import {snapToGuides} from '../editor/guides.js';
@@ -7,7 +9,7 @@ import {NativeSlidesArtwork} from './NativeSlidesArtwork.jsx';
 import {NativeSlidesImage} from './NativeSlidesImage.jsx';
 
 /** Pointer drag, cross-slide box selection and guide snapping in slide coordinates. @param {object} props Current model, scope, selection, guides and edit callbacks. */
-export function NativeSlidesCanvas({model,page,checked,selected,setSelected,perform,busy,guides,showGuides,snap,version,fontOverrides,boxSelect=false}){
+export function NativeSlidesCanvas({model,page,checked,setChecked,selected,setSelected,perform,busy,guides,showGuides,snap,version,fontOverrides,boxSelect=false}){
   const svg=useRef(null),gesture=useRef(null),[draft,setDraft]=useState(null);
   const renderer=useMemo(()=>new NativeSlidesText(model,fontOverrides,page),[model,version,fontOverrides,page]);
   const appearance=useMemo(()=>new NativeSlidesAppearance(model,page),[model,page,version]),background=appearance.background();
@@ -44,8 +46,20 @@ export function NativeSlidesCanvas({model,page,checked,selected,setSelected,perf
     }else if(g.id&&g.additive&&g.wasSelected)setSelected(previous=>{const next=new Set(previous);next.delete(g.id);return next;});
     else if(!g.id&&!g.additive)setSelected(model.selectRectangle(checked,selected,{x:0,y:0,w:0,h:0}));
   };
+  const menuBusy=useRef(busy);menuBusy.current=busy;
+  const contextMenu=event=>{
+    if(busy)return;
+    const id=event.target.closest('[data-object-id]')?.dataset.objectId,source=elements.find(e=>e.id===id&&!e.deleted);
+    if(!source)return;
+    reset();
+    openSimilarSelection(event,(criteria,scope)=>{
+      if(menuBusy.current||!svg.current?.isConnected)return;
+      setSelected(new NativeSimilarSelection(model,criteria).select(page,source,scope));
+      setChecked(new Set(scope==='all'?model.original.slides.map((_,index)=>index):[page]));
+    });
+  };
   return <svg ref={svg} tabIndex={0} className="native-layout" viewBox={`0 0 ${model.width} ${model.height}`} aria-label={t('drive.draftLayout')}
-    onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={reset} onLostPointerCapture={reset} onKeyDown={event=>{if(event.key==='Escape'&&gesture.current){event.stopPropagation();reset();}}}>
+    onContextMenu={contextMenu} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={reset} onLostPointerCapture={reset} onKeyDown={event=>{if(event.key==='Escape'&&gesture.current){event.stopPropagation();reset();}}}>
     <rect width={model.width} height={model.height} fill="white"/>
     <g pointerEvents="none" data-native-background="true"><rect width={model.width} height={model.height} fill={background.fill.color} fillOpacity={background.fill.opacity}/>{background.hasImage&&<NativeSlidesImage objectId={background.imageId} url={background.image} width={model.width} height={model.height}/>}{background.elements.map(e=><NativeSlidesArtwork key={e.objectId} element={e} renderer={renderer} appearance={appearance}/>)}</g>
     {elements.filter(e=>e.box&&!e.deleted).map(e=><g key={e.id} data-object-id={e.id} transform={draft?.id&&draft.selection.has(e.id)?`translate(${draft.dx} ${draft.dy})`:undefined}>
