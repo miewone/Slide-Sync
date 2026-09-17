@@ -8,8 +8,8 @@ export async function checkInspector(browser,origin) {
   browser.errors=[];
   await browser.navigate(origin);
   await browser.until('!!document.querySelector("#demo") && !document.querySelector("#demo").disabled','inspector ready');
-  const sectionIds=['search','layout','move','guides','text-fit','selection'];
-  assert.equal(await browser.evaluate('document.querySelectorAll(".inspector-section").length'),6,'every editing category is collapsible');
+  const sectionIds=['search','layout','move','resize','guides','text-fit','selection'];
+  assert.equal(await browser.evaluate('document.querySelectorAll(".inspector-section").length'),7,'every editing category is collapsible');
   assert.equal(await browser.evaluate('document.querySelector("#element-search-query").disabled'),true,'search requires a deck');
   await browser.evaluate(`(async()=>{
     globalThis.makeDeckFixture=${makeDeckFixture.toString()};globalThis.makeSearchDeck=${makeSearchDeck.toString()};
@@ -82,7 +82,7 @@ export async function checkInspector(browser,origin) {
   assert.equal(await browser.evaluate('document.querySelectorAll(".inspector-section[open]").length'),0,'search/selection rerenders do not reopen categories');
   assert.equal(await browser.evaluate('!document.querySelector("#undo").closest(".inspector-section")'),true,'undo remains outside collapsed categories');
   for(const id of sectionIds)await browser.evaluate(`document.querySelector('#editor-section-${id}>summary').click()`);
-  assert.equal(await browser.evaluate('document.querySelectorAll(".inspector-section[open]").length'),6,'categories open independently');
+  assert.equal(await browser.evaluate('document.querySelectorAll(".inspector-section[open]").length'),7,'categories open independently');
   assert.equal(await browser.evaluate('inspectorNodes.every(node=>node.isConnected)'),true,'input DOM identity survives collapse');
   assert.deepEqual(await browser.evaluate('[document.querySelector("#x").value,document.querySelector("#y").value,document.querySelector("#fit-scope").value,document.querySelector("#guides-snap").checked]'),['12.34','-4.56','selected',false],'input drafts/preferences survive');
   assert.equal(await browser.evaluate('document.querySelector("#element-search-query").value'),'Alpha','query survives collapse');

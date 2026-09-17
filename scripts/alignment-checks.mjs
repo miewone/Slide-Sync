@@ -24,11 +24,12 @@ export async function checkAlignment(browser,rectangle) {
   for(const action of actions) {
     assert.equal(await browser.evaluate(`document.querySelector('[data-layout="${action}"]').disabled`),false,'selected items enable '+action);
     await browser.evaluate(`document.querySelector('[data-layout="${action}"]').click()`);
+    await browser.evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
     const boxes=await browser.evaluate('[readAlignmentBox(0,"101"),readAlignmentBox(0,"102")]');
     const horizontal=['left','center','right'].includes(action);
     boxes.forEach((item,index)=>{
       const value=action==='left'?item.x:action==='center'?item.x+item.w/2:action==='right'?item.x+item.w:action==='top'?item.y:action==='middle'?item.y+item.h/2:item.y+item.h;
-      assert.ok(Math.abs(value-expected[action])<1,action+' aligns the requested edge/center');
+      assert.ok(Math.abs(value-expected[action])<1,action+' aligns the requested edge/center: '+JSON.stringify({item,expected:expected[action],original}));
       assert.equal(item[horizontal?'y':'x'],original[index][horizontal?'y':'x'],'other coordinate is preserved');
     });
     const other=await browser.evaluate('[readAlignmentBox(2,"101"),readAlignmentBox(2,"102")]');

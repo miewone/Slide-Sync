@@ -1414,4 +1414,12 @@ Object.assign(messages, {
   'similar.page':{ko:'현재 슬라이드',en:'Current slide'},
   'similar.all':{ko:'전체 슬라이드',en:'All slides'},
   'similar.apply':{ko:'일치하는 요소 선택',en:'Select matching elements'},
+  'resize.title':{ko:'선택 요소 크기 조절',en:'Resize selected elements'},
+  'resize.help':{ko:'각 요소의 중심을 유지하며 현재 크기에 배율을 적용합니다. 가로·높이를 같은 값으로 입력하면 비율이 유지됩니다.',en:'Scale each element from its current size, keeping its center fixed. Use equal values to keep its proportions.'},
+  'resize.width':{ko:'가로 (%)',en:'Width (%)'},
+  'resize.height':{ko:'높이 (%)',en:'Height (%)'},
+  'resize.apply':{ko:'크기 적용',en:'Apply size'},
+  'resize.invalid':{ko:'가로·높이는 1~1000% 범위로 입력하세요. 결과 크기가 지원 범위를 벗어나면 적용할 수 없습니다.',en:'Enter width and height from 1 to 1000%. The resulting dimensions must stay within supported limits.'},
+  'resize.done':{ko:'각 요소의 중심을 유지하며 크기를 변경했습니다.',en:'Resized elements while preserving each center.'},
+  'resize.unchanged':{ko:'크기 변경 사항이 없습니다.',en:'No size changes.'},
 });

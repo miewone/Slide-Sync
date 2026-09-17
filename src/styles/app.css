@@ -346,3 +346,6 @@
 .similar-selection-scope{margin-top:8px;padding-top:12px;border-top:1px solid #e3e8f0}
 .similar-selection-scope .field-label{display:block;margin:0 0 6px}
 .similar-selection-menu>.button{margin-top:14px}
+
+.hit-overlay .resize-handle,.native-layout .resize-handle{pointer-events:all;fill:#fff;stroke:#466ce0;stroke-width:1.5;vector-effect:non-scaling-stroke;touch-action:none}
+.hit-overlay .resize-handle:hover,.native-layout .resize-handle:hover{fill:#dce6ff;stroke:#2854d4}

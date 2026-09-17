@@ -1,3 +1,5 @@
+import {ResizeGesture} from './ResizeGesture.js';
+import {ElementResize} from './ElementResize.js';
 import {SimilarElementMatcher} from './SimilarElementMatcher.js';
 import {TextBoxBackground} from './TextBoxBackground.js';
 import {t,localizedError,i18n} from '../i18n/I18n.js';
@@ -38,6 +40,7 @@ import {loadDeck,hitTest,corners,moveSelected,movePlans,selectedInSlide,selectio
 export function createEditorRuntime(root, store, resources, activityLog=new ActivityLog()) {
 const events = new EventScope();
 const toolLifecycle = new AbortController();
+const resizeGestures=new Set();
 let disposed = false;
 const ensureActive = () => { if (disposed) throw new DOMException('Editor disposed', 'AbortError'); };
 const $=id=>root.querySelector(`#${CSS.escape(id)}`),state={deck:null,name:'',checked:new Set(),selected:new Map(),allSelected:new Map(),reference:null,point:null,undo:[],redo:[],busy:false,previews:new Map(),failed:new Set(),drag:null,boxSelection:null};
@@ -98,7 +101,7 @@ let statusMessage=null,noticeMessage=null;
 function log(key,params={},level='info',fileName=state.name){if(!disposed)activityLog.record(key,params,{level,fileName});}
 function status(text){statusMessage=typeof text==='function'?text:()=>text;if(!disposed)store.update({status:statusMessage()});}
 function notice(text){noticeMessage=typeof text==='function'?text:()=>text;if(!disposed)store.update({notice:noticeMessage()||''});}
-function busy(value){if(disposed)return;state.busy=value;store.update({busy:value});for(const id of ['only-with-selection','delete-selection','match-appearance','box-select-mode','move','undo','redo','apply-range','clear-selection','text-format-size','text-format-decrease','text-format-increase','text-format-bold','fit-text','fit-text-width','fit-width-unwrap','fit-width-scope','fit-width-background','fit-scope','layout-target','guide-horizontal','guide-vertical','guide-select','guide-position','guide-apply','guide-delete','guides-visible','guides-edit','guides-snap']){const el=$(id);if(el)el.disabled=value;}for(const el of root.querySelectorAll('.card-head input,[data-layout]'))el.disabled=value;$('only-checked').disabled=value;if(!value)updateInspector();}
+function busy(value){if(disposed)return;state.busy=value;store.update({busy:value});for(const id of ['resize-width','resize-height','resize-apply','only-with-selection','delete-selection','match-appearance','box-select-mode','move','undo','redo','apply-range','clear-selection','text-format-size','text-format-decrease','text-format-increase','text-format-bold','fit-text','fit-text-width','fit-width-unwrap','fit-width-scope','fit-width-background','fit-scope','layout-target','guide-horizontal','guide-vertical','guide-select','guide-position','guide-apply','guide-delete','guides-visible','guides-edit','guides-snap']){const el=$(id);if(el)el.disabled=value;}for(const el of root.querySelectorAll('.card-head input,[data-layout]'))el.disabled=value;$('only-checked').disabled=value;if(!value)updateInspector();}
 function error(err,fileName=state.name){notice(()=>(err?.message||String(err)));status(()=>(t('createEditorRuntime.8')));log('activity.error',{message:err?.message||String(err)},'error',fileName);}
 function syncSelection(){state.selected=new Map([...state.allSelected].filter(([i,ids])=>state.checked.has(i)&&ids.size));}
 function selectedElements(){if(!state.deck)return [];return [...state.selected].flatMap(([i,ids])=>selectedInSlide(state.deck.slides[i],ids).map(element=>({slide:state.deck.slides[i],element})));}
@@ -155,6 +158,7 @@ function renderBoxSelection(indices) {
 function updateInspector(){
   const items=selectedElements(),n=items.length;
   $('delete-selection').disabled=!n||state.busy;
+  $('resize-apply').disabled=!n||state.busy;
   $('move').disabled=!n||state.busy;$('undo').disabled=!state.undo.length||state.busy;$('redo').disabled=!state.redo.length||state.busy;
   const ref=referenceElements(),bounds=selectionBounds(ref);
   const size=bounds?t('createEditorRuntime.11', {p0: ref.length>1?t('createEditorRuntime.12'):'', p1: (bounds.w/EMU_PER_CM).toFixed(2), p2: (bounds.h/EMU_PER_CM).toFixed(2)}):'';
@@ -282,7 +286,7 @@ function bindPreviewHover(card,index) {
 // Create lightweight shells once; only nearby cards receive iframe documents.
 function renderCards() {
   if(!state.deck)return;
-  resizeObserver.disconnect();viewport.reset();store.update({hoveredSlide:null});
+  for(const gesture of resizeGestures)gesture.dispose();resizeGestures.clear();resizeObserver.disconnect();viewport.reset();store.update({hoveredSlide:null});
   const stage=$('stage');stage.replaceChildren();stage.scrollTop=0;
   const fragment=document.createDocumentFragment();
   const entries=[];
@@ -402,7 +406,7 @@ function updateOverlays(indices, guideIndices=indices, {force=false}={}){
   for(const surface of surfaces){
     const i=Number(surface.dataset.slide),svg=surface.querySelector('svg.hit-overlay');
     const elements=selectedInSlide(state.deck.slides[i],state.selected.get(i)),point=state.point&&state.checked.has(i)?state.point:null;
-    const geometries=elements.map(e=>{const p=state.drag?.positions.get(`${i}/${e.id}`);return {id:e.id,g:p?{...e.g,x:p.x,y:p.y}:e.g};});
+    const geometries=elements.map(e=>{const p=state.drag?.positions.get(`${i}/${e.id}`);return {id:e.id,g:state.resize?.get(`${i}/${e.id}`)||(p?{...e.g,x:p.x,y:p.y}:e.g)};});
     const key=JSON.stringify([geometries,point,state.drag?.axis,!!state.drag]);if(surface.dataset.overlayKey===key)continue;surface.dataset.overlayKey=key;
     const bounds=geometries.length?visualBounds(geometries):null;
     SelectionLabel.update(surface,elements,bounds,state.deck.width,state.deck.height);
@@ -410,9 +414,11 @@ function updateOverlays(indices, guideIndices=indices, {force=false}={}){
     const existing=new Map([...svg.querySelectorAll('[data-selection-id]')].map(n=>[n.dataset.selectionId,n]));
     for(const {id,g}of geometries){
       let group=existing.get(id);existing.delete(id);
-      if(!group){group=document.createElementNS(svg.namespaceURI,'g');group.dataset.selectionId=id;group.append(document.createElementNS(svg.namespaceURI,'polygon'));for(let j=0;j<4;j++)group.append(document.createElementNS(svg.namespaceURI,'circle'));svg.append(group);}
+      if(!group){group=document.createElementNS(svg.namespaceURI,'g');group.dataset.selectionId=id;group.append(document.createElementNS(svg.namespaceURI,'polygon'));for(let j=0;j<8;j++)group.append(document.createElementNS(svg.namespaceURI,'circle'));svg.append(group);}
       const points=corners(g);group.firstElementChild.setAttribute('points',points.map(p=>`${p.x},${p.y}`).join(' '));
-      for(let j=0;j<4;j++){const circle=group.children[j+1],p=points[j];circle.setAttribute('cx',p.x);circle.setAttribute('cy',p.y);circle.setAttribute('r',state.deck.width/220);}
+      const handleSize=5*state.deck.width/Math.max(1,surface.getBoundingClientRect().width);
+      for(const handle of ResizeGesture.handles(g)){const circle=group.children[handle.index+1];circle.dataset.resizeHandle=String(handle.index);circle.setAttribute('cx',handle.x);circle.setAttribute('cy',handle.y);circle.setAttribute('r',handleSize);circle.style.cursor=['nwse-resize','nesw-resize','nwse-resize','nesw-resize','ns-resize','ew-resize','ns-resize','ew-resize'][handle.index];circle.classList.add('resize-handle');}
+
     }
     for(const node of existing.values())node.remove();
     let outline=svg.querySelector('.selection-bounds');if(!outline){outline=document.createElementNS(svg.namespaceURI,'rect');outline.classList.add('selection-bounds');svg.append(outline);}
@@ -425,6 +431,25 @@ function updateOverlays(indices, guideIndices=indices, {force=false}={}){
 }
 let cancelActiveDrag=null,refreshActiveDrag=null,nudgeHistory=null;
 function bindPointer(surface,index){
+  const resize=new ResizeGesture({surface,
+    point:event=>{const r=surface.getBoundingClientRect();return {x:(event.clientX-r.left)*state.deck.width/r.width,y:(event.clientY-r.top)*state.deck.height/r.height};},
+    source:handle=>{
+      if(state.busy||!state.deck)return null;
+      const id=handle.closest('[data-selection-id]')?.dataset.selectionId,element=state.deck.slides[index].elements.find(e=>e.id===id);
+      if(!element||!state.selected.get(index)?.has(id))return null;
+      cancelActiveDrag?.();state.reference=index;cancelActiveDrag=()=>resize.cancel();
+      return {g:element.g,selection:new Map([...state.selected].map(([i,ids])=>[i,new Set(ids)]))};
+    },
+    onPreview:({sx,sy},draft)=>{
+      state.resize=new Map();
+      for(const [i,ids] of draft.selection)for(const e of selectedInSlide(state.deck.slides[i],ids))state.resize.set(`${i}/${e.id}`,ElementResize.geometry(e.g,sx,sy));
+      for(const [i] of draft.selection){const slide=state.deck.slides[i],frame=viewport.get(i)?.frame;if(frame)syncPreviewPositions(frame.contentDocument,{...slide,elements:slide.elements.map(e=>({...e,g:state.resize.get(`${i}/${e.id}`)||e.g}))});}
+      updateOverlays(draft.selection.keys());
+    },
+    onEnd:()=>{state.resize=null;cancelActiveDrag=null;updateMovedPreviews(state.selected.keys());},
+    onError:error,onCommit:({sx,sy})=>applyResize(sx*100,sy*100)
+  });resizeGestures.add(resize);
+
   surface.addEventListener('contextmenu',event=>{
     if(state.busy||!state.deck)return;
     const rect=surface.getBoundingClientRect();
@@ -535,6 +560,13 @@ function recordEdit(snapshots,coalesce=false,{positionOnly=false,operation='acti
   updateMovedPreviews(indices,{positionOnly,idsBySlide:snapshots.changes?idsBySlide:undefined});updateSummary();
 }
 
+/** @param {number} width Width percentage. @param {number} height Height percentage. Apply one center-preserving edit. */
+function applyResize(width,height){
+  if(state.busy||!state.deck||!state.selected.size)return;
+  cancelActiveDrag?.();nudgeHistory=null;busy(true);notice(()=>(''));
+  try{const snapshots=ElementResize.apply(state.deck,state.selected,width,height);recordEdit(snapshots);updatePositionFields();status(()=>t(snapshots.length?'resize.done':'resize.unchanged'));}
+  catch(err){error(err);}finally{busy(false);}
+}
 async function applyLayout(action){
   if(state.busy||!state.selected.size)return;
   cancelActiveDrag?.();nudgeHistory=null;busy(true);notice(()=>(''));
@@ -901,6 +933,7 @@ $('text-format-decrease').onclick=()=>applyTextFormat({size:Math.max(1,Number($(
 $('text-format-increase').onclick=()=>applyTextFormat({size:Math.min(400,Number($('text-format-size').value)+1)});
 $('text-format-bold').onclick=()=>applyTextFormat({bold:$('text-format-bold').getAttribute('aria-pressed')!=='true'});
 $('fit-text').onclick=()=>fitText();$('fit-text-width').onclick=()=>fitText('width');$('fit-scope').onchange=updateFitControls;$('fit-width-scope').onchange=updateFitControls;events.on(window,'blur',()=>{cancelActiveDrag?.();nudgeHistory=null;});
+$('resize-apply').onclick=()=>applyResize(Number($('resize-width').value),Number($('resize-height').value));
 $('layout-target').onchange=updateLayoutControls;for(const button of root.querySelectorAll('[data-layout]'))button.onclick=()=>applyLayout(button.dataset.layout);
 
 guideUI=createGuideUI({root,getSurfaces:indices=>viewport.surfaces(indices),state,$,make,status,error,cancelDrag:()=>{cancelActiveDrag?.();nudgeHistory=null;},setDragHandlers:(cancel,refresh)=>{cancelActiveDrag=cancel;refreshActiveDrag=refresh;},recordEdit});
@@ -961,7 +994,7 @@ return {
   dispose() {
     if(disposed)return;
     cancelActiveDrag?.();disposed=true;
-    unsubscribeLanguage();events.dispose();toolLifecycle.abort();resizeObserver.disconnect();viewport.reset();store.update({hoveredSlide:null});
+    unsubscribeLanguage();events.dispose();toolLifecycle.abort();for(const gesture of resizeGestures)gesture.dispose();resizeGestures.clear();resizeObserver.disconnect();viewport.reset();store.update({hoveredSlide:null});
     previewer?.destroy();renderHost?.remove();state.fonts?.dispose();
     for(const element of root.querySelectorAll('*')) {
       for(const property of ['onclick','onchange','onkeydown']) element[property]=null;

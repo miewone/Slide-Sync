@@ -1,3 +1,4 @@
+import {checkResizeXml} from './element-resize-checks.mjs';
 import {checkDownloadOptions} from './download-options-checks.mjs';
 import {checkDriveLoading} from './drive-loading-checks.mjs';
 import {checkAnalyticsConsent} from './analytics-consent-checks.mjs';
@@ -145,6 +146,9 @@ try {
     for(const origin of ['http://127.0.0.1:5179','http://127.0.0.1:4179','http://127.0.0.1:4189/slides/'])await checkActivityLog(browser,origin);
   } else if(process.argv.includes('--check-background-persistence')) {
     await checkBackgroundPersistence(browser,'http://127.0.0.1:5179');
+  } else if(process.argv.includes('--check-resize')) {
+    await checkResizeXml(browser,'http://127.0.0.1:5179');
+    await checkRangeSelection(browser,'http://127.0.0.1:4179',12);
   } else if(process.argv.includes('--check-similar-selection')) {
     await checkRangeSelection(browser,'http://127.0.0.1:4179',12);
   } else if(process.argv.includes('--check-appearance')) {

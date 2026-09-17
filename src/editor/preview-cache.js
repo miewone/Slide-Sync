@@ -1,6 +1,6 @@
 import {textBoxInfo,captureTextStyles,scaleTextPreview} from './text-fit.js';
 import {TextFormat} from './TextFormat.js';
-import {serialize} from './core.js';
+import {serialize,child,descendants} from './core.js';
 import {PreviewTable} from './PreviewTable.js';
 const moverIndexes=new WeakMap(),elementIndexes=new WeakMap();
 
@@ -19,6 +19,14 @@ function moversById(root,rebuild=false) {
     moverIndexes.set(root,cached);
   }
   return cached.movers;
+}
+/** @param {object} element Shape descriptor. Include text-bearing shapes when updating resized backgrounds. */
+function previewTextInfo(element){
+  const box=textBoxInfo(element);if(box)return box;
+  if(element?.kind!=='sp')return null;
+  const body=child(element.node,'txBody');if(!body||!descendants(body,'t').some(n=>n.textContent.trim()))return null;
+  const props=child(body,'bodyPr'),normal=child(props,'normAutofit');
+  return {body,props,fontScale:Number(normal?.getAttribute('fontScale')||100000)/100000,lineScale:1-Number(normal?.getAttribute('lnSpcReduction')||0)/100000};
 }
 // Preview geometry is captured once. Subsequent edits translate existing
 // wrappers in both the detached cache and the script-disabled preview frame.
@@ -61,7 +69,8 @@ export function cachePreview(root, slide, unitsPerPixel = 12700) {
     mover.style.zIndex = String(element.index);
     layer.insertBefore(mover, child);
     mover.append(child);
-    const info=textBoxInfo(element),text=child.querySelector('.text-wrapper');
+    const info=previewTextInfo(element),text=child.querySelector('.text-wrapper');
+    mover.dataset.textBox=info?'true':'false';
     if(info&&text){
       mover.dataset.originalFontScale=String(info.fontScale);
       mover.dataset.originalLineScale=String(info.lineScale);
@@ -98,13 +107,21 @@ export function syncPreviewPositions(root, slide, options={}) {
     const units = Number(mover.dataset.unitsPerPixel);
     const dx = (g.x - Number(mover.dataset.originX)) / units;
     const dy = (g.y - Number(mover.dataset.originY)) / units;
-    const transform = dx || dy ? `translate(${dx}px, ${dy}px)` : '';
+    const info=options.positionOnly?null:previewTextInfo(element),shape=mover.firstElementChild;
+    let transform = dx || dy ? `translate(${dx}px, ${dy}px)` : '';
+    if(!options.positionOnly)mover.dataset.textBox=info?'true':'false';
+    if(!info&&mover.dataset.textBox!=='true'&&[g.w,g.h,Number(mover.dataset.originW),Number(mover.dataset.originH)].every(Number.isFinite)){
+      const ow=Number(mover.dataset.originW),oh=Number(mover.dataset.originH),sx=ow?g.w/ow:1,sy=oh?g.h/oh:1;
+      // Scale along the object's local axes, about its original center, including groups and images.
+      const cx=(Number(mover.dataset.originX)+ow/2)/units,cy=(Number(mover.dataset.originY)+oh/2)/units;
+      mover.style.transformOrigin=`${cx}px ${cy}px`;
+      if(sx!==1||sy!==1)transform=`translate(${dx+(g.w-ow)/(2*units)}px, ${dy+(g.h-oh)/(2*units)}px) rotate(${g.rot}deg) scale(${sx}, ${sy}) rotate(${-g.rot}deg)`;
+    }
     if (mover.style.transform !== transform) {
       mover.style.transform = transform;
       changed++;
     }
     if(options.positionOnly)continue;
-    const info=textBoxInfo(element),shape=mover.firstElementChild;
     if(info&&shape){
       shape.style.width=`${g.w/units}px`;
       shape.style.height=`${g.h/units}px`;

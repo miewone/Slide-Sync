@@ -1,3 +1,4 @@
+import {ElementResize} from '../ElementResize.js';
 import {localizedError} from '../../i18n/I18n.js';
 import {SearchText} from '../SearchText.js';
 import {NativeTextContent} from './NativeTextContent.js';
@@ -156,6 +157,32 @@ export class NativeSlidesDocument {
       const old=this.changes.get(id)||{};
       this.changes.set(id,{...old,dx:0,dy:0,transform:{scaleX:m.a*width/(w*sx),shearY:m.b*width/(w*sx),shearX:m.c*height/(h*sy),scaleY:m.d*height/(h*sy),translateX:m.x,translateY:m.y,unit:'PT'}});
     }});
+  }
+  /** @param {Set<number>} checked Scoped slides. @param {Set<string>} selected Object IDs. @param {number} widthPercent Local width %. @param {number} heightPercent Local height %. Preserve each object's visual center and rotation. */
+  resize(checked,selected,widthPercent,heightPercent){
+    const {sx,sy}=ElementResize.factors(widthPercent,heightPercent);
+    if(sx===1&&sy===1)return;
+    this.edit(()=>{for(const index of checked)for(const e of this.elements(index)){
+      if(!selected.has(e.id)||e.deleted||!e.box)continue;
+      const old=this.changes.get(e.id)||{},transform=this.resizedElement(e,sx,sy).native.transform;
+      this.changes.set(e.id,{...old,dx:0,dy:0,transform});
+    }});
+  }
+  /** @param {object} element Descriptor. @param {number} sx Local horizontal factor. @param {number} sy Local vertical factor. Return a preview descriptor without editing the model. */
+  resizedElement(element,sx,sy){
+    const e=element,m=matrix(e.native.transform);
+    const transform={scaleX:m.a*sx,shearY:m.b*sx,shearX:m.c*sy,scaleY:m.d*sy,translateX:m.x,translateY:m.y,unit:'PT'};
+    const resized=bounds({...e.native,transform});
+    if(!resized||resized.w>100000||resized.h>100000)throw localizedError('resize.invalid');
+    transform.translateX+=e.box.x+e.box.w/2-resized.x-resized.w/2;
+    transform.translateY+=e.box.y+e.box.h/2-resized.y-resized.h/2;
+    const native={...e.native,transform};return {...e,native,box:bounds(native)};
+  }
+  /** @param {object} element Descriptor. Return a local-axis handle rectangle centered on the object. */
+  resizeGeometry(element){
+    const m=matrix(element.native.transform),rot=Math.atan2(m.b,m.a),c=Math.cos(rot),s=Math.sin(rot),cx=element.box.x+element.box.w/2,cy=element.box.y+element.box.h/2;
+    const points=outline(element.native).map(p=>({x:c*(p.x-cx)+s*(p.y-cy),y:-s*(p.x-cx)+c*(p.y-cy)})),b=rectangle(points);
+    return {x:cx-b.w/2,y:cy-b.h/2,w:b.w,h:b.h,rot:rot*180/Math.PI};
   }
   /** @param {string} query Literal slide text. Return slide indices without notes/master samples. */
   findSlides(query){const q=SearchText.normalize(query);return q?this.original.slides.flatMap((_,i)=>SearchText.normalize(this.elements(i).filter(e=>!e.deleted).map(e=>e.text).join(' ')).includes(q)?[i]:[]):[];}

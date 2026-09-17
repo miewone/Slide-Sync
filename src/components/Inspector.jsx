@@ -1,3 +1,4 @@
+import {ResizePanel} from './ResizePanel.jsx';
 import {t} from '../i18n/I18n.js';
 import {useLanguage} from '../hooks/useLanguage.js';
 import {memo} from 'react';
@@ -22,6 +23,6 @@ export const Inspector = memo(function Inspector() {
       <Button id="undo" disabled aria-label={t('Inspector.2')} aria-keyshortcuts="Control+z" title={`${t('Inspector.2')} (Ctrl+Z)`}>↶</Button>
       <Button id="redo" disabled aria-label={t('history.redo')} aria-keyshortcuts="Control+y" title={`${t('history.redo')} (Ctrl+Y)`}>↷</Button>
     </div>
-    <ElementSearchPanel/><LayoutPanel/><MovePanel/><GuidePanel/><TextFitPanel/>
+    <ElementSearchPanel/><LayoutPanel/><MovePanel/><ResizePanel/><GuidePanel/><TextFitPanel/>
   </aside>;
 });

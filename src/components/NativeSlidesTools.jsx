@@ -1,3 +1,4 @@
+import {NativeResizePanel} from './ResizePanel.jsx';
 import {useEffect,useState} from 'react';
 import {Button} from './ui.jsx';
 import {createPortal} from 'react-dom';
@@ -24,6 +25,7 @@ export function NativeSlidesTools({model,checked,selected,setSelected,perform,ru
     model.resizeText(plans);
   });
   return <>
+    <NativeResizePanel model={model} checked={checked} selected={selected} busy={busy} perform={perform}/>
     <details className="inspector-section" open><summary>{t('native.appearance')}</summary>
       {Object.keys(criteria).map(key=><label key={key}><input type="checkbox" checked={criteria[key]} onChange={e=>setCriteria({...criteria,[key]:e.target.checked})}/>{t('native.'+key)}</label>)}
       <Button id="native-select-similar" disabled={!selected.size} onClick={()=>{

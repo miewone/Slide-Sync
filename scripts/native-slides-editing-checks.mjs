@@ -1,3 +1,4 @@
+import {checkNativeResize} from './element-resize-checks.mjs';
 import {checkNativeSimilarSelection} from './similar-selection-checks.mjs';
 import {checkNativeImages} from './native-image-checks.mjs';
 import {checkNativeSlidesRendering} from './native-slides-rendering-checks.mjs';
@@ -19,6 +20,7 @@ export async function checkNativeSlidesEditing(browser){
   await browser.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await browser.until('!!document.querySelector("#native-slide-0 .native-layout")','native grid becomes visible');
   await checkNativeSimilarSelection(browser);
+  await checkNativeResize(browser);
   await checkNativeImages(browser);
   await checkNativeSlidesRendering(browser);
   await checkNativeSavedPreview(browser);

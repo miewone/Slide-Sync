@@ -1,3 +1,4 @@
+import {checkResizeControls} from './element-resize-checks.mjs';
 import {checkSimilarSelection} from './similar-selection-checks.mjs';
 import {checkAlignment} from './alignment-checks.mjs';
 import assert from 'node:assert/strict';
@@ -55,6 +56,7 @@ export async function checkRangeSelection(browser,origin,count=12) {
     await browser.send('Input.dispatchMouseEvent',{type:'mouseReleased',...b,button:'left',clickCount:1,modifiers});
     await browser.evaluate('new Promise(resolve=>requestAnimationFrame(resolve))');
   };
+  await checkResizeControls(browser,rectangle);
   await rectangle([20,60],[360,210],{inspect:async()=>{
     assert.equal(await number(),0,'draft does not change selection');
     assert.equal(await browser.evaluate('getComputedStyle(document.querySelector("#slide-0 .box-selection")).display!=="none"'),true,'visible rectangle during drag');
